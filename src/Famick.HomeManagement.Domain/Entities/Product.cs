@@ -1,0 +1,23 @@
+namespace Famick.HomeManagement.Domain.Entities;
+
+/// <summary>
+/// Represents a product/item in the inventory system
+/// </summary>
+public class Product : BaseTenantEntity
+{
+    public string Name { get; set; } = string.Empty;
+    public string? Description { get; set; }
+    public Guid LocationId { get; set; }
+    public Guid QuantityUnitIdPurchase { get; set; }
+    public Guid QuantityUnitIdStock { get; set; }
+    public decimal QuantityUnitFactorPurchaseToStock { get; set; } = 1.0m;
+    public decimal MinStockAmount { get; set; } = 0;
+    public int DefaultBestBeforeDays { get; set; } = 0;
+    public bool IsActive { get; set; } = true;
+
+    // Navigation properties
+    public Location Location { get; set; } = null!;
+    public QuantityUnit QuantityUnitPurchase { get; set; } = null!;
+    public QuantityUnit QuantityUnitStock { get; set; } = null!;
+    public ICollection<ProductBarcode> Barcodes { get; set; } = new List<ProductBarcode>();
+}

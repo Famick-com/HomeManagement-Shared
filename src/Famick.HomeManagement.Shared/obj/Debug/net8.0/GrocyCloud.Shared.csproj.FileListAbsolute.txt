@@ -1,0 +1,11 @@
+/Users/miketherien/Projects/git_projects/HomeManagement/src/GrocyCloud.Shared/bin/Debug/net8.0/GrocyCloud.Shared.deps.json
+/Users/miketherien/Projects/git_projects/HomeManagement/src/GrocyCloud.Shared/bin/Debug/net8.0/GrocyCloud.Shared.dll
+/Users/miketherien/Projects/git_projects/HomeManagement/src/GrocyCloud.Shared/bin/Debug/net8.0/GrocyCloud.Shared.pdb
+/Users/miketherien/Projects/git_projects/HomeManagement/src/GrocyCloud.Shared/obj/Debug/net8.0/GrocyCloud.Shared.GeneratedMSBuildEditorConfig.editorconfig
+/Users/miketherien/Projects/git_projects/HomeManagement/src/GrocyCloud.Shared/obj/Debug/net8.0/GrocyCloud.Shared.AssemblyInfoInputs.cache
+/Users/miketherien/Projects/git_projects/HomeManagement/src/GrocyCloud.Shared/obj/Debug/net8.0/GrocyCloud.Shared.AssemblyInfo.cs
+/Users/miketherien/Projects/git_projects/HomeManagement/src/GrocyCloud.Shared/obj/Debug/net8.0/GrocyCloud.Shared.csproj.CoreCompileInputs.cache
+/Users/miketherien/Projects/git_projects/HomeManagement/src/GrocyCloud.Shared/obj/Debug/net8.0/GrocyCloud.Shared.dll
+/Users/miketherien/Projects/git_projects/HomeManagement/src/GrocyCloud.Shared/obj/Debug/net8.0/refint/GrocyCloud.Shared.dll
+/Users/miketherien/Projects/git_projects/HomeManagement/src/GrocyCloud.Shared/obj/Debug/net8.0/GrocyCloud.Shared.pdb
+/Users/miketherien/Projects/git_projects/HomeManagement/src/GrocyCloud.Shared/obj/Debug/net8.0/ref/GrocyCloud.Shared.dll

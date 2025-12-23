@@ -1,0 +1,71 @@
+{
+  "runtimeTarget": {
+    "name": ".NETCoreApp,Version=v8.0",
+    "signature": ""
+  },
+  "compilationOptions": {},
+  "targets": {
+    ".NETCoreApp,Version=v8.0": {
+      "Famick.HomeManagement.Infrastructure/1.0.0": {
+        "dependencies": {
+          "Famick.HomeManagement.Core": "1.0.0",
+          "Famick.HomeManagement.Domain": "1.0.0",
+          "Famick.HomeManagement.Shared": "1.0.0"
+        },
+        "runtime": {
+          "Famick.HomeManagement.Infrastructure.dll": {}
+        }
+      },
+      "Famick.HomeManagement.Core/1.0.0": {
+        "dependencies": {
+          "Famick.HomeManagement.Domain": "1.0.0",
+          "Famick.HomeManagement.Shared": "1.0.0"
+        },
+        "runtime": {
+          "Famick.HomeManagement.Core.dll": {
+            "assemblyVersion": "1.0.0.0",
+            "fileVersion": "1.0.0.0"
+          }
+        }
+      },
+      "Famick.HomeManagement.Domain/1.0.0": {
+        "runtime": {
+          "Famick.HomeManagement.Domain.dll": {
+            "assemblyVersion": "1.0.0.0",
+            "fileVersion": "1.0.0.0"
+          }
+        }
+      },
+      "Famick.HomeManagement.Shared/1.0.0": {
+        "runtime": {
+          "Famick.HomeManagement.Shared.dll": {
+            "assemblyVersion": "1.0.0.0",
+            "fileVersion": "1.0.0.0"
+          }
+        }
+      }
+    }
+  },
+  "libraries": {
+    "Famick.HomeManagement.Infrastructure/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "Famick.HomeManagement.Core/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "Famick.HomeManagement.Domain/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "Famick.HomeManagement.Shared/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    }
+  }
+}
