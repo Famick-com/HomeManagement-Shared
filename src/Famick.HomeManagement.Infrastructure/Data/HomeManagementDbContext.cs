@@ -46,6 +46,10 @@ public class HomeManagementDbContext : DbContext
     public DbSet<Product> Products => Set<Product>();
     public DbSet<ProductBarcode> ProductBarcodes => Set<ProductBarcode>();
 
+    // Stock management
+    public DbSet<StockEntry> Stock => Set<StockEntry>();
+    public DbSet<StockLog> StockLog => Set<StockLog>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
