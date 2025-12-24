@@ -17,6 +17,6 @@ public class User : BaseEntity, ITenantEntity
     public DateTime? LastLoginAt { get; set; }
 
     // Navigation properties
-    public Tenant Tenant { get; set; } = null!;
+    // Note: Tenant navigation property is cloud-specific and defined in homemanagement-cloud
     public ICollection<UserPermission> UserPermissions { get; set; } = new List<UserPermission>();
 }

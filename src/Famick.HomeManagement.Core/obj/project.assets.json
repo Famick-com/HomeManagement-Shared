@@ -773,11 +773,11 @@
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "/Users/miketherien/Projects/git_projects/HomeManagement/src/Famick.HomeManagement.Core/Famick.HomeManagement.Core.csproj",
+      "projectUniqueName": "/Users/miketherien/Projects/git_projects/Famick/homemanagement-shared/src/Famick.HomeManagement.Core/Famick.HomeManagement.Core.csproj",
       "projectName": "Famick.HomeManagement.Core",
-      "projectPath": "/Users/miketherien/Projects/git_projects/HomeManagement/src/Famick.HomeManagement.Core/Famick.HomeManagement.Core.csproj",
+      "projectPath": "/Users/miketherien/Projects/git_projects/Famick/homemanagement-shared/src/Famick.HomeManagement.Core/Famick.HomeManagement.Core.csproj",
       "packagesPath": "/Users/miketherien/.nuget/packages/",
-      "outputPath": "/Users/miketherien/Projects/git_projects/HomeManagement/src/Famick.HomeManagement.Core/obj/",
+      "outputPath": "/Users/miketherien/Projects/git_projects/Famick/homemanagement-shared/src/Famick.HomeManagement.Core/obj/",
       "projectStyle": "PackageReference",
       "configFilePaths": [
         "/Users/miketherien/Projects/NuGet.Config",
@@ -796,11 +796,11 @@
         "net8.0": {
           "targetAlias": "net8.0",
           "projectReferences": {
-            "/Users/miketherien/Projects/git_projects/HomeManagement/src/Famick.HomeManagement.Domain/Famick.HomeManagement.Domain.csproj": {
-              "projectPath": "/Users/miketherien/Projects/git_projects/HomeManagement/src/Famick.HomeManagement.Domain/Famick.HomeManagement.Domain.csproj"
+            "/Users/miketherien/Projects/git_projects/Famick/homemanagement-shared/src/Famick.HomeManagement.Domain/Famick.HomeManagement.Domain.csproj": {
+              "projectPath": "/Users/miketherien/Projects/git_projects/Famick/homemanagement-shared/src/Famick.HomeManagement.Domain/Famick.HomeManagement.Domain.csproj"
             },
-            "/Users/miketherien/Projects/git_projects/HomeManagement/src/Famick.HomeManagement.Shared/Famick.HomeManagement.Shared.csproj": {
-              "projectPath": "/Users/miketherien/Projects/git_projects/HomeManagement/src/Famick.HomeManagement.Shared/Famick.HomeManagement.Shared.csproj"
+            "/Users/miketherien/Projects/git_projects/Famick/homemanagement-shared/src/Famick.HomeManagement.Shared/Famick.HomeManagement.Shared.csproj": {
+              "projectPath": "/Users/miketherien/Projects/git_projects/Famick/homemanagement-shared/src/Famick.HomeManagement.Shared/Famick.HomeManagement.Shared.csproj"
             }
           }
         }

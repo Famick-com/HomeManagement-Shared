@@ -21,3 +21,15 @@
 /app/src/Famick.HomeManagement.Shared/obj/Debug/net8.0/refint/Famick.HomeManagement.Shared.dll
 /app/src/Famick.HomeManagement.Shared/obj/Debug/net8.0/Famick.HomeManagement.Shared.pdb
 /app/src/Famick.HomeManagement.Shared/obj/Debug/net8.0/ref/Famick.HomeManagement.Shared.dll
+/Users/miketherien/Projects/git_projects/Famick/homemanagement-shared/src/Famick.HomeManagement.Shared/bin/Debug/net8.0/Famick.HomeManagement.Shared.deps.json
+/Users/miketherien/Projects/git_projects/Famick/homemanagement-shared/src/Famick.HomeManagement.Shared/bin/Debug/net8.0/Famick.HomeManagement.Shared.dll
+/Users/miketherien/Projects/git_projects/Famick/homemanagement-shared/src/Famick.HomeManagement.Shared/bin/Debug/net8.0/Famick.HomeManagement.Shared.pdb
+/Users/miketherien/Projects/git_projects/Famick/homemanagement-shared/src/Famick.HomeManagement.Shared/obj/Debug/net8.0/Famick.HomeManagement.Shared.GeneratedMSBuildEditorConfig.editorconfig
+/Users/miketherien/Projects/git_projects/Famick/homemanagement-shared/src/Famick.HomeManagement.Shared/obj/Debug/net8.0/Famick.HomeManagement.Shared.AssemblyInfoInputs.cache
+/Users/miketherien/Projects/git_projects/Famick/homemanagement-shared/src/Famick.HomeManagement.Shared/obj/Debug/net8.0/Famick.HomeManagement.Shared.AssemblyInfo.cs
+/Users/miketherien/Projects/git_projects/Famick/homemanagement-shared/src/Famick.HomeManagement.Shared/obj/Debug/net8.0/Famick.HomeManagement.Shared.csproj.CoreCompileInputs.cache
+/Users/miketherien/Projects/git_projects/Famick/homemanagement-shared/src/Famick.HomeManagement.Shared/obj/Debug/net8.0/Famick.HomeManagement.Shared.sourcelink.json
+/Users/miketherien/Projects/git_projects/Famick/homemanagement-shared/src/Famick.HomeManagement.Shared/obj/Debug/net8.0/Famick.HomeManagement.Shared.dll
+/Users/miketherien/Projects/git_projects/Famick/homemanagement-shared/src/Famick.HomeManagement.Shared/obj/Debug/net8.0/refint/Famick.HomeManagement.Shared.dll
+/Users/miketherien/Projects/git_projects/Famick/homemanagement-shared/src/Famick.HomeManagement.Shared/obj/Debug/net8.0/Famick.HomeManagement.Shared.pdb
+/Users/miketherien/Projects/git_projects/Famick/homemanagement-shared/src/Famick.HomeManagement.Shared/obj/Debug/net8.0/ref/Famick.HomeManagement.Shared.dll

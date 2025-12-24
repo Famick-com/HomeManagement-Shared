@@ -58,10 +58,7 @@ public class RefreshToken : BaseEntity, ITenantEntity
     /// </summary>
     public User User { get; set; } = null!;
 
-    /// <summary>
-    /// The tenant this refresh token belongs to
-    /// </summary>
-    public Tenant Tenant { get; set; } = null!;
+    // Note: Tenant navigation property is cloud-specific and defined in homemanagement-cloud
 
     /// <summary>
     /// The token that replaced this one (if any)

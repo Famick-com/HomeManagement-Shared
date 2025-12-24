@@ -52,10 +52,10 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
             .HasDefaultValueSql("CURRENT_TIMESTAMP");
 
         // Navigation
-        builder.HasOne(u => u.Tenant)
-            .WithMany(t => t.Users)
-            .HasForeignKey(u => u.TenantId)
-            .OnDelete(DeleteBehavior.Cascade);
+//         builder.HasOne(u => u.Tenant)
+//             .WithMany(t => t.Users)
+//             .HasForeignKey(u => u.TenantId)
+//             .OnDelete(DeleteBehavior.Cascade);
 
         builder.HasMany(u => u.UserPermissions)
             .WithOne(up => up.User)

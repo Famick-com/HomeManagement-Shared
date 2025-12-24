@@ -5,7 +5,7 @@ using Famick.HomeManagement.Core.DTOs.Authentication;
 using Famick.HomeManagement.Core.Exceptions;
 using Famick.HomeManagement.Core.Interfaces;
 using Famick.HomeManagement.Domain.Entities;
-using Famick.HomeManagement.Domain.Enums;
+// using Famick.HomeManagement.Domain.Enums; // Cloud-specific namespace - commented out
 using Famick.HomeManagement.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -41,139 +41,6 @@ public class AuthenticationService : IAuthenticationService
         _logger = logger;
     }
 
-    /// <inheritdoc />
-    public async Task<RegisterTenantResponse> RegisterTenantAsync(
-        RegisterTenantRequest request,
-        CancellationToken cancellationToken = default)
-    {
-        // Check subdomain uniqueness
-        var subdomainExists = await _context.Tenants
-            .AnyAsync(t => t.Subdomain == request.Subdomain.ToLower(), cancellationToken);
-
-        if (subdomainExists)
-        {
-            throw new InvalidOperationException($"Subdomain '{request.Subdomain}' is already taken");
-        }
-
-        // Check email uniqueness across all tenants
-        var emailExists = await _context.Users
-            .AnyAsync(u => u.Email == request.Email.ToLower(), cancellationToken);
-
-        if (emailExists)
-        {
-            throw new InvalidOperationException($"Email '{request.Email}' is already registered");
-        }
-
-        // Use execution strategy to handle transactions with retry logic
-        var strategy = _context.Database.CreateExecutionStrategy();
-        return await strategy.ExecuteAsync(async (ct) =>
-        {
-            using var transaction = await _context.Database.BeginTransactionAsync(ct);
-            try
-            {
-                // 1. Create tenant
-                var tenant = new Tenant
-                {
-                    Id = Guid.NewGuid(),
-                    Name = request.OrganizationName,
-                    Subdomain = request.Subdomain.ToLower(),
-                    SubscriptionTier = SubscriptionTier.Free,
-                    MaxUsers = 5,
-                    StorageQuotaMb = 1000,
-                    IsActive = true,
-                    CreatedAt = DateTime.UtcNow,
-                    UpdatedAt = DateTime.UtcNow
-                };
-
-                _context.Tenants.Add(tenant);
-                await _context.SaveChangesAsync(ct);
-
-                // 2. Create admin user
-                var hashedPassword = _passwordHasher.HashPassword(request.Password);
-
-                var adminUser = new User
-                {
-                    Id = Guid.NewGuid(),
-                    TenantId = tenant.Id,
-                    Username = request.Email.ToLower(),
-                    Email = request.Email.ToLower(),
-                    PasswordHash = hashedPassword,
-                    FirstName = request.FirstName,
-                    LastName = request.LastName,
-                    IsActive = true,
-                    CreatedAt = DateTime.UtcNow,
-                    UpdatedAt = DateTime.UtcNow
-                };
-
-                _context.Users.Add(adminUser);
-                await _context.SaveChangesAsync(ct);
-
-                // 3. Assign default admin permissions
-                var defaultPermissions = _configuration.GetSection("DefaultAdminPermissions").Get<List<string>>()
-                    ?? new List<string>
-                    {
-                        "stock.purchase", "stock.consume", "stock.transfer", "stock.inventory",
-                        "recipes.create", "recipes.edit", "recipes.delete", "recipes.view",
-                        "shopping_list.create", "shopping_list.edit", "shopping_list.delete",
-                        "chores.create", "chores.edit", "chores.execute",
-                        "tasks.create", "tasks.edit", "tasks.complete",
-                        "users.manage", "settings.manage"
-                    };
-
-                // Get or create permissions
-                foreach (var permissionName in defaultPermissions)
-                {
-                    var permission = await _context.Permissions
-                        .FirstOrDefaultAsync(p => p.Name == permissionName, ct);
-
-                    if (permission == null)
-                    {
-                        permission = new Permission
-                        {
-                            Id = Guid.NewGuid(),
-                            Name = permissionName,
-                            Description = $"Permission for {permissionName}",
-                            CreatedAt = DateTime.UtcNow,
-                            UpdatedAt = DateTime.UtcNow
-                        };
-                        _context.Permissions.Add(permission);
-                        await _context.SaveChangesAsync(ct);
-                    }
-
-                    // Assign permission to user
-                    var userPermission = new UserPermission
-                    {
-                        UserId = adminUser.Id,
-                        PermissionId = permission.Id,
-                        TenantId = tenant.Id
-                    };
-
-                    _context.UserPermissions.Add(userPermission);
-                }
-
-                await _context.SaveChangesAsync(ct);
-                await transaction.CommitAsync(ct);
-
-                _logger.LogInformation("New tenant registered: {Subdomain}, Admin user: {Email}",
-                    tenant.Subdomain, adminUser.Email);
-
-                return new RegisterTenantResponse
-                {
-                    UserId = adminUser.Id,
-                    TenantId = tenant.Id,
-                    Subdomain = tenant.Subdomain,
-                    Message = $"Registration successful. Please login at https://{tenant.Subdomain}.famick.com"
-                };
-            }
-            catch
-            {
-                await transaction.RollbackAsync(ct);
-                throw;
-            }
-        }, cancellationToken);
-    }
-
-    /// <inheritdoc />
     public async Task<LoginResponse> LoginAsync(
         LoginRequest request,
         string ipAddress,
@@ -182,7 +49,7 @@ public class AuthenticationService : IAuthenticationService
     {
         // Find user by email (case-insensitive)
         var user = await _context.Users
-            .Include(u => u.Tenant)
+            // Note: .Include(u => u.Tenant) removed - cloud-specific navigation property
             .Include(u => u.UserPermissions)
                 .ThenInclude(up => up.Permission)
             .FirstOrDefaultAsync(u => u.Email == request.Email.ToLower(), cancellationToken);
@@ -207,12 +74,8 @@ public class AuthenticationService : IAuthenticationService
             throw new AccountInactiveException();
         }
 
-        // Check tenant is active
-        if (!user.Tenant.IsActive)
-        {
-            _logger.LogWarning("Login attempt for inactive tenant: {TenantId}", user.TenantId);
-            throw new TenantInactiveException();
-        }
+        // Note: Tenant.IsActive check removed - cloud-specific business logic
+        // Cloud implementation should override/wrap this method to add tenant checks
 
         // Get user permissions
         var permissions = user.UserPermissions
@@ -254,15 +117,16 @@ public class AuthenticationService : IAuthenticationService
 
         // Map to DTOs
         var userDto = _mapper.Map<UserDto>(user);
-        var tenantDto = _mapper.Map<TenantDto>(user.Tenant);
+        // Note: TenantDto mapping removed - cloud-specific
+        // Cloud implementation can extend LoginResponse to include tenant information
 
         return new LoginResponse
         {
             AccessToken = accessToken,
             RefreshToken = refreshTokenString,
             ExpiresAt = accessTokenExpiration,
-            User = userDto,
-            Tenant = tenantDto
+            User = userDto
+            // Tenant = tenantDto // Removed - cloud-specific
         };
     }
 
@@ -278,7 +142,7 @@ public class AuthenticationService : IAuthenticationService
         // Find refresh token
         var refreshToken = await _context.RefreshTokens
             .Include(rt => rt.User)
-                .ThenInclude(u => u.Tenant)
+                // Note: .ThenInclude(u => u.Tenant) removed - cloud-specific
             .Include(rt => rt.User.UserPermissions)
                 .ThenInclude(up => up.Permission)
             .FirstOrDefaultAsync(rt => rt.TokenHash == tokenHash, cancellationToken);
@@ -289,16 +153,13 @@ public class AuthenticationService : IAuthenticationService
             throw new InvalidCredentialsException("Invalid or expired refresh token");
         }
 
-        // Check user and tenant are still active
+        // Check user is still active
         if (!refreshToken.User.IsActive)
         {
             throw new AccountInactiveException();
         }
 
-        if (!refreshToken.User.Tenant.IsActive)
-        {
-            throw new TenantInactiveException();
-        }
+        // Note: Tenant.IsActive check removed - cloud-specific business logic
 
         // Get user permissions
         var permissions = refreshToken.User.UserPermissions

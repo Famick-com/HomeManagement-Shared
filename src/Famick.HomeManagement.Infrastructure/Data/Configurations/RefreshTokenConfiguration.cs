@@ -50,10 +50,10 @@ public class RefreshTokenConfiguration : IEntityTypeConfiguration<RefreshToken>
             .HasForeignKey(rt => rt.UserId)
             .OnDelete(DeleteBehavior.Cascade);
 
-        builder.HasOne(rt => rt.Tenant)
-            .WithMany()
-            .HasForeignKey(rt => rt.TenantId)
-            .OnDelete(DeleteBehavior.Cascade);
+//         builder.HasOne(rt => rt.Tenant)
+//             .WithMany()
+//             .HasForeignKey(rt => rt.TenantId)
+//             .OnDelete(DeleteBehavior.Cascade);
 
         builder.HasOne(rt => rt.ReplacedByToken)
             .WithMany()

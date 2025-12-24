@@ -34,7 +34,7 @@ public class HomeManagementDbContext : DbContext
     }
 
     // Core entities
-    public DbSet<Tenant> Tenants => Set<Tenant>();
+    // public DbSet<Tenant> Tenants => Set<Tenant>(); // Cloud-specific - moved to cloud DbContext
     public DbSet<User> Users => Set<User>();
     public DbSet<Permission> Permissions => Set<Permission>();
     public DbSet<UserPermission> UserPermissions => Set<UserPermission>();

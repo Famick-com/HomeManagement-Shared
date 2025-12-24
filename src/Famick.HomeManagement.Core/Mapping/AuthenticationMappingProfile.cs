@@ -18,9 +18,7 @@ public class AuthenticationMappingProfile : Profile
                     .Select(up => up.Permission.Name)
                     .ToList()));
 
-        // Tenant -> TenantDto
-        CreateMap<Tenant, TenantDto>()
-            .ForMember(dest => dest.SubscriptionTier,
-                opt => opt.MapFrom(src => src.SubscriptionTier.ToString()));
+        // NOTE: Tenant -> TenantDto mapping is cloud-specific and moved to
+        // CloudAuthenticationMappingProfile in homemanagement-cloud project
     }
 }

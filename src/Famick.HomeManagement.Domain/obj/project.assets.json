@@ -13,11 +13,11 @@
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "/Users/miketherien/Projects/git_projects/HomeManagement/src/Famick.HomeManagement.Domain/Famick.HomeManagement.Domain.csproj",
+      "projectUniqueName": "/Users/miketherien/Projects/git_projects/Famick/homemanagement-shared/src/Famick.HomeManagement.Domain/Famick.HomeManagement.Domain.csproj",
       "projectName": "Famick.HomeManagement.Domain",
-      "projectPath": "/Users/miketherien/Projects/git_projects/HomeManagement/src/Famick.HomeManagement.Domain/Famick.HomeManagement.Domain.csproj",
+      "projectPath": "/Users/miketherien/Projects/git_projects/Famick/homemanagement-shared/src/Famick.HomeManagement.Domain/Famick.HomeManagement.Domain.csproj",
       "packagesPath": "/Users/miketherien/.nuget/packages/",
-      "outputPath": "/Users/miketherien/Projects/git_projects/HomeManagement/src/Famick.HomeManagement.Domain/obj/",
+      "outputPath": "/Users/miketherien/Projects/git_projects/Famick/homemanagement-shared/src/Famick.HomeManagement.Domain/obj/",
       "projectStyle": "PackageReference",
       "configFilePaths": [
         "/Users/miketherien/Projects/NuGet.Config",

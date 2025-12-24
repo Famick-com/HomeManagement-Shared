@@ -1,8 +1,8 @@
 {
   "version": 2,
-  "dgSpecHash": "hM/lKFU6jBc=",
+  "dgSpecHash": "iFWPPr3RpSk=",
   "success": true,
-  "projectFilePath": "/Users/miketherien/Projects/git_projects/HomeManagement/src/Famick.HomeManagement.Infrastructure/Famick.HomeManagement.Infrastructure.csproj",
+  "projectFilePath": "/Users/miketherien/Projects/git_projects/Famick/homemanagement-shared/src/Famick.HomeManagement.Infrastructure/Famick.HomeManagement.Infrastructure.csproj",
   "expectedPackageFiles": [
     "/Users/miketherien/.nuget/packages/automapper/12.0.1/automapper.12.0.1.nupkg.sha512",
     "/Users/miketherien/.nuget/packages/automapper.extensions.microsoft.dependencyinjection/12.0.1/automapper.extensions.microsoft.dependencyinjection.12.0.1.nupkg.sha512",

@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("Famick.HomeManagement.Core")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+5ad5ac631b1ed2010b76a934ffbc0800ac98b42e")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+f5d61151e66258a87ea00ef74fd0952d0f9748b0")]
 [assembly: System.Reflection.AssemblyProductAttribute("Famick.HomeManagement.Core")]
 [assembly: System.Reflection.AssemblyTitleAttribute("Famick.HomeManagement.Core")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
