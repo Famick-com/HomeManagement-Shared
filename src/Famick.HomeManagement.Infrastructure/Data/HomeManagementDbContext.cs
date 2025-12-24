@@ -61,6 +61,10 @@ public class HomeManagementDbContext : DbContext
     public DbSet<RecipePosition> RecipePositions => Set<RecipePosition>();
     public DbSet<RecipeNesting> RecipeNestings => Set<RecipeNesting>();
 
+    // Phase 2 - Chores
+    public DbSet<Chore> Chores => Set<Chore>();
+    public DbSet<ChoreLog> ChoresLog => Set<ChoreLog>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
