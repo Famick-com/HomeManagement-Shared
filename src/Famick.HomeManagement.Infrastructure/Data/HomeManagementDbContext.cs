@@ -56,6 +56,11 @@ public class HomeManagementDbContext : DbContext
     public DbSet<ShoppingList> ShoppingLists => Set<ShoppingList>();
     public DbSet<ShoppingListItem> ShoppingListItems => Set<ShoppingListItem>();
 
+    // Phase 2 - Recipes
+    public DbSet<Recipe> Recipes => Set<Recipe>();
+    public DbSet<RecipePosition> RecipePositions => Set<RecipePosition>();
+    public DbSet<RecipeNesting> RecipeNestings => Set<RecipeNesting>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
