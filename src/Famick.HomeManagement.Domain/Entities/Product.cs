@@ -15,9 +15,17 @@ public class Product : BaseTenantEntity
     public int DefaultBestBeforeDays { get; set; } = 0;
     public bool IsActive { get; set; } = true;
 
+    // Phase 2 - Product categorization and shopping
+    public Guid? ProductGroupId { get; set; }
+    public Guid? ShoppingLocationId { get; set; }
+
     // Navigation properties
     public Location Location { get; set; } = null!;
     public QuantityUnit QuantityUnitPurchase { get; set; } = null!;
     public QuantityUnit QuantityUnitStock { get; set; } = null!;
     public ICollection<ProductBarcode> Barcodes { get; set; } = new List<ProductBarcode>();
+
+    // Phase 2 navigation properties
+    public ProductGroup? ProductGroup { get; set; }
+    public ShoppingLocation? ShoppingLocation { get; set; }
 }

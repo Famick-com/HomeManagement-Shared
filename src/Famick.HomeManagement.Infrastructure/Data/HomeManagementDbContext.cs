@@ -50,6 +50,10 @@ public class HomeManagementDbContext : DbContext
     public DbSet<StockEntry> Stock => Set<StockEntry>();
     public DbSet<StockLog> StockLog => Set<StockLog>();
 
+    // Phase 2 - Product categorization and shopping
+    public DbSet<ProductGroup> ProductGroups => Set<ProductGroup>();
+    public DbSet<ShoppingLocation> ShoppingLocations => Set<ShoppingLocation>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
