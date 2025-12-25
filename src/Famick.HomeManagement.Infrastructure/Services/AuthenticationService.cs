@@ -41,6 +41,74 @@ public class AuthenticationService : IAuthenticationService
         _logger = logger;
     }
 
+    /// <inheritdoc />
+    public async Task<RegisterResponse> RegisterAsync(
+        RegisterRequest request,
+        string ipAddress,
+        string deviceInfo,
+        bool autoLogin = true,
+        CancellationToken cancellationToken = default)
+    {
+        // Normalize email
+        var email = request.Email.ToLower().Trim();
+
+        // Check if email already exists
+        var existingUser = await _context.Users
+            .FirstOrDefaultAsync(u => u.Email == email, cancellationToken);
+
+        if (existingUser != null)
+        {
+            _logger.LogWarning("Registration attempt with existing email: {Email}", email);
+            throw new DuplicateEntityException("User", "Email", email);
+        }
+
+        // Get the fixed tenant ID for self-hosted
+        var tenantIdString = _configuration["SelfHosted:TenantId"]
+            ?? "00000000-0000-0000-0000-000000000001";
+        var tenantId = Guid.Parse(tenantIdString);
+
+        // Create new user
+        var user = new User
+        {
+            Id = Guid.NewGuid(),
+            TenantId = tenantId,
+            Email = email,
+            Username = request.Username?.Trim() ?? email,
+            FirstName = request.FirstName.Trim(),
+            LastName = request.LastName.Trim(),
+            PasswordHash = _passwordHasher.HashPassword(request.Password),
+            IsActive = true,
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow
+        };
+
+        _context.Users.Add(user);
+        await _context.SaveChangesAsync(cancellationToken);
+
+        _logger.LogInformation("New user registered: {Email}, ID: {UserId}", email, user.Id);
+
+        var response = new RegisterResponse
+        {
+            UserId = user.Id,
+            Email = user.Email,
+            Message = "Registration successful. You can now log in."
+        };
+
+        // Auto-login if requested
+        if (autoLogin)
+        {
+            var loginRequest = new LoginRequest { Email = email, Password = request.Password };
+            var loginResponse = await LoginAsync(loginRequest, ipAddress, deviceInfo, cancellationToken);
+
+            response.AccessToken = loginResponse.AccessToken;
+            response.RefreshToken = loginResponse.RefreshToken;
+            response.ExpiresAt = loginResponse.ExpiresAt;
+            response.Message = "Registration successful. You are now logged in.";
+        }
+
+        return response;
+    }
+
     public async Task<LoginResponse> LoginAsync(
         LoginRequest request,
         string ipAddress,

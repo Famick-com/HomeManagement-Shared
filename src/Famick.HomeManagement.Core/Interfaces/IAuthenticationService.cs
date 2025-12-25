@@ -7,9 +7,21 @@ namespace Famick.HomeManagement.Core.Interfaces;
 /// </summary>
 public interface IAuthenticationService
 {
-    // NOTE: RegisterTenantAsync is cloud-specific and should be defined in a cloud-specific interface
-    // The types RegisterTenantRequest/Response are defined in homemanagement-cloud, not shared
-    // This method has been moved to ICloudAuthenticationService in homemanagement-cloud
+    /// <summary>
+    /// Registers a new user account
+    /// </summary>
+    /// <param name="request">The registration request with user details</param>
+    /// <param name="ipAddress">The IP address of the client making the request</param>
+    /// <param name="deviceInfo">Device/User-Agent information for the client</param>
+    /// <param name="autoLogin">If true, returns tokens for immediate login after registration</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>Registration response with user ID and optional tokens</returns>
+    Task<RegisterResponse> RegisterAsync(
+        RegisterRequest request,
+        string ipAddress,
+        string deviceInfo,
+        bool autoLogin = true,
+        CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Authenticates a user with email and password
