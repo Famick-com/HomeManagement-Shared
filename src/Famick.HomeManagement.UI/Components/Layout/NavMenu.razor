@@ -1,24 +1,25 @@
 @inject NavigationManager Navigation
+@inject ILocalizer L
 
 <MudNavMenu>
-    <MudText Typo="Typo.subtitle2" Class="px-4 mt-4 mb-2">Dashboard</MudText>
-    <MudNavLink Href="/" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.Dashboard">Home</MudNavLink>
+    <MudText Typo="Typo.subtitle2" Class="px-4 mt-4 mb-2">@L["nav.dashboard"]</MudText>
+    <MudNavLink Href="/" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.Dashboard">@L["nav.home"]</MudNavLink>
 
-    <MudText Typo="Typo.subtitle2" Class="px-4 mt-4 mb-2">Shopping</MudText>
-    <MudNavLink Href="/shopping-lists" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.ShoppingCart">Shopping Lists</MudNavLink>
-    <MudNavLink Href="/shopping-mode" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.ShoppingBasket">Shopping Mode</MudNavLink>
+    <MudText Typo="Typo.subtitle2" Class="px-4 mt-4 mb-2">@L["nav.shopping"]</MudText>
+    <MudNavLink Href="/shopping-lists" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.ShoppingCart">@L["nav.shoppingLists"]</MudNavLink>
+    <MudNavLink Href="/shopping-mode" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.ShoppingBasket">@L["nav.shoppingMode"]</MudNavLink>
 
-    <MudText Typo="Typo.subtitle2" Class="px-4 mt-4 mb-2">Inventory</MudText>
-    <MudNavLink Href="/inventory" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Inventory">Stock Overview</MudNavLink>
-    <MudNavLink Href="/products" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Category">Products</MudNavLink>
-    <MudNavLink Href="/stores" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Store">Stores</MudNavLink>
+    <MudText Typo="Typo.subtitle2" Class="px-4 mt-4 mb-2">@L["nav.inventory"]</MudText>
+    <MudNavLink Href="/inventory" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Inventory">@L["nav.stockOverview"]</MudNavLink>
+    <MudNavLink Href="/products" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Category">@L["nav.products"]</MudNavLink>
+    <MudNavLink Href="/stores" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Store">@L["nav.stores"]</MudNavLink>
 
-    <MudText Typo="Typo.subtitle2" Class="px-4 mt-4 mb-2">Household</MudText>
-    <MudNavLink Href="/tasks" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.TaskAlt">Tasks</MudNavLink>
-    <MudNavLink Href="/chores" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.CleaningServices">Chores</MudNavLink>
+    <MudText Typo="Typo.subtitle2" Class="px-4 mt-4 mb-2">@L["nav.household"]</MudText>
+    <MudNavLink Href="/tasks" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.TaskAlt">@L["nav.tasks"]</MudNavLink>
+    <MudNavLink Href="/chores" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.CleaningServices">@L["nav.chores"]</MudNavLink>
 
-    <MudText Typo="Typo.subtitle2" Class="px-4 mt-4 mb-2">System</MudText>
-    <MudNavLink Href="/settings" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Settings">Settings</MudNavLink>
+    <MudText Typo="Typo.subtitle2" Class="px-4 mt-4 mb-2">@L["nav.system"]</MudText>
+    <MudNavLink Href="/settings" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Settings">@L["nav.settings"]</MudNavLink>
 </MudNavMenu>
 
 @code {
