@@ -1,0 +1,99 @@
+@page "/"
+@attribute [Authorize]
+
+<PageTitle>Dashboard - Home Management</PageTitle>
+
+<MudText Typo="Typo.h4" Class="mb-4">Dashboard</MudText>
+
+<MudGrid>
+    <MudItem xs="12" sm="6" md="3">
+        <MudPaper Class="pa-4" Elevation="2">
+            <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween">
+                <MudStack Spacing="1">
+                    <MudText Typo="Typo.body2" Color="Color.Secondary">Shopping Lists</MudText>
+                    <MudText Typo="Typo.h4">--</MudText>
+                </MudStack>
+                <MudIcon Icon="@Icons.Material.Filled.ShoppingCart" Size="Size.Large" Color="Color.Primary" />
+            </MudStack>
+        </MudPaper>
+    </MudItem>
+
+    <MudItem xs="12" sm="6" md="3">
+        <MudPaper Class="pa-4" Elevation="2">
+            <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween">
+                <MudStack Spacing="1">
+                    <MudText Typo="Typo.body2" Color="Color.Secondary">Low Stock Items</MudText>
+                    <MudText Typo="Typo.h4">--</MudText>
+                </MudStack>
+                <MudIcon Icon="@Icons.Material.Filled.Warning" Size="Size.Large" Color="Color.Warning" />
+            </MudStack>
+        </MudPaper>
+    </MudItem>
+
+    <MudItem xs="12" sm="6" md="3">
+        <MudPaper Class="pa-4" Elevation="2">
+            <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween">
+                <MudStack Spacing="1">
+                    <MudText Typo="Typo.body2" Color="Color.Secondary">Chores Due</MudText>
+                    <MudText Typo="Typo.h4">--</MudText>
+                </MudStack>
+                <MudIcon Icon="@Icons.Material.Filled.CleaningServices" Size="Size.Large" Color="Color.Error" />
+            </MudStack>
+        </MudPaper>
+    </MudItem>
+
+    <MudItem xs="12" sm="6" md="3">
+        <MudPaper Class="pa-4" Elevation="2">
+            <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween">
+                <MudStack Spacing="1">
+                    <MudText Typo="Typo.body2" Color="Color.Secondary">Pending Tasks</MudText>
+                    <MudText Typo="Typo.h4">--</MudText>
+                </MudStack>
+                <MudIcon Icon="@Icons.Material.Filled.TaskAlt" Size="Size.Large" Color="Color.Success" />
+            </MudStack>
+        </MudPaper>
+    </MudItem>
+</MudGrid>
+
+<MudGrid Class="mt-6">
+    <MudItem xs="12" md="6">
+        <MudPaper Class="pa-4" Elevation="2">
+            <MudText Typo="Typo.h6" Class="mb-4">Quick Actions</MudText>
+            <MudStack Spacing="2">
+                <MudButton Variant="Variant.Outlined"
+                           Color="Color.Primary"
+                           StartIcon="@Icons.Material.Filled.Add"
+                           Href="/shopping-lists/new"
+                           FullWidth="true">
+                    New Shopping List
+                </MudButton>
+                <MudButton Variant="Variant.Outlined"
+                           Color="Color.Secondary"
+                           StartIcon="@Icons.Material.Filled.ShoppingBasket"
+                           Href="/shopping-mode"
+                           FullWidth="true">
+                    Start Shopping Mode
+                </MudButton>
+                <MudButton Variant="Variant.Outlined"
+                           Color="Color.Tertiary"
+                           StartIcon="@Icons.Material.Filled.Inventory"
+                           Href="/inventory"
+                           FullWidth="true">
+                    Add Stock Entry
+                </MudButton>
+            </MudStack>
+        </MudPaper>
+    </MudItem>
+
+    <MudItem xs="12" md="6">
+        <MudPaper Class="pa-4" Elevation="2">
+            <MudText Typo="Typo.h6" Class="mb-4">Expiring Soon</MudText>
+            <MudText Typo="Typo.body2" Color="Color.Secondary">
+                No items expiring in the next 7 days.
+            </MudText>
+        </MudPaper>
+    </MudItem>
+</MudGrid>
+
+@code {
+}

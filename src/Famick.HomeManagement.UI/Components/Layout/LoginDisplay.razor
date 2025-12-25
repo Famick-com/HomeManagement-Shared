@@ -1,0 +1,33 @@
+@inject NavigationManager Navigation
+@inject IApiClient ApiClient
+@inject ApiAuthStateProvider AuthStateProvider
+
+<AuthorizeView>
+    <Authorized>
+        <MudMenu AnchorOrigin="Origin.BottomRight" TransformOrigin="Origin.TopRight">
+            <ActivatorContent>
+                <MudIconButton Icon="@Icons.Material.Filled.Person" Color="Color.Inherit" />
+            </ActivatorContent>
+            <ChildContent>
+                <MudMenuItem>
+                    <MudText Typo="Typo.body2">@context.User.Identity?.Name</MudText>
+                </MudMenuItem>
+                <MudDivider />
+                <MudMenuItem Href="/settings/profile" Icon="@Icons.Material.Filled.AccountCircle">Profile</MudMenuItem>
+                <MudMenuItem OnClick="@Logout" Icon="@Icons.Material.Filled.Logout">Logout</MudMenuItem>
+            </ChildContent>
+        </MudMenu>
+    </Authorized>
+    <NotAuthorized>
+        <MudButton Href="/login" Color="Color.Inherit" Variant="Variant.Text">Login</MudButton>
+    </NotAuthorized>
+</AuthorizeView>
+
+@code {
+    private async Task Logout()
+    {
+        await ApiClient.LogoutAsync();
+        AuthStateProvider.NotifyAuthenticationStateChanged();
+        Navigation.NavigateTo("/login");
+    }
+}
