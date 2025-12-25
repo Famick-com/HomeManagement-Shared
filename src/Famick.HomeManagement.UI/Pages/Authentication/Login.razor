@@ -3,7 +3,9 @@
 @inject IApiClient ApiClient
 @inject ApiAuthStateProvider AuthStateProvider
 @inject NavigationManager Navigation
+@inject IServiceProvider ServiceProvider
 @using Famick.HomeManagement.UI.Theme
+@using Microsoft.Extensions.DependencyInjection
 
 <MudThemeProvider Theme="FamickTheme.Theme" IsDarkMode="false" />
 <MudPopoverProvider />
@@ -18,6 +20,30 @@
         </MudStack>
 
         <MudForm @ref="_form" @bind-IsValid="@_formValid" Class="mt-6">
+            @* Server Selection - only shown on mobile apps *@
+            @if (_serverSettings != null)
+            {
+                <MudSelect T="string"
+                           @bind-Value="_selectedServer"
+                           Label="Server"
+                           Variant="Variant.Outlined"
+                           Class="mb-4"
+                           Disabled="@_isLoading">
+                    <MudSelectItem Value="@CloudServer">Famick Cloud</MudSelectItem>
+                    <MudSelectItem Value="@SelfHostedOption">Self-hosted</MudSelectItem>
+                </MudSelect>
+
+                @if (_selectedServer == SelfHostedOption)
+                {
+                    <MudTextField @bind-Value="_customServerUrl"
+                                  Label="Server URL"
+                                  Variant="Variant.Outlined"
+                                  Placeholder="https://your-server.com"
+                                  Disabled="@_isLoading"
+                                  Class="mb-4" />
+                }
+            }
+
             <MudTextField @bind-Value="_email"
                           Label="Email"
                           Variant="Variant.Outlined"
@@ -56,7 +82,7 @@
                        FullWidth="true"
                        Size="Size.Large"
                        OnClick="@HandleLogin"
-                       Disabled="@(!_formValid || _isLoading)">
+                       Disabled="@(!_formValid || _isLoading || !IsServerConfigValid)">
                 @if (_isLoading)
                 {
                     <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
@@ -72,6 +98,9 @@
 </MudContainer>
 
 @code {
+    private const string CloudServer = "https://hm.famick.com";
+    private const string SelfHostedOption = "__self_hosted__";
+
     private MudForm? _form;
     private bool _formValid;
     private bool _isLoading;
@@ -81,21 +110,63 @@
     private bool _rememberMe;
     private string? _errorMessage;
 
+    private string _selectedServer = CloudServer;
+    private string _customServerUrl = string.Empty;
+
+    // On web, server config is always valid (uses current page URL)
+    // On mobile, validate that a server is properly configured
+    private bool IsServerConfigValid => _serverSettings == null ||
+        _selectedServer == CloudServer ||
+        (_selectedServer == SelfHostedOption && !string.IsNullOrWhiteSpace(_customServerUrl));
+
+    private string CurrentServerUrl => _selectedServer == SelfHostedOption
+        ? _customServerUrl.TrimEnd('/')
+        : CloudServer;
+
     [SupplyParameterFromQuery]
     public string? ReturnUrl { get; set; }
+
+    private IServerSettings? _serverSettings;
+
+    protected override void OnInitialized()
+    {
+        // Try to get ServerSettings (available in mobile apps)
+        _serverSettings = ServiceProvider.GetService<IServerSettings>();
+
+        // Initialize from ServerSettings if available
+        if (_serverSettings != null)
+        {
+            var currentUrl = _serverSettings.BaseUrl;
+            if (currentUrl == CloudServer)
+            {
+                _selectedServer = CloudServer;
+            }
+            else if (!string.IsNullOrEmpty(currentUrl))
+            {
+                _selectedServer = SelfHostedOption;
+                _customServerUrl = currentUrl;
+            }
+        }
+    }
 
     private async Task HandleLogin()
     {
         if (_form == null) return;
 
         await _form.Validate();
-        if (!_formValid) return;
+        if (!_formValid || !IsServerConfigValid) return;
 
         _isLoading = true;
         _errorMessage = null;
 
         try
         {
+            // Update server settings before login (for mobile apps)
+            if (_serverSettings != null)
+            {
+                _serverSettings.BaseUrl = CurrentServerUrl;
+            }
+
             var request = new LoginRequest
             {
                 Email = _email,
@@ -115,6 +186,10 @@
             {
                 _errorMessage = result.ErrorMessage ?? "Login failed. Please try again.";
             }
+        }
+        catch (HttpRequestException ex)
+        {
+            _errorMessage = $"Cannot connect to server. Please check the URL and try again.";
         }
         catch (Exception)
         {
