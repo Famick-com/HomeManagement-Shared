@@ -4,98 +4,101 @@
 @inject ApiAuthStateProvider AuthStateProvider
 @inject NavigationManager Navigation
 @inject IServiceProvider ServiceProvider
+@inject ILocalizer L
 @using Famick.HomeManagement.UI.Theme
 @using Microsoft.Extensions.DependencyInjection
 
-<MudThemeProvider Theme="FamickTheme.Theme" IsDarkMode="false" />
-<MudPopoverProvider />
-<MudDialogProvider />
-<MudSnackbarProvider />
+<LocalizationInitializer>
+    <MudThemeProvider Theme="FamickTheme.Theme" IsDarkMode="false" />
+    <MudPopoverProvider />
+    <MudDialogProvider />
+    <MudSnackbarProvider />
 
-<MudContainer MaxWidth="MaxWidth.Small" Class="d-flex align-center" Style="height: 100vh;">
-    <MudPaper Elevation="3" Class="pa-8" Style="width: 100%;">
-        <MudStack Spacing="4" AlignItems="AlignItems.Center">
-            <MudImage Src="_content/Famick.HomeManagement.UI/images/logo-lockup.svg" Height="100" Alt="Famick Home Management" />
-            <MudText Typo="Typo.body2" Color="Color.Secondary">Sign in to your account</MudText>
-        </MudStack>
+    <MudContainer MaxWidth="MaxWidth.Small" Class="d-flex align-center" Style="height: 100vh;">
+        <MudPaper Elevation="3" Class="pa-8" Style="width: 100%;">
+            <MudStack Spacing="4" AlignItems="AlignItems.Center">
+                <MudImage Src="_content/Famick.HomeManagement.UI/images/logo-lockup.svg" Height="100" Alt="Famick Home Management" />
+                <MudText Typo="Typo.body2" Color="Color.Secondary">@L["auth.signInToAccount"]</MudText>
+            </MudStack>
 
-        <MudForm @ref="_form" @bind-IsValid="@_formValid" Class="mt-6">
-            @* Server Selection - only shown on mobile apps *@
-            @if (_serverSettings != null)
-            {
-                <MudSelect T="string"
-                           @bind-Value="_selectedServer"
-                           Label="Server"
-                           Variant="Variant.Outlined"
-                           Class="mb-4"
-                           Disabled="@_isLoading">
-                    <MudSelectItem Value="@CloudServer">Famick Cloud</MudSelectItem>
-                    <MudSelectItem Value="@SelfHostedOption">Self-hosted</MudSelectItem>
-                </MudSelect>
-
-                @if (_selectedServer == SelfHostedOption)
+            <MudForm @ref="_form" @bind-IsValid="@_formValid" Class="mt-6">
+                @* Server Selection - only shown on mobile apps *@
+                @if (_serverSettings != null)
                 {
-                    <MudTextField @bind-Value="_customServerUrl"
-                                  Label="Server URL"
-                                  Variant="Variant.Outlined"
-                                  Placeholder="https://your-server.com"
-                                  Disabled="@_isLoading"
-                                  Class="mb-4" />
+                    <MudSelect T="string"
+                               @bind-Value="_selectedServer"
+                               Label="@L["auth.serverSelection"]"
+                               Variant="Variant.Outlined"
+                               Class="mb-4"
+                               Disabled="@_isLoading">
+                        <MudSelectItem Value="@CloudServer">@L["auth.famickCloud"]</MudSelectItem>
+                        <MudSelectItem Value="@SelfHostedOption">@L["auth.selfHosted"]</MudSelectItem>
+                    </MudSelect>
+
+                    @if (_selectedServer == SelfHostedOption)
+                    {
+                        <MudTextField @bind-Value="_customServerUrl"
+                                      Label="@L["auth.serverUrl"]"
+                                      Variant="Variant.Outlined"
+                                      Placeholder="https://your-server.com"
+                                      Disabled="@_isLoading"
+                                      Class="mb-4" />
+                    }
                 }
-            }
 
-            <MudTextField @bind-Value="_email"
-                          Label="Email"
-                          Variant="Variant.Outlined"
-                          InputType="InputType.Email"
-                          Required="true"
-                          RequiredError="Email is required"
-                          Validation="@(new EmailAddressAttribute() { ErrorMessage = "Invalid email address" })"
-                          Disabled="@_isLoading"
-                          Class="mb-4" />
+                <MudTextField @bind-Value="_email"
+                              Label="@L["auth.email"]"
+                              Variant="Variant.Outlined"
+                              InputType="InputType.Email"
+                              Required="true"
+                              RequiredError="@L["auth.emailRequired"]"
+                              Validation="@(new EmailAddressAttribute() { ErrorMessage = L["auth.invalidEmail"] })"
+                              Disabled="@_isLoading"
+                              Class="mb-4" />
 
-            <MudTextField @bind-Value="_password"
-                          Label="Password"
-                          Variant="Variant.Outlined"
-                          InputType="@(_showPassword ? InputType.Text : InputType.Password)"
-                          Required="true"
-                          RequiredError="Password is required"
-                          Adornment="Adornment.End"
-                          AdornmentIcon="@(_showPassword ? Icons.Material.Filled.VisibilityOff : Icons.Material.Filled.Visibility)"
-                          OnAdornmentClick="@(() => _showPassword = !_showPassword)"
-                          Disabled="@_isLoading"
-                          Class="mb-4" />
+                <MudTextField @bind-Value="_password"
+                              Label="@L["auth.password"]"
+                              Variant="Variant.Outlined"
+                              InputType="@(_showPassword ? InputType.Text : InputType.Password)"
+                              Required="true"
+                              RequiredError="@L["auth.passwordRequired"]"
+                              Adornment="Adornment.End"
+                              AdornmentIcon="@(_showPassword ? Icons.Material.Filled.VisibilityOff : Icons.Material.Filled.Visibility)"
+                              OnAdornmentClick="@(() => _showPassword = !_showPassword)"
+                              Disabled="@_isLoading"
+                              Class="mb-4" />
 
-            <MudCheckBox @bind-Value="_rememberMe"
-                         Label="Remember me"
-                         Color="Color.Primary"
-                         Disabled="@_isLoading"
-                         Class="mb-4" />
+                <MudCheckBox @bind-Value="_rememberMe"
+                             Label="@L["auth.rememberMe"]"
+                             Color="Color.Primary"
+                             Disabled="@_isLoading"
+                             Class="mb-4" />
 
-            @if (!string.IsNullOrEmpty(_errorMessage))
-            {
-                <MudAlert Severity="Severity.Error" Class="mb-4">@_errorMessage</MudAlert>
-            }
-
-            <MudButton Variant="Variant.Filled"
-                       Color="Color.Primary"
-                       FullWidth="true"
-                       Size="Size.Large"
-                       OnClick="@HandleLogin"
-                       Disabled="@(!_formValid || _isLoading || !IsServerConfigValid)">
-                @if (_isLoading)
+                @if (!string.IsNullOrEmpty(_errorMessage))
                 {
-                    <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
-                    <span>Signing in...</span>
+                    <MudAlert Severity="Severity.Error" Class="mb-4">@_errorMessage</MudAlert>
                 }
-                else
-                {
-                    <span>Sign In</span>
-                }
-            </MudButton>
-        </MudForm>
-    </MudPaper>
-</MudContainer>
+
+                <MudButton Variant="Variant.Filled"
+                           Color="Color.Primary"
+                           FullWidth="true"
+                           Size="Size.Large"
+                           OnClick="@HandleLogin"
+                           Disabled="@(!_formValid || _isLoading || !IsServerConfigValid)">
+                    @if (_isLoading)
+                    {
+                        <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                        <span>@L["auth.signingIn"]</span>
+                    }
+                    else
+                    {
+                        <span>@L["auth.login"]</span>
+                    }
+                </MudButton>
+            </MudForm>
+        </MudPaper>
+    </MudContainer>
+</LocalizationInitializer>
 
 @code {
     private const string CloudServer = "https://hm.famick.com";
@@ -184,16 +187,16 @@
             }
             else
             {
-                _errorMessage = result.ErrorMessage ?? "Login failed. Please try again.";
+                _errorMessage = result.ErrorMessage ?? L["auth.loginFailed"];
             }
         }
-        catch (HttpRequestException ex)
+        catch (HttpRequestException)
         {
-            _errorMessage = $"Cannot connect to server. Please check the URL and try again.";
+            _errorMessage = L["auth.connectionError"];
         }
         catch (Exception)
         {
-            _errorMessage = "An unexpected error occurred. Please try again.";
+            _errorMessage = L["auth.unexpectedError"];
         }
         finally
         {
