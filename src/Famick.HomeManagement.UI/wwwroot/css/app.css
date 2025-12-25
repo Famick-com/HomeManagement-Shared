@@ -64,3 +64,34 @@ a:hover {
 .mud-palette-dark a:hover {
     color: var(--famick-light-gray);
 }
+
+/* Text selection colors */
+::selection {
+    background-color: var(--famick-sage-green);
+    color: white;
+}
+
+::-moz-selection {
+    background-color: var(--famick-sage-green);
+    color: white;
+}
+
+/* Dark mode selection */
+.mud-palette-dark ::selection {
+    background-color: var(--famick-forest-green);
+    color: white;
+}
+
+.mud-palette-dark ::-moz-selection {
+    background-color: var(--famick-forest-green);
+    color: white;
+}
+
+/* Focus outline colors */
+:focus-visible {
+    outline-color: var(--famick-forest-green);
+}
+
+.mud-palette-dark :focus-visible {
+    outline-color: var(--famick-sage-green);
+}
