@@ -1,4 +1,16 @@
-/* Home Management UI Styles */
+/* Famick Home Management UI Styles */
+
+/* Brand Colors (CSS Custom Properties) */
+:root {
+    --famick-sage-green: #7BA17C;
+    --famick-forest-green: #518751;
+    --famick-dark-green: #3D6B3D;
+    --famick-dark-mode-green: #2D4A2D;
+    --famick-warm-gray: #9E9E9E;
+    --famick-light-gray: #BDBDBD;
+    --famick-smoke-gray: #A8A8A8;
+    --famick-charcoal: #424242;
+}
 
 /* Ensure MudBlazor fills the viewport */
 html, body {
@@ -18,19 +30,37 @@ html, body {
 }
 
 ::-webkit-scrollbar-thumb {
-    background: rgba(0, 0, 0, 0.2);
+    background: var(--famick-light-gray);
     border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-    background: rgba(0, 0, 0, 0.3);
+    background: var(--famick-warm-gray);
 }
 
 /* Dark mode scrollbar */
 .mud-palette-dark ::-webkit-scrollbar-thumb {
-    background: rgba(255, 255, 255, 0.2);
+    background: var(--famick-charcoal);
 }
 
 .mud-palette-dark ::-webkit-scrollbar-thumb:hover {
-    background: rgba(255, 255, 255, 0.3);
+    background: var(--famick-warm-gray);
+}
+
+/* Link colors */
+a {
+    color: var(--famick-forest-green);
+}
+
+a:hover {
+    color: var(--famick-dark-green);
+}
+
+/* Dark mode links */
+.mud-palette-dark a {
+    color: var(--famick-sage-green);
+}
+
+.mud-palette-dark a:hover {
+    color: var(--famick-light-gray);
 }

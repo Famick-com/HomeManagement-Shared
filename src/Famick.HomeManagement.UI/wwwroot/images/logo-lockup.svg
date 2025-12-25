@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="240" height="90" viewBox="0 0 240 90" xmlns="http://www.w3.org/2000/svg">
+  <!-- Famick Home Management Logo Lockup (Concept 1) -->
+
+  <!-- "f" - Sage Green -->
+  <text x="0" y="50" font-family="Arial Black, Arial, sans-serif" font-size="44" font-weight="900" fill="#7BA17C">f</text>
+
+  <!-- "a" - Sage Green -->
+  <text x="24" y="50" font-family="Arial Black, Arial, sans-serif" font-size="44" font-weight="900" fill="#7BA17C">a</text>
+
+  <!-- House "m" - Warm Gray (scaled to match text height ~36px) -->
+  <g transform="translate(58, 14)">
+    <!-- House body (m shape) - fits within 36px height -->
+    <path d="M0 36 L0 20 Q0 17 3 17 L8 17 L8 20 Q8 14 20 8 Q32 14 32 20 L32 17 L37 17 Q40 17 40 20 L40 36"
+          fill="#9E9E9E" stroke="none"/>
+
+    <!-- Chimney -->
+    <rect x="29" y="4" width="4" height="8" rx="1" fill="#9E9E9E"/>
+
+    <!-- Chimney smoke -->
+    <g fill="#A8A8A8">
+      <circle cx="31" cy="1" r="2"/>
+      <circle cx="33" cy="-1" r="1.5"/>
+    </g>
+
+    <!-- Left window -->
+    <rect x="6" y="23" width="7" height="9" rx="1" fill="white"/>
+    <line x1="9.5" y1="23" x2="9.5" y2="32" stroke="#9E9E9E" stroke-width="0.6"/>
+    <line x1="6" y1="27.5" x2="13" y2="27.5" stroke="#9E9E9E" stroke-width="0.6"/>
+
+    <!-- Right window -->
+    <rect x="27" y="23" width="7" height="9" rx="1" fill="white"/>
+    <line x1="30.5" y1="23" x2="30.5" y2="32" stroke="#9E9E9E" stroke-width="0.6"/>
+    <line x1="27" y1="27.5" x2="34" y2="27.5" stroke="#9E9E9E" stroke-width="0.6"/>
+  </g>
+
+  <!-- "i" - Forest Green (dot + stem, matching text height) -->
+  <circle cx="108" cy="18" r="5" fill="#518751"/>
+  <rect x="103" y="26" width="10" height="24" rx="1" fill="#518751"/>
+
+  <!-- "c" - Forest Green -->
+  <text x="118" y="50" font-family="Arial Black, Arial, sans-serif" font-size="44" font-weight="900" fill="#518751">c</text>
+
+  <!-- "k" - Forest Green -->
+  <text x="150" y="50" font-family="Arial Black, Arial, sans-serif" font-size="44" font-weight="900" fill="#518751">k</text>
+
+  <!-- "HOME MANAGEMENT" subtitle - Warm Gray, smaller, uppercase -->
+  <text x="0" y="75" font-family="Arial, sans-serif" font-size="16" font-weight="600" letter-spacing="2.5" fill="#9E9E9E">HOME MANAGEMENT</text>
+</svg>

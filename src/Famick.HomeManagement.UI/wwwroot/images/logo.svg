@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="280" height="80" viewBox="0 0 280 80" xmlns="http://www.w3.org/2000/svg">
+  <!-- Famick Logo - Full wordmark with house "m" -->
+
+  <!-- "f" - Sage Green -->
+  <text x="0" y="60" font-family="Arial Black, Arial, sans-serif" font-size="52" font-weight="900" fill="#7BA17C">f</text>
+
+  <!-- "a" - Sage Green -->
+  <text x="28" y="60" font-family="Arial Black, Arial, sans-serif" font-size="52" font-weight="900" fill="#7BA17C">a</text>
+
+  <!-- House "m" - Warm Gray with windows and chimney -->
+  <g transform="translate(62, 12)">
+    <!-- House body (m shape) -->
+    <path d="M0 56 L0 32 Q0 28 4 28 L12 28 L12 32 Q12 24 28 14 Q44 24 44 32 L44 28 L52 28 Q56 28 56 32 L56 56"
+          fill="#9E9E9E" stroke="none"/>
+
+    <!-- Chimney -->
+    <rect x="40" y="6" width="6" height="12" rx="1" fill="#9E9E9E"/>
+
+    <!-- Chimney smoke -->
+    <g fill="#A8A8A8">
+      <circle cx="43" cy="2" r="3"/>
+      <circle cx="46" cy="-1" r="2"/>
+    </g>
+
+    <!-- Left window -->
+    <rect x="8" y="38" width="10" height="12" rx="1" fill="white"/>
+    <line x1="13" y1="38" x2="13" y2="50" stroke="#9E9E9E" stroke-width="0.8"/>
+    <line x1="8" y1="44" x2="18" y2="44" stroke="#9E9E9E" stroke-width="0.8"/>
+
+    <!-- Right window -->
+    <rect x="38" y="38" width="10" height="12" rx="1" fill="white"/>
+    <line x1="43" y1="38" x2="43" y2="50" stroke="#9E9E9E" stroke-width="0.8"/>
+    <line x1="38" y1="44" x2="48" y2="44" stroke="#9E9E9E" stroke-width="0.8"/>
+  </g>
+
+  <!-- "i" - Forest Green (dot + stem) -->
+  <circle cx="138" cy="18" r="8" fill="#518751"/>
+  <rect x="130" y="30" width="16" height="36" rx="2" fill="#518751"/>
+
+  <!-- "c" - Forest Green -->
+  <text x="150" y="60" font-family="Arial Black, Arial, sans-serif" font-size="52" font-weight="900" fill="#518751">c</text>
+
+  <!-- "k" - Forest Green -->
+  <text x="188" y="60" font-family="Arial Black, Arial, sans-serif" font-size="52" font-weight="900" fill="#518751">k</text>
+</svg>
