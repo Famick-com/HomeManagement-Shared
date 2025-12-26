@@ -1,0 +1,445 @@
+@page "/products/new"
+@page "/products/{Id:guid}"
+@attribute [Authorize]
+@inject IApiClient ApiClient
+@inject NavigationManager Navigation
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+@inject ILocalizer L
+@using Famick.HomeManagement.UI.Components.Products
+@using Famick.HomeManagement.Core.DTOs.Products
+@using Famick.HomeManagement.Core.DTOs.Locations
+@using Famick.HomeManagement.Core.DTOs.QuantityUnits
+
+<MudText Typo="Typo.h4" Class="mb-4">
+    @(IsNew ? L["products.newProduct"] : L["products.editProduct"])
+</MudText>
+
+@if (_isLoading)
+{
+    <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+}
+else
+{
+    <MudForm @ref="_form" @bind-IsValid="_formValid">
+        <MudGrid>
+            <MudItem xs="12" md="8">
+                <MudPaper Elevation="1" Class="pa-4">
+                    <MudStack Spacing="4">
+                        <MudTextField @bind-Value="_name"
+                                      Label="@L["products.name"]"
+                                      Variant="Variant.Outlined"
+                                      Required="true"
+                                      RequiredError="@L["products.nameRequired"]" />
+
+                        <MudTextField @bind-Value="_description"
+                                      Label="@L["products.description"]"
+                                      Variant="Variant.Outlined"
+                                      Lines="3" />
+
+                        <MudSelect T="Guid" @bind-Value="_locationId"
+                                   Label="@L["products.location"]"
+                                   Variant="Variant.Outlined"
+                                   Required="true"
+                                   RequiredError="@L["products.locationRequired"]">
+                            @foreach (var location in _locations)
+                            {
+                                <MudSelectItem Value="@location.Id">@location.Name</MudSelectItem>
+                            }
+                        </MudSelect>
+
+                        <MudStack Row="true" Spacing="3">
+                            <MudSelect T="Guid" @bind-Value="_purchaseUnitId"
+                                       Label="@L["products.purchaseUnit"]"
+                                       Variant="Variant.Outlined"
+                                       Required="true"
+                                       RequiredError="@L["products.purchaseUnitRequired"]"
+                                       Style="flex: 1;">
+                                @foreach (var unit in _quantityUnits)
+                                {
+                                    <MudSelectItem Value="@unit.Id">@unit.Name</MudSelectItem>
+                                }
+                            </MudSelect>
+
+                            <MudSelect T="Guid" @bind-Value="_stockUnitId"
+                                       Label="@L["products.stockUnit"]"
+                                       Variant="Variant.Outlined"
+                                       Required="true"
+                                       RequiredError="@L["products.stockUnitRequired"]"
+                                       Style="flex: 1;">
+                                @foreach (var unit in _quantityUnits)
+                                {
+                                    <MudSelectItem Value="@unit.Id">@unit.Name</MudSelectItem>
+                                }
+                            </MudSelect>
+                        </MudStack>
+
+                        <MudNumericField T="decimal" @bind-Value="_conversionFactor"
+                                         Label="@L["products.conversionFactor"]"
+                                         Variant="Variant.Outlined"
+                                         Min="0.001m"
+                                         HelperText="@L["products.conversionFactorHint"]" />
+
+                        <MudStack Row="true" Spacing="3">
+                            <MudNumericField T="decimal" @bind-Value="_minStockAmount"
+                                             Label="@L["products.minStock"]"
+                                             Variant="Variant.Outlined"
+                                             Min="0m"
+                                             Style="flex: 1;" />
+
+                            <MudNumericField T="int" @bind-Value="_defaultBestBeforeDays"
+                                             Label="@L["products.defaultBestBeforeDays"]"
+                                             Variant="Variant.Outlined"
+                                             Min="0"
+                                             Style="flex: 1;" />
+                        </MudStack>
+
+                        <MudSwitch @bind-Value="_isActive"
+                                   Label="@L["products.active"]"
+                                   Color="Color.Primary" />
+                    </MudStack>
+                </MudPaper>
+            </MudItem>
+
+            <MudItem xs="12" md="4">
+                <MudPaper Elevation="1" Class="pa-4">
+                    <MudText Typo="Typo.h6" Class="mb-3">@L["products.barcodes"]</MudText>
+                    <ProductBarcodeList ProductId="@(Id ?? Guid.Empty)"
+                                        Barcodes="@_barcodes"
+                                        ReadOnly="@IsNew"
+                                        OnBarcodeAdded="HandleBarcodeAdded"
+                                        OnBarcodeDeleted="HandleBarcodeDeleted" />
+
+                    @if (IsNew)
+                    {
+                        <MudAlert Severity="Severity.Info" Class="mt-3" Dense="true">
+                            Save the product first to add barcodes.
+                        </MudAlert>
+                    }
+                </MudPaper>
+            </MudItem>
+        </MudGrid>
+
+        <MudStack Row="true" Spacing="2" Class="mt-4" Justify="Justify.SpaceBetween">
+            <MudStack Row="true" Spacing="2">
+                <MudButton Variant="Variant.Filled"
+                           Color="Color.Primary"
+                           StartIcon="@Icons.Material.Filled.Save"
+                           OnClick="HandleSave"
+                           Disabled="@(!_formValid || _isSaving)">
+                    @if (_isSaving)
+                    {
+                        <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                    }
+                    @L["common.save"]
+                </MudButton>
+
+                <MudButton Variant="Variant.Outlined"
+                           Color="Color.Default"
+                           OnClick="NavigateBack">
+                    @L["common.cancel"]
+                </MudButton>
+            </MudStack>
+
+            @if (!IsNew)
+            {
+                <MudButton Variant="Variant.Outlined"
+                           Color="Color.Error"
+                           StartIcon="@Icons.Material.Filled.Delete"
+                           OnClick="HandleDelete"
+                           Disabled="@_isSaving">
+                    @L["common.delete"]
+                </MudButton>
+            }
+        </MudStack>
+    </MudForm>
+}
+
+@code {
+    [Parameter]
+    public Guid? Id { get; set; }
+
+    private bool IsNew => Id == null;
+
+    private MudForm? _form;
+    private bool _formValid;
+    private bool _isLoading = true;
+    private bool _isSaving;
+
+    // Form fields
+    private string _name = string.Empty;
+    private string? _description;
+    private Guid _locationId;
+    private Guid _purchaseUnitId;
+    private Guid _stockUnitId;
+    private decimal _conversionFactor = 1.0m;
+    private decimal _minStockAmount = 0m;
+    private int _defaultBestBeforeDays = 0;
+    private bool _isActive = true;
+    private List<ProductBarcodeDto> _barcodes = new();
+
+    // Lookup data
+    private List<LocationDto> _locations = new();
+    private List<QuantityUnitDto> _quantityUnits = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadLookupsAsync();
+
+        if (!IsNew)
+        {
+            await LoadProductAsync();
+        }
+        else
+        {
+            // Set defaults for new product
+            if (_locations.Any())
+                _locationId = _locations.First().Id;
+            if (_quantityUnits.Any())
+            {
+                _purchaseUnitId = _quantityUnits.First().Id;
+                _stockUnitId = _quantityUnits.First().Id;
+            }
+            _isLoading = false;
+        }
+    }
+
+    private async Task LoadLookupsAsync()
+    {
+        try
+        {
+            var locationsTask = ApiClient.GetAsync<List<LocationDto>>("api/v1/locations");
+            var unitsTask = ApiClient.GetAsync<List<QuantityUnitDto>>("api/v1/quantity-units");
+
+            await Task.WhenAll(locationsTask, unitsTask);
+
+            if (locationsTask.Result.IsSuccess && locationsTask.Result.Data != null)
+            {
+                _locations = locationsTask.Result.Data.Where(l => l.IsActive).OrderBy(l => l.SortOrder).ToList();
+            }
+
+            if (unitsTask.Result.IsSuccess && unitsTask.Result.Data != null)
+            {
+                _quantityUnits = unitsTask.Result.Data.Where(u => u.IsActive).ToList();
+            }
+        }
+        catch (Exception)
+        {
+            Snackbar.Add(L["errors.generic"], Severity.Error);
+        }
+    }
+
+    private async Task LoadProductAsync()
+    {
+        try
+        {
+            var result = await ApiClient.GetAsync<ProductDto>($"api/v1/products/{Id}");
+
+            if (result.IsSuccess && result.Data != null)
+            {
+                var product = result.Data;
+                _name = product.Name;
+                _description = product.Description;
+                _locationId = product.LocationId;
+                _purchaseUnitId = product.QuantityUnitIdPurchase;
+                _stockUnitId = product.QuantityUnitIdStock;
+                _conversionFactor = product.QuantityUnitFactorPurchaseToStock;
+                _minStockAmount = product.MinStockAmount;
+                _defaultBestBeforeDays = product.DefaultBestBeforeDays;
+                _isActive = product.IsActive;
+                _barcodes = product.Barcodes;
+            }
+            else
+            {
+                Snackbar.Add(result.ErrorMessage ?? L["errors.notFound"], Severity.Error);
+                NavigateBack();
+            }
+        }
+        catch (Exception)
+        {
+            Snackbar.Add(L["errors.generic"], Severity.Error);
+            NavigateBack();
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private async Task HandleSave()
+    {
+        if (_form != null)
+        {
+            await _form.Validate();
+            if (!_formValid) return;
+        }
+
+        _isSaving = true;
+
+        try
+        {
+            if (IsNew)
+            {
+                var request = new CreateProductRequest
+                {
+                    Name = _name,
+                    Description = _description,
+                    LocationId = _locationId,
+                    QuantityUnitIdPurchase = _purchaseUnitId,
+                    QuantityUnitIdStock = _stockUnitId,
+                    QuantityUnitFactorPurchaseToStock = _conversionFactor,
+                    MinStockAmount = _minStockAmount,
+                    DefaultBestBeforeDays = _defaultBestBeforeDays,
+                    IsActive = _isActive
+                };
+
+                var result = await ApiClient.PostAsync<CreateProductRequest, ProductDto>("api/v1/products", request);
+
+                if (result.IsSuccess && result.Data != null)
+                {
+                    Snackbar.Add(L["products.productSaved"], Severity.Success);
+                    Navigation.NavigateTo($"/products/{result.Data.Id}");
+                }
+                else
+                {
+                    Snackbar.Add(result.ErrorMessage ?? L["errors.generic"], Severity.Error);
+                }
+            }
+            else
+            {
+                var request = new UpdateProductRequest
+                {
+                    Name = _name,
+                    Description = _description,
+                    LocationId = _locationId,
+                    QuantityUnitIdPurchase = _purchaseUnitId,
+                    QuantityUnitIdStock = _stockUnitId,
+                    QuantityUnitFactorPurchaseToStock = _conversionFactor,
+                    MinStockAmount = _minStockAmount,
+                    DefaultBestBeforeDays = _defaultBestBeforeDays,
+                    IsActive = _isActive
+                };
+
+                var result = await ApiClient.PutAsync<UpdateProductRequest, ProductDto>($"api/v1/products/{Id}", request);
+
+                if (result.IsSuccess)
+                {
+                    Snackbar.Add(L["products.productSaved"], Severity.Success);
+                }
+                else
+                {
+                    Snackbar.Add(result.ErrorMessage ?? L["errors.generic"], Severity.Error);
+                }
+            }
+        }
+        catch (Exception)
+        {
+            Snackbar.Add(L["errors.generic"], Severity.Error);
+        }
+        finally
+        {
+            _isSaving = false;
+        }
+    }
+
+    private async Task HandleDelete()
+    {
+        var confirmed = await DialogService.ShowMessageBox(
+            L["confirmations.deleteTitle"],
+            L["products.confirmDelete"],
+            yesText: L["common.delete"],
+            cancelText: L["common.cancel"]);
+
+        if (confirmed != true) return;
+
+        _isSaving = true;
+
+        try
+        {
+            var result = await ApiClient.DeleteAsync($"api/v1/products/{Id}");
+
+            if (result.IsSuccess)
+            {
+                Snackbar.Add(L["products.productDeleted"], Severity.Success);
+                NavigateBack();
+            }
+            else
+            {
+                Snackbar.Add(result.ErrorMessage ?? L["errors.generic"], Severity.Error);
+            }
+        }
+        catch (Exception)
+        {
+            Snackbar.Add(L["errors.generic"], Severity.Error);
+        }
+        finally
+        {
+            _isSaving = false;
+        }
+    }
+
+    private async Task HandleBarcodeAdded(ProductBarcodeDto barcode)
+    {
+        if (IsNew) return;
+
+        try
+        {
+            var result = await ApiClient.PostAsync<ProductBarcodeDto, ProductBarcodeDto>(
+                $"api/v1/products/{Id}/barcodes?barcode={Uri.EscapeDataString(barcode.Barcode)}&note={Uri.EscapeDataString(barcode.Note ?? "")}",
+                barcode);
+
+            if (result.IsSuccess && result.Data != null)
+            {
+                _barcodes.Add(result.Data);
+                Snackbar.Add(L["products.barcodeAdded"], Severity.Success);
+                StateHasChanged();
+            }
+            else
+            {
+                Snackbar.Add(result.ErrorMessage ?? L["errors.generic"], Severity.Error);
+            }
+        }
+        catch (Exception)
+        {
+            Snackbar.Add(L["errors.generic"], Severity.Error);
+        }
+    }
+
+    private async Task HandleBarcodeDeleted(ProductBarcodeDto barcode)
+    {
+        if (IsNew) return;
+
+        var confirmed = await DialogService.ShowMessageBox(
+            L["confirmations.deleteTitle"],
+            L["products.confirmDeleteBarcode"],
+            yesText: L["common.delete"],
+            cancelText: L["common.cancel"]);
+
+        if (confirmed != true) return;
+
+        try
+        {
+            var result = await ApiClient.DeleteAsync($"api/v1/products/{Id}/barcodes/{barcode.Id}");
+
+            if (result.IsSuccess)
+            {
+                _barcodes.Remove(barcode);
+                Snackbar.Add(L["products.barcodeDeleted"], Severity.Success);
+                StateHasChanged();
+            }
+            else
+            {
+                Snackbar.Add(result.ErrorMessage ?? L["errors.generic"], Severity.Error);
+            }
+        }
+        catch (Exception)
+        {
+            Snackbar.Add(L["errors.generic"], Severity.Error);
+        }
+    }
+
+    private void NavigateBack()
+    {
+        Navigation.NavigateTo("/products");
+    }
+}

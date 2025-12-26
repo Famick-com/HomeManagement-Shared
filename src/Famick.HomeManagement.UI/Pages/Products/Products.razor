@@ -1,0 +1,223 @@
+@page "/products"
+@attribute [Authorize]
+@inject IApiClient ApiClient
+@inject NavigationManager Navigation
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+@inject ILocalizer L
+@using Famick.HomeManagement.UI.Components.Products
+@using Famick.HomeManagement.Core.DTOs.Products
+
+<MudText Typo="Typo.h4" Class="mb-4">@L["products.title"]</MudText>
+
+<MudPaper Elevation="1" Class="pa-4">
+    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="3" Class="mb-4">
+        <MudTextField @bind-Value="_searchText"
+                      Placeholder="@L["products.searchProducts"]"
+                      Variant="Variant.Outlined"
+                      Margin="Margin.Dense"
+                      Adornment="Adornment.Start"
+                      AdornmentIcon="@Icons.Material.Filled.Search"
+                      Immediate="true"
+                      DebounceInterval="300"
+                      OnDebounceIntervalElapsed="OnSearchChanged"
+                      Style="max-width: 300px;" />
+
+        <MudSelect T="string" @bind-Value="_statusFilter"
+                   Label="@L["products.filterByStatus"]"
+                   Variant="Variant.Outlined"
+                   Margin="Margin.Dense"
+                   Style="max-width: 180px;">
+            <MudSelectItem Value="@("all")">@L["products.allProducts"]</MudSelectItem>
+            <MudSelectItem Value="@("active")">@L["products.activeOnly"]</MudSelectItem>
+            <MudSelectItem Value="@("inactive")">@L["products.inactiveOnly"]</MudSelectItem>
+        </MudSelect>
+
+        <MudSpacer />
+
+        <MudButton Variant="Variant.Filled"
+                   Color="Color.Primary"
+                   StartIcon="@Icons.Material.Filled.Add"
+                   OnClick="NavigateToNewProduct">
+            @L["products.addProduct"]
+        </MudButton>
+    </MudStack>
+
+    @if (_isLoading)
+    {
+        <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+    }
+    else if (_products.Count == 0)
+    {
+        <MudAlert Severity="Severity.Info">@L["products.noProducts"]</MudAlert>
+    }
+    else
+    {
+        <MudDataGrid T="ProductDto"
+                     Items="@_filteredProducts"
+                     SortMode="SortMode.Single"
+                     Filterable="false"
+                     Hideable="false"
+                     RowClick="OnRowClick"
+                     Dense="true"
+                     Hover="true"
+                     Class="cursor-pointer">
+            <Columns>
+                <HierarchyColumn T="ProductDto" />
+                <PropertyColumn Property="x => x.Name" Title="@L["products.name"]" />
+                <PropertyColumn Property="x => x.LocationName" Title="@L["products.location"]" />
+                <PropertyColumn Property="x => x.QuantityUnitStockName" Title="@L["products.stockUnit"]" />
+                <PropertyColumn Property="x => x.MinStockAmount" Title="@L["products.minStock"]" />
+                <TemplateColumn Title="@L["products.status"]">
+                    <CellTemplate>
+                        @if (context.Item.IsActive)
+                        {
+                            <MudChip T="string" Size="Size.Small" Color="Color.Success" Variant="Variant.Filled">@L["products.active"]</MudChip>
+                        }
+                        else
+                        {
+                            <MudChip T="string" Size="Size.Small" Color="Color.Default" Variant="Variant.Outlined">@L["products.inactive"]</MudChip>
+                        }
+                    </CellTemplate>
+                </TemplateColumn>
+                <TemplateColumn Title="@L["products.barcodes"]" Sortable="false">
+                    <CellTemplate>
+                        <MudChip T="string" Size="Size.Small" Variant="Variant.Text">@context.Item.Barcodes.Count</MudChip>
+                    </CellTemplate>
+                </TemplateColumn>
+            </Columns>
+            <ChildRowContent>
+                <MudCard Elevation="0" Class="pa-4 ma-2" Style="background-color: var(--mud-palette-background-grey);">
+                    <MudCardContent>
+                        <MudText Typo="Typo.subtitle2" Class="mb-2">@L["products.barcodes"]</MudText>
+                        <ProductBarcodeList ProductId="@context.Item.Id"
+                                            Barcodes="@context.Item.Barcodes"
+                                            OnBarcodeAdded="@(barcode => HandleBarcodeAdded(context.Item, barcode))"
+                                            OnBarcodeDeleted="@(barcode => HandleBarcodeDeleted(context.Item, barcode))" />
+                    </MudCardContent>
+                </MudCard>
+            </ChildRowContent>
+            <PagerContent>
+                <MudDataGridPager T="ProductDto" />
+            </PagerContent>
+        </MudDataGrid>
+    }
+</MudPaper>
+
+@code {
+    private List<ProductDto> _products = new();
+    private bool _isLoading = true;
+    private string _searchText = string.Empty;
+    private string _statusFilter = "all";
+
+    private IEnumerable<ProductDto> _filteredProducts => _products
+        .Where(p => string.IsNullOrEmpty(_searchText) ||
+                    p.Name.Contains(_searchText, StringComparison.OrdinalIgnoreCase) ||
+                    p.Barcodes.Any(b => b.Barcode.Contains(_searchText, StringComparison.OrdinalIgnoreCase)))
+        .Where(p => _statusFilter == "all" ||
+                    (_statusFilter == "active" && p.IsActive) ||
+                    (_statusFilter == "inactive" && !p.IsActive));
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadProductsAsync();
+    }
+
+    private async Task LoadProductsAsync()
+    {
+        _isLoading = true;
+
+        try
+        {
+            var result = await ApiClient.GetAsync<List<ProductDto>>("api/v1/products");
+            if (result.IsSuccess && result.Data != null)
+            {
+                _products = result.Data;
+            }
+            else
+            {
+                Snackbar.Add(result.ErrorMessage ?? L["errors.generic"], Severity.Error);
+            }
+        }
+        catch (Exception)
+        {
+            Snackbar.Add(L["errors.generic"], Severity.Error);
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private void OnSearchChanged(string value)
+    {
+        _searchText = value;
+        StateHasChanged();
+    }
+
+    private void NavigateToNewProduct()
+    {
+        Navigation.NavigateTo("/products/new");
+    }
+
+    private void OnRowClick(DataGridRowClickEventArgs<ProductDto> args)
+    {
+        Navigation.NavigateTo($"/products/{args.Item.Id}");
+    }
+
+    private async Task HandleBarcodeAdded(ProductDto product, ProductBarcodeDto barcode)
+    {
+        try
+        {
+            var result = await ApiClient.PostAsync<ProductBarcodeDto, ProductBarcodeDto>(
+                $"api/v1/products/{product.Id}/barcodes?barcode={Uri.EscapeDataString(barcode.Barcode)}&note={Uri.EscapeDataString(barcode.Note ?? "")}",
+                barcode);
+
+            if (result.IsSuccess && result.Data != null)
+            {
+                product.Barcodes.Add(result.Data);
+                Snackbar.Add(L["products.barcodeAdded"], Severity.Success);
+                StateHasChanged();
+            }
+            else
+            {
+                Snackbar.Add(result.ErrorMessage ?? L["errors.generic"], Severity.Error);
+            }
+        }
+        catch (Exception)
+        {
+            Snackbar.Add(L["errors.generic"], Severity.Error);
+        }
+    }
+
+    private async Task HandleBarcodeDeleted(ProductDto product, ProductBarcodeDto barcode)
+    {
+        var confirmed = await DialogService.ShowMessageBox(
+            L["confirmations.deleteTitle"],
+            L["products.confirmDeleteBarcode"],
+            yesText: L["common.delete"],
+            cancelText: L["common.cancel"]);
+
+        if (confirmed != true) return;
+
+        try
+        {
+            var result = await ApiClient.DeleteAsync($"api/v1/products/{product.Id}/barcodes/{barcode.Id}");
+
+            if (result.IsSuccess)
+            {
+                product.Barcodes.Remove(barcode);
+                Snackbar.Add(L["products.barcodeDeleted"], Severity.Success);
+                StateHasChanged();
+            }
+            else
+            {
+                Snackbar.Add(result.ErrorMessage ?? L["errors.generic"], Severity.Error);
+            }
+        }
+        catch (Exception)
+        {
+            Snackbar.Add(L["errors.generic"], Severity.Error);
+        }
+    }
+}
