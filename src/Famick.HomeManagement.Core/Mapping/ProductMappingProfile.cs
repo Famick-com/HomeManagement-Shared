@@ -20,7 +20,9 @@ public class ProductMappingProfile : Profile
             .ForMember(dest => dest.ShoppingLocationName,
                 opt => opt.MapFrom(src => src.ShoppingLocation != null ? src.ShoppingLocation.Name : null))
             .ForMember(dest => dest.Barcodes,
-                opt => opt.MapFrom(src => src.Barcodes));
+                opt => opt.MapFrom(src => src.Barcodes))
+            .ForMember(dest => dest.Images,
+                opt => opt.MapFrom(src => src.Images));
 
         CreateMap<CreateProductRequest, Product>()
             .ForMember(dest => dest.Id, opt => opt.Ignore())
@@ -32,7 +34,8 @@ public class ProductMappingProfile : Profile
             .ForMember(dest => dest.QuantityUnitStock, opt => opt.Ignore())
             .ForMember(dest => dest.ProductGroup, opt => opt.Ignore())
             .ForMember(dest => dest.ShoppingLocation, opt => opt.Ignore())
-            .ForMember(dest => dest.Barcodes, opt => opt.Ignore());
+            .ForMember(dest => dest.Barcodes, opt => opt.Ignore())
+            .ForMember(dest => dest.Images, opt => opt.Ignore());
 
         CreateMap<UpdateProductRequest, Product>()
             .ForMember(dest => dest.Id, opt => opt.Ignore())
@@ -44,8 +47,13 @@ public class ProductMappingProfile : Profile
             .ForMember(dest => dest.QuantityUnitStock, opt => opt.Ignore())
             .ForMember(dest => dest.ProductGroup, opt => opt.Ignore())
             .ForMember(dest => dest.ShoppingLocation, opt => opt.Ignore())
-            .ForMember(dest => dest.Barcodes, opt => opt.Ignore());
+            .ForMember(dest => dest.Barcodes, opt => opt.Ignore())
+            .ForMember(dest => dest.Images, opt => opt.Ignore());
 
         CreateMap<ProductBarcode, ProductBarcodeDto>();
+
+        // ProductImage mapping - Note: Url is computed dynamically by the service
+        CreateMap<ProductImage, ProductImageDto>()
+            .ForMember(dest => dest.Url, opt => opt.Ignore());
     }
 }

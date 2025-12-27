@@ -219,7 +219,22 @@
     "purchaseUnitRequired": "Purchase unit is required",
     "stockUnitRequired": "Stock unit is required",
     "expandBarcodes": "Show barcodes",
-    "collapseBarcodes": "Hide barcodes"
+    "collapseBarcodes": "Hide barcodes",
+    "images": "Images",
+    "noImages": "No images uploaded",
+    "uploadImages": "Upload Images",
+    "dropImagesHere": "Drop images here or click to upload",
+    "uploadingImages": "Uploading...",
+    "imageUploaded": "Image uploaded successfully",
+    "imageDeleted": "Image deleted",
+    "uploadFailed": "Failed to upload image",
+    "primaryImage": "Primary",
+    "setAsPrimary": "Set as primary image",
+    "primaryImageSet": "Primary image updated",
+    "setPrimaryFailed": "Failed to set primary image",
+    "confirmDeleteImage": "Are you sure you want to delete this image?",
+    "invalidImageType": "Only image files (JPG, PNG, GIF, WebP) are allowed",
+    "imageTooLarge": "Image file is too large (max 5MB)"
   },
 
   "shoppingList": {
@@ -360,5 +375,33 @@
     "vitamins": "Vitamins & Minerals",
     "dataSource": "Data Source",
     "lastUpdated": "Last Updated"
+  },
+
+  "nutrition": {
+    "title": "Nutrition Facts",
+    "servingsPerContainer": "{0} servings per container",
+    "servingSize": "Serving size",
+    "amountPerServing": "Amount per serving",
+    "calories": "Calories",
+    "dailyValue": "% Daily Value*",
+    "totalFat": "Total Fat",
+    "saturatedFat": "Saturated Fat",
+    "transFat": "Trans Fat",
+    "cholesterol": "Cholesterol",
+    "sodium": "Sodium",
+    "totalCarbohydrate": "Total Carbohydrate",
+    "dietaryFiber": "Dietary Fiber",
+    "totalSugars": "Total Sugars",
+    "includesAddedSugars": "Includes {0}g Added Sugars",
+    "protein": "Protein",
+    "vitaminD": "Vitamin D",
+    "calcium": "Calcium",
+    "iron": "Iron",
+    "potassium": "Potassium",
+    "footnote": "* The % Daily Value tells you how much a nutrient in a serving of food contributes to a daily diet. 2,000 calories a day is used for general nutrition advice.",
+    "noData": "No nutrition information available",
+    "dataSource": "Source: {0}",
+    "totalWeight": "Total Weight",
+    "enterServings": "Enter servings per container to calculate total weight"
   }
 }

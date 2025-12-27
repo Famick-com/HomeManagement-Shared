@@ -45,6 +45,7 @@ public class HomeManagementDbContext : DbContext
     public DbSet<QuantityUnit> QuantityUnits => Set<QuantityUnit>();
     public DbSet<Product> Products => Set<Product>();
     public DbSet<ProductBarcode> ProductBarcodes => Set<ProductBarcode>();
+    public DbSet<ProductImage> ProductImages => Set<ProductImage>();
     public DbSet<ProductNutrition> ProductNutrition => Set<ProductNutrition>();
 
     // Stock management

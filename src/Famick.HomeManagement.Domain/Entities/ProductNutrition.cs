@@ -21,6 +21,7 @@ public class ProductNutrition : BaseTenantEntity
     // Serving information
     public decimal? ServingSize { get; set; }
     public string? ServingUnit { get; set; }
+    public decimal? ServingsPerContainer { get; set; }
 
     // Macronutrients (per serving)
     public decimal? Calories { get; set; }

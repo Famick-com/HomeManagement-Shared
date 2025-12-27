@@ -22,6 +22,18 @@ public class ProductNutritionDto
     public decimal? ServingSize { get; set; }
     public string? ServingUnit { get; set; }
     public string? ServingSizeDescription { get; set; }
+    public decimal? ServingsPerContainer { get; set; }
+
+    /// <summary>
+    /// Calculated total weight in grams (ServingSize × ServingsPerContainer)
+    /// Only valid when ServingUnit is "g" or "G"
+    /// </summary>
+    public decimal? TotalWeightGrams =>
+        ServingSize.HasValue && ServingsPerContainer.HasValue &&
+        (ServingUnit?.Equals("g", StringComparison.OrdinalIgnoreCase) == true ||
+         ServingUnit?.Equals("G", StringComparison.OrdinalIgnoreCase) == true)
+            ? ServingSize.Value * ServingsPerContainer.Value
+            : null;
 
     // Macronutrients
     public decimal? Calories { get; set; }

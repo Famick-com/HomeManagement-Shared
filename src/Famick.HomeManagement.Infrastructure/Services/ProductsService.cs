@@ -12,11 +12,13 @@ public class ProductsService : IProductsService
 {
     private readonly HomeManagementDbContext _context;
     private readonly IMapper _mapper;
+    private readonly IFileStorageService _fileStorage;
 
-    public ProductsService(HomeManagementDbContext context, IMapper mapper)
+    public ProductsService(HomeManagementDbContext context, IMapper mapper, IFileStorageService fileStorage)
     {
         _context = context;
         _mapper = mapper;
+        _fileStorage = fileStorage;
     }
 
     public async Task<ProductDto> CreateAsync(CreateProductRequest request, CancellationToken cancellationToken = default)
@@ -57,9 +59,20 @@ public class ProductsService : IProductsService
             .Include(p => p.ProductGroup)
             .Include(p => p.ShoppingLocation)
             .Include(p => p.Barcodes)
+            .Include(p => p.Images.OrderBy(i => i.SortOrder))
             .FirstOrDefaultAsync(p => p.Id == id, cancellationToken);
 
-        return product == null ? null : _mapper.Map<ProductDto>(product);
+        if (product == null) return null;
+
+        var dto = _mapper.Map<ProductDto>(product);
+
+        // Set computed URLs for images
+        foreach (var image in dto.Images)
+        {
+            image.Url = _fileStorage.GetProductImageUrl(product.Id, image.FileName);
+        }
+
+        return dto;
     }
 
     public async Task<List<ProductDto>> ListAsync(ProductFilterRequest? filter = null, CancellationToken cancellationToken = default)
@@ -256,6 +269,141 @@ public class ProductsService : IProductsService
         }
 
         _context.ProductBarcodes.Remove(barcode);
+        await _context.SaveChangesAsync(cancellationToken);
+    }
+
+    // Image management
+    public async Task<ProductImageDto> AddImageAsync(
+        Guid productId,
+        Stream imageStream,
+        string fileName,
+        string contentType,
+        long fileSize,
+        CancellationToken cancellationToken = default)
+    {
+        var product = await _context.Products.FindAsync(new object[] { productId }, cancellationToken);
+        if (product == null)
+        {
+            throw new EntityNotFoundException(nameof(Product), productId);
+        }
+
+        // Save file to storage
+        var storedFileName = await _fileStorage.SaveProductImageAsync(productId, imageStream, fileName, cancellationToken);
+
+        // Determine sort order (add at end)
+        var maxSortOrder = await _context.ProductImages
+            .Where(pi => pi.ProductId == productId)
+            .MaxAsync(pi => (int?)pi.SortOrder, cancellationToken) ?? -1;
+
+        // Check if this should be primary (first image)
+        var isPrimary = !await _context.ProductImages
+            .AnyAsync(pi => pi.ProductId == productId, cancellationToken);
+
+        var productImage = new ProductImage
+        {
+            Id = Guid.NewGuid(),
+            ProductId = productId,
+            FileName = storedFileName,
+            OriginalFileName = fileName,
+            ContentType = contentType,
+            FileSize = fileSize,
+            SortOrder = maxSortOrder + 1,
+            IsPrimary = isPrimary
+        };
+
+        _context.ProductImages.Add(productImage);
+        await _context.SaveChangesAsync(cancellationToken);
+
+        var dto = _mapper.Map<ProductImageDto>(productImage);
+        dto.Url = _fileStorage.GetProductImageUrl(productId, storedFileName);
+        return dto;
+    }
+
+    public async Task<List<ProductImageDto>> GetImagesAsync(Guid productId, CancellationToken cancellationToken = default)
+    {
+        var images = await _context.ProductImages
+            .Where(pi => pi.ProductId == productId)
+            .OrderBy(pi => pi.SortOrder)
+            .ToListAsync(cancellationToken);
+
+        var dtos = _mapper.Map<List<ProductImageDto>>(images);
+
+        // Add URLs
+        foreach (var dto in dtos)
+        {
+            dto.Url = _fileStorage.GetProductImageUrl(productId, dto.FileName);
+        }
+
+        return dtos;
+    }
+
+    public async Task DeleteImageAsync(Guid imageId, CancellationToken cancellationToken = default)
+    {
+        var image = await _context.ProductImages.FindAsync(new object[] { imageId }, cancellationToken);
+        if (image == null)
+        {
+            throw new EntityNotFoundException(nameof(ProductImage), imageId);
+        }
+
+        // Delete file from storage
+        await _fileStorage.DeleteProductImageAsync(image.ProductId, image.FileName, cancellationToken);
+
+        // If this was primary, make the next image primary
+        if (image.IsPrimary)
+        {
+            var nextImage = await _context.ProductImages
+                .Where(pi => pi.ProductId == image.ProductId && pi.Id != imageId)
+                .OrderBy(pi => pi.SortOrder)
+                .FirstOrDefaultAsync(cancellationToken);
+
+            if (nextImage != null)
+            {
+                nextImage.IsPrimary = true;
+            }
+        }
+
+        _context.ProductImages.Remove(image);
+        await _context.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task SetPrimaryImageAsync(Guid imageId, CancellationToken cancellationToken = default)
+    {
+        var image = await _context.ProductImages.FindAsync(new object[] { imageId }, cancellationToken);
+        if (image == null)
+        {
+            throw new EntityNotFoundException(nameof(ProductImage), imageId);
+        }
+
+        // Clear existing primary
+        var existingPrimary = await _context.ProductImages
+            .Where(pi => pi.ProductId == image.ProductId && pi.IsPrimary)
+            .ToListAsync(cancellationToken);
+
+        foreach (var existing in existingPrimary)
+        {
+            existing.IsPrimary = false;
+        }
+
+        // Set new primary
+        image.IsPrimary = true;
+        await _context.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task ReorderImagesAsync(Guid productId, List<Guid> imageIds, CancellationToken cancellationToken = default)
+    {
+        var images = await _context.ProductImages
+            .Where(pi => pi.ProductId == productId)
+            .ToListAsync(cancellationToken);
+
+        for (var i = 0; i < imageIds.Count; i++)
+        {
+            var image = images.FirstOrDefault(img => img.Id == imageIds[i]);
+            if (image != null)
+            {
+                image.SortOrder = i;
+            }
+        }
+
         await _context.SaveChangesAsync(cancellationToken);
     }
 

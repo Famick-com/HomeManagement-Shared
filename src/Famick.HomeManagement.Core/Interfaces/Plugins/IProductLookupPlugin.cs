@@ -96,6 +96,11 @@ public class ProductLookupResult
     public string? Barcode { get; set; }
 
     /// <summary>
+    /// Food category (e.g., "Cheese", "Snacks", "Beverages")
+    /// </summary>
+    public string? Category { get; set; }
+
+    /// <summary>
     /// Serving size description
     /// </summary>
     public string? ServingSizeDescription { get; set; }
@@ -123,6 +128,7 @@ public class ProductLookupNutrition
 {
     public decimal? ServingSize { get; set; }
     public string? ServingUnit { get; set; }
+    public decimal? ServingsPerContainer { get; set; }
 
     // Macronutrients
     public decimal? Calories { get; set; }

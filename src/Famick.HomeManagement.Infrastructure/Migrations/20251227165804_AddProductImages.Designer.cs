@@ -3,6 +3,7 @@ using System;
 using Famick.HomeManagement.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Famick.HomeManagement.Infrastructure.Migrations
 {
     [DbContext(typeof(HomeManagementDbContext))]
-    partial class HomeManagementDbContextModelSnapshot : ModelSnapshot
+    [Migration("20251227165804_AddProductImages")]
+    partial class AddProductImages
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -321,15 +324,6 @@ namespace Famick.HomeManagement.Infrastructure.Migrations
                     b.Property<Guid>("QuantityUnitIdStock")
                         .HasColumnType("uuid");
 
-                    b.Property<decimal?>("ServingSize")
-                        .HasColumnType("numeric");
-
-                    b.Property<string>("ServingUnit")
-                        .HasColumnType("text");
-
-                    b.Property<decimal?>("ServingsPerContainer")
-                        .HasColumnType("numeric");
-
                     b.Property<Guid?>("ShoppingLocationId")
                         .HasColumnType("uuid");
 
@@ -618,9 +612,6 @@ namespace Famick.HomeManagement.Infrastructure.Migrations
                         .HasMaxLength(50)
                         .HasColumnType("character varying(50)")
                         .HasColumnName("serving_unit");
-
-                    b.Property<decimal?>("ServingsPerContainer")
-                        .HasColumnType("numeric");
 
                     b.Property<decimal?>("Sodium")
                         .HasColumnType("numeric(10,3)")

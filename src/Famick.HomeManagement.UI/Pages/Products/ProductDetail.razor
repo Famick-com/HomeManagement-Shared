@@ -10,7 +10,9 @@
 @using Famick.HomeManagement.Core.DTOs.Products
 @using Famick.HomeManagement.Core.DTOs.Locations
 @using Famick.HomeManagement.Core.DTOs.QuantityUnits
+@using Famick.HomeManagement.Core.DTOs.ProductLookup
 @using Famick.HomeManagement.Core.Interfaces.Plugins
+@using Microsoft.AspNetCore.Components.Forms
 
 <MudText Typo="Typo.h4" Class="mb-4">
     @(IsNew ? L["products.newProduct"] : L["products.editProduct"])
@@ -105,6 +107,39 @@ else
                                              Style="flex: 1;" />
                         </MudStack>
 
+                        <MudDivider Class="my-3" />
+                        <MudText Typo="Typo.subtitle2" Class="mb-2">Package Information</MudText>
+
+                        <MudStack Row="true" Spacing="3">
+                            <MudNumericField T="decimal?" @bind-Value="_servingSize"
+                                             Label="Serving Size"
+                                             Variant="Variant.Outlined"
+                                             Min="0.1m"
+                                             Style="flex: 1;" />
+
+                            <MudSelect T="string" @bind-Value="_servingUnit"
+                                       Label="Unit"
+                                       Variant="Variant.Outlined"
+                                       Style="flex: 0.5;">
+                                <MudSelectItem Value="@("g")">g</MudSelectItem>
+                                <MudSelectItem Value="@("ml")">ml</MudSelectItem>
+                                <MudSelectItem Value="@("oz")">oz</MudSelectItem>
+                            </MudSelect>
+
+                            <MudNumericField T="decimal?" @bind-Value="_servingsPerContainer"
+                                             Label="Servings Per Container"
+                                             Variant="Variant.Outlined"
+                                             Min="0.1m"
+                                             Style="flex: 1;" />
+                        </MudStack>
+
+                        @if (_servingSize.HasValue && _servingsPerContainer.HasValue && _servingUnit == "g")
+                        {
+                            <MudAlert Severity="Severity.Info" Dense="true" Class="mt-2">
+                                <strong>@L["nutrition.totalWeight"]:</strong> @((_servingSize.Value * _servingsPerContainer.Value).ToString("0"))g
+                            </MudAlert>
+                        }
+
                         <MudSwitch @bind-Value="_isActive"
                                    Label="@L["products.active"]"
                                    Color="Color.Primary" />
@@ -128,6 +163,43 @@ else
                         </MudAlert>
                     }
                 </MudPaper>
+
+                <MudPaper Elevation="1" Class="pa-4 mt-4">
+                    <MudText Typo="Typo.h6" Class="mb-3">@L["products.images"]</MudText>
+                    <ProductImageGallery ProductId="@(Id ?? Guid.Empty)"
+                                         Images="@_images"
+                                         ReadOnly="@IsNew"
+                                         OnImageUploaded="HandleImageUploaded"
+                                         OnImageDeleted="HandleImageDeleted"
+                                         OnPrimaryChanged="HandleImagePrimaryChanged" />
+
+                    @if (IsNew)
+                    {
+                        <MudAlert Severity="Severity.Info" Class="mt-3" Dense="true">
+                            Save the product first to add images.
+                        </MudAlert>
+                    }
+                </MudPaper>
+
+                @if (!IsNew)
+                {
+                    <MudPaper Elevation="1" Class="pa-4 mt-4">
+                        @if (_nutrition != null)
+                        {
+                            <NutritionFactsCard Nutrition="_nutrition"
+                                                ServingSize="@_servingSize"
+                                                ServingUnit="@_servingUnit"
+                                                ServingsPerContainer="@_servingsPerContainer" />
+                        }
+                        else
+                        {
+                            <MudText Typo="Typo.h6" Class="mb-2">@L["nutrition.title"]</MudText>
+                            <MudText Typo="Typo.body2" Color="Color.Secondary">
+                                @L["nutrition.noData"]
+                            </MudText>
+                        }
+                    </MudPaper>
+                }
             </MudItem>
         </MudGrid>
 
@@ -187,7 +259,12 @@ else
     private decimal _minStockAmount = 0m;
     private int _defaultBestBeforeDays = 0;
     private bool _isActive = true;
+    private decimal? _servingSize;
+    private string? _servingUnit = "g";
+    private decimal? _servingsPerContainer;
     private List<ProductBarcodeDto> _barcodes = new();
+    private List<ProductImageDto> _images = new();
+    private ProductNutritionDto? _nutrition;
 
     // Lookup data
     private List<LocationDto> _locations = new();
@@ -258,7 +335,14 @@ else
                 _minStockAmount = product.MinStockAmount;
                 _defaultBestBeforeDays = product.DefaultBestBeforeDays;
                 _isActive = product.IsActive;
+                _servingSize = product.ServingSize;
+                _servingUnit = product.ServingUnit ?? "g";
+                _servingsPerContainer = product.ServingsPerContainer;
                 _barcodes = product.Barcodes;
+                _images = product.Images ?? new();
+
+                // Load nutrition data
+                await LoadNutritionAsync();
             }
             else
             {
@@ -301,7 +385,10 @@ else
                     QuantityUnitFactorPurchaseToStock = _conversionFactor,
                     MinStockAmount = _minStockAmount,
                     DefaultBestBeforeDays = _defaultBestBeforeDays,
-                    IsActive = _isActive
+                    IsActive = _isActive,
+                    ServingSize = _servingSize,
+                    ServingUnit = _servingUnit,
+                    ServingsPerContainer = _servingsPerContainer
                 };
 
                 var result = await ApiClient.PostAsync<CreateProductRequest, ProductDto>("api/v1/products", request);
@@ -328,7 +415,10 @@ else
                     QuantityUnitFactorPurchaseToStock = _conversionFactor,
                     MinStockAmount = _minStockAmount,
                     DefaultBestBeforeDays = _defaultBestBeforeDays,
-                    IsActive = _isActive
+                    IsActive = _isActive,
+                    ServingSize = _servingSize,
+                    ServingUnit = _servingUnit,
+                    ServingsPerContainer = _servingsPerContainer
                 };
 
                 var result = await ApiClient.PutAsync<UpdateProductRequest, ProductDto>($"api/v1/products/{Id}", request);
@@ -454,6 +544,122 @@ else
         Navigation.NavigateTo("/products");
     }
 
+    private async Task LoadNutritionAsync(Guid? productId = null)
+    {
+        var idToUse = productId ?? Id;
+        if (idToUse == null) return;
+
+        try
+        {
+            var result = await ApiClient.GetAsync<ProductNutritionDto>($"api/v1/products/{idToUse}/nutrition");
+            if (result.IsSuccess && result.Data != null)
+            {
+                _nutrition = result.Data;
+            }
+        }
+        catch
+        {
+            // Nutrition is optional, don't show error
+        }
+    }
+
+    private async Task HandleImageUploaded(IBrowserFile file)
+    {
+        if (IsNew) return;
+
+        try
+        {
+            using var content = new MultipartFormDataContent();
+            using var stream = file.OpenReadStream(maxAllowedSize: 5 * 1024 * 1024);
+            using var memoryStream = new MemoryStream();
+            await stream.CopyToAsync(memoryStream);
+            memoryStream.Position = 0;
+
+            var fileContent = new StreamContent(memoryStream);
+            fileContent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(file.ContentType);
+            content.Add(fileContent, "files", file.Name);
+
+            var result = await ApiClient.PostMultipartAsync<List<ProductImageDto>>($"api/v1/products/{Id}/images", content);
+
+            if (result.IsSuccess && result.Data != null)
+            {
+                _images.AddRange(result.Data);
+                Snackbar.Add(L["products.imageUploaded"], Severity.Success);
+                StateHasChanged();
+            }
+            else
+            {
+                Snackbar.Add(result.ErrorMessage ?? L["products.uploadFailed"], Severity.Error);
+            }
+        }
+        catch (Exception)
+        {
+            Snackbar.Add(L["products.uploadFailed"], Severity.Error);
+        }
+    }
+
+    private async Task HandleImageDeleted(ProductImageDto image)
+    {
+        if (IsNew) return;
+
+        var confirmed = await DialogService.ShowMessageBox(
+            L["confirmations.deleteTitle"],
+            L["products.confirmDeleteImage"],
+            yesText: L["common.delete"],
+            cancelText: L["common.cancel"]);
+
+        if (confirmed != true) return;
+
+        try
+        {
+            var result = await ApiClient.DeleteAsync($"api/v1/products/{Id}/images/{image.Id}");
+
+            if (result.IsSuccess)
+            {
+                _images.Remove(image);
+                Snackbar.Add(L["products.imageDeleted"], Severity.Success);
+                StateHasChanged();
+            }
+            else
+            {
+                Snackbar.Add(result.ErrorMessage ?? L["errors.generic"], Severity.Error);
+            }
+        }
+        catch (Exception)
+        {
+            Snackbar.Add(L["errors.generic"], Severity.Error);
+        }
+    }
+
+    private async Task HandleImagePrimaryChanged(ProductImageDto image)
+    {
+        if (IsNew) return;
+
+        try
+        {
+            var result = await ApiClient.PutAsync($"api/v1/products/{Id}/images/{image.Id}/primary");
+
+            if (result.IsSuccess)
+            {
+                // Update local state
+                foreach (var img in _images)
+                {
+                    img.IsPrimary = img.Id == image.Id;
+                }
+                Snackbar.Add(L["products.primaryImageSet"], Severity.Success);
+                StateHasChanged();
+            }
+            else
+            {
+                Snackbar.Add(result.ErrorMessage ?? L["errors.generic"], Severity.Error);
+            }
+        }
+        catch (Exception)
+        {
+            Snackbar.Add(L["errors.generic"], Severity.Error);
+        }
+    }
+
     private async Task OpenProductLookupAsync()
     {
         var options = new DialogOptions
@@ -463,8 +669,14 @@ else
             CloseOnEscapeKey = true
         };
 
+        var parameters = new DialogParameters<ProductLookupModal>
+        {
+            { x => x.InitialQuery, _name }
+        };
+
         var dialog = await DialogService.ShowAsync<ProductLookupModal>(
             L["productLookup.title"],
+            parameters,
             options);
 
         var result = await dialog.Result;
@@ -491,23 +703,114 @@ else
 
             if (savedProductId.HasValue)
             {
-                // Add barcode if available
-                if (!string.IsNullOrEmpty(lookupResult.Barcode))
+                // Apply lookup result (saves nutrition data and adds barcode)
+                await ApplyLookupResultAsync(savedProductId.Value, lookupResult);
+
+                // Update serving state variables from lookup result
+                if (lookupResult.Nutrition != null)
                 {
-                    var existingBarcode = _barcodes.FirstOrDefault(b => b.Barcode == lookupResult.Barcode);
-                    if (existingBarcode == null)
+                    if (lookupResult.Nutrition.ServingSize.HasValue)
                     {
-                        var newBarcode = new ProductBarcodeDto
-                        {
-                            Barcode = lookupResult.Barcode,
-                            Note = lookupResult.DataSource
-                        };
-                        await HandleBarcodeAdded(newBarcode);
+                        _servingSize = lookupResult.Nutrition.ServingSize;
+                    }
+                    if (!string.IsNullOrEmpty(lookupResult.Nutrition.ServingUnit))
+                    {
+                        _servingUnit = lookupResult.Nutrition.ServingUnit;
                     }
                 }
 
+                // Reload barcodes and nutrition to reflect changes
+                await LoadProductBarcodes(savedProductId.Value);
+                await LoadNutritionAsync(savedProductId.Value);
+
+                StateHasChanged();
                 Snackbar.Add(L["productLookup.resultApplied"], Severity.Success);
             }
+        }
+    }
+
+    private async Task ApplyLookupResultAsync(Guid productId, ProductLookupResult lookupResult)
+    {
+        try
+        {
+            // Create the request with nutrition data
+            var request = new ApplyLookupResultRequest
+            {
+                ExternalId = lookupResult.ExternalId,
+                DataSource = lookupResult.DataSource,
+                Name = lookupResult.Name,
+                BrandName = lookupResult.BrandName,
+                BrandOwner = lookupResult.BrandOwner,
+                Barcode = lookupResult.Barcode,
+                ServingSizeDescription = lookupResult.ServingSizeDescription,
+                Ingredients = lookupResult.Ingredients,
+                UpdateName = false, // Already updated
+                AddBarcode = true,  // Let backend handle barcode
+                Nutrition = lookupResult.Nutrition != null ? new ProductNutritionDto
+                {
+                    ServingSize = lookupResult.Nutrition.ServingSize,
+                    ServingUnit = lookupResult.Nutrition.ServingUnit,
+                    Calories = lookupResult.Nutrition.Calories,
+                    TotalFat = lookupResult.Nutrition.TotalFat,
+                    SaturatedFat = lookupResult.Nutrition.SaturatedFat,
+                    TransFat = lookupResult.Nutrition.TransFat,
+                    Cholesterol = lookupResult.Nutrition.Cholesterol,
+                    Sodium = lookupResult.Nutrition.Sodium,
+                    TotalCarbohydrates = lookupResult.Nutrition.TotalCarbohydrates,
+                    DietaryFiber = lookupResult.Nutrition.DietaryFiber,
+                    TotalSugars = lookupResult.Nutrition.TotalSugars,
+                    AddedSugars = lookupResult.Nutrition.AddedSugars,
+                    Protein = lookupResult.Nutrition.Protein,
+                    VitaminA = lookupResult.Nutrition.VitaminA,
+                    VitaminC = lookupResult.Nutrition.VitaminC,
+                    VitaminD = lookupResult.Nutrition.VitaminD,
+                    VitaminE = lookupResult.Nutrition.VitaminE,
+                    VitaminK = lookupResult.Nutrition.VitaminK,
+                    Thiamin = lookupResult.Nutrition.Thiamin,
+                    Riboflavin = lookupResult.Nutrition.Riboflavin,
+                    Niacin = lookupResult.Nutrition.Niacin,
+                    VitaminB6 = lookupResult.Nutrition.VitaminB6,
+                    Folate = lookupResult.Nutrition.Folate,
+                    VitaminB12 = lookupResult.Nutrition.VitaminB12,
+                    Calcium = lookupResult.Nutrition.Calcium,
+                    Iron = lookupResult.Nutrition.Iron,
+                    Magnesium = lookupResult.Nutrition.Magnesium,
+                    Phosphorus = lookupResult.Nutrition.Phosphorus,
+                    Potassium = lookupResult.Nutrition.Potassium,
+                    Zinc = lookupResult.Nutrition.Zinc,
+                    DataSource = lookupResult.DataSource,
+                    ExternalId = lookupResult.ExternalId,
+                    BrandName = lookupResult.BrandName,
+                    BrandOwner = lookupResult.BrandOwner,
+                    Ingredients = lookupResult.Ingredients,
+                    ServingSizeDescription = lookupResult.ServingSizeDescription
+                } : null
+            };
+
+            await ApiClient.PostAsync<ApplyLookupResultRequest, ProductNutritionDto>(
+                $"api/v1/products/{productId}/apply-lookup",
+                request);
+        }
+        catch (Exception ex)
+        {
+            // Log but don't fail - nutrition is optional
+            Console.WriteLine($"Failed to apply lookup result: {ex.Message}");
+        }
+    }
+
+    private async Task LoadProductBarcodes(Guid productId)
+    {
+        try
+        {
+            var result = await ApiClient.GetAsync<ProductDto>($"api/v1/products/{productId}");
+            if (result.IsSuccess && result.Data != null)
+            {
+                _barcodes = result.Data.Barcodes;
+            }
+        }
+        catch
+        {
+            // Ignore errors - barcodes already loaded
         }
     }
 
@@ -530,7 +833,10 @@ else
                     QuantityUnitFactorPurchaseToStock = _conversionFactor,
                     MinStockAmount = _minStockAmount,
                     DefaultBestBeforeDays = _defaultBestBeforeDays,
-                    IsActive = _isActive
+                    IsActive = _isActive,
+                    ServingSize = _servingSize,
+                    ServingUnit = _servingUnit,
+                    ServingsPerContainer = _servingsPerContainer
                 };
 
                 var result = await ApiClient.PostAsync<CreateProductRequest, ProductDto>("api/v1/products", request);
@@ -559,7 +865,10 @@ else
                     QuantityUnitFactorPurchaseToStock = _conversionFactor,
                     MinStockAmount = _minStockAmount,
                     DefaultBestBeforeDays = _defaultBestBeforeDays,
-                    IsActive = _isActive
+                    IsActive = _isActive,
+                    ServingSize = _servingSize,
+                    ServingUnit = _servingUnit,
+                    ServingsPerContainer = _servingsPerContainer
                 };
 
                 var result = await ApiClient.PutAsync<UpdateProductRequest, ProductDto>($"api/v1/products/{Id}", request);

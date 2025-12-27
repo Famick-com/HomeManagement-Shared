@@ -56,6 +56,16 @@ public interface IApiClient
     /// Send a DELETE request to the specified endpoint.
     /// </summary>
     Task<ApiResult> DeleteAsync(string endpoint);
+
+    /// <summary>
+    /// Send a PUT request without a body to the specified endpoint.
+    /// </summary>
+    Task<ApiResult> PutAsync(string endpoint);
+
+    /// <summary>
+    /// Send a POST request with multipart form data (for file uploads).
+    /// </summary>
+    Task<ApiResult<TResponse>> PostMultipartAsync<TResponse>(string endpoint, MultipartFormDataContent content);
 }
 
 /// <summary>

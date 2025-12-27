@@ -160,6 +160,7 @@ public class UsdaFoodDataPlugin : IProductLookupPlugin
             BrandName = food.BrandName,
             BrandOwner = food.BrandOwner,
             Barcode = food.GtinUpc,
+            Category = food.FoodCategory,
             ServingSizeDescription = food.HouseholdServingFullText,
             Ingredients = food.Ingredients,
             Nutrition = MapNutrition(food)

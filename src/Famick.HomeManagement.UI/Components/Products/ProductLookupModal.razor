@@ -67,7 +67,15 @@
                                      OnClick="() => SelectResult(result)"
                                      Class="cursor-pointer hover-highlight">
                             <MudStack Spacing="0">
-                                <MudText Typo="Typo.body1">@result.Name</MudText>
+                                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                    <MudText Typo="Typo.body1">@result.Name</MudText>
+                                    @if (!string.IsNullOrEmpty(result.Category))
+                                    {
+                                        <MudChip T="string" Size="Size.Small" Color="Color.Info" Variant="Variant.Outlined">
+                                            @result.Category
+                                        </MudChip>
+                                    }
+                                </MudStack>
                                 @if (!string.IsNullOrEmpty(result.BrandName) || !string.IsNullOrEmpty(result.BrandOwner))
                                 {
                                     <MudText Typo="Typo.caption" Color="Color.Secondary">
@@ -109,10 +117,22 @@
     [CascadingParameter]
     private MudDialogInstance MudDialog { get; set; } = null!;
 
+    [Parameter]
+    public string? InitialQuery { get; set; }
+
     private string _searchQuery = string.Empty;
     private bool _isSearching;
     private bool _hasSearched;
     private List<ProductLookupResult> _searchResults = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!string.IsNullOrWhiteSpace(InitialQuery))
+        {
+            _searchQuery = InitialQuery;
+            await SearchAsync();
+        }
+    }
 
     private async Task HandleKeyDown(KeyboardEventArgs e)
     {

@@ -79,6 +79,9 @@ public class UsdaSearchFood
     [JsonPropertyName("brandName")]
     public string? BrandName { get; set; }
 
+    [JsonPropertyName("foodCategory")]
+    public string? FoodCategory { get; set; }
+
     [JsonPropertyName("ingredients")]
     public string? Ingredients { get; set; }
 

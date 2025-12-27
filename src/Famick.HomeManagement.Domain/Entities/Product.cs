@@ -15,6 +15,11 @@ public class Product : BaseTenantEntity
     public int DefaultBestBeforeDays { get; set; } = 0;
     public bool IsActive { get; set; } = true;
 
+    // Serving/package information (for weight calculations)
+    public decimal? ServingSize { get; set; }
+    public string? ServingUnit { get; set; }
+    public decimal? ServingsPerContainer { get; set; }
+
     // Phase 2 - Product categorization and shopping
     public Guid? ProductGroupId { get; set; }
     public Guid? ShoppingLocationId { get; set; }
@@ -24,6 +29,7 @@ public class Product : BaseTenantEntity
     public QuantityUnit QuantityUnitPurchase { get; set; } = null!;
     public QuantityUnit QuantityUnitStock { get; set; } = null!;
     public ICollection<ProductBarcode> Barcodes { get; set; } = new List<ProductBarcode>();
+    public ICollection<ProductImage> Images { get; set; } = new List<ProductImage>();
 
     // Phase 2 navigation properties
     public ProductGroup? ProductGroup { get; set; }

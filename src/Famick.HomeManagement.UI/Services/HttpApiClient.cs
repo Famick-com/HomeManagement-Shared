@@ -195,6 +195,26 @@ public class HttpApiClient : IApiClient
         });
     }
 
+    public async Task<ApiResult> PutAsync(string endpoint)
+    {
+        return await ExecuteWithRetry(async () =>
+        {
+            await SetAuthorizationHeader();
+            var response = await _httpClient.PutAsync(endpoint, null);
+            return await HandleResponse(response);
+        });
+    }
+
+    public async Task<ApiResult<TResponse>> PostMultipartAsync<TResponse>(string endpoint, MultipartFormDataContent content)
+    {
+        return await ExecuteWithRetry(async () =>
+        {
+            await SetAuthorizationHeader();
+            var response = await _httpClient.PostAsync(endpoint, content);
+            return await HandleResponse<TResponse>(response);
+        });
+    }
+
     private async Task SetAuthorizationHeader()
     {
         var token = await _tokenStorage.GetAccessTokenAsync();

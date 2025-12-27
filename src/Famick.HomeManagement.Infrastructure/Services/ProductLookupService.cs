@@ -136,6 +136,20 @@ public class ProductLookupService : IProductLookupService
         if (result.Nutrition != null)
         {
             MapNutritionData(nutrition, result.Nutrition);
+
+            // Also update Product serving fields from nutrition data
+            if (result.Nutrition.ServingSize.HasValue)
+            {
+                product.ServingSize = result.Nutrition.ServingSize;
+            }
+            if (!string.IsNullOrEmpty(result.Nutrition.ServingUnit))
+            {
+                product.ServingUnit = result.Nutrition.ServingUnit;
+            }
+            if (result.Nutrition.ServingsPerContainer.HasValue)
+            {
+                product.ServingsPerContainer = result.Nutrition.ServingsPerContainer;
+            }
         }
 
         if (product.Nutrition == null)
@@ -183,6 +197,7 @@ public class ProductLookupService : IProductLookupService
     {
         target.ServingSize = source.ServingSize;
         target.ServingUnit = source.ServingUnit;
+        target.ServingsPerContainer = source.ServingsPerContainer;
         target.Calories = source.Calories;
         target.TotalFat = source.TotalFat;
         target.SaturatedFat = source.SaturatedFat;

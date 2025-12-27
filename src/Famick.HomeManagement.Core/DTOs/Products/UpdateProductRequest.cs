@@ -12,6 +12,11 @@ public class UpdateProductRequest
     public int DefaultBestBeforeDays { get; set; }
     public bool IsActive { get; set; }
 
+    // Serving/package information
+    public decimal? ServingSize { get; set; }
+    public string? ServingUnit { get; set; }
+    public decimal? ServingsPerContainer { get; set; }
+
     // Phase 2 properties
     public Guid? ProductGroupId { get; set; }
     public Guid? ShoppingLocationId { get; set; }

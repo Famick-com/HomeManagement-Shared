@@ -16,6 +16,21 @@ public class ProductDto
     public int DefaultBestBeforeDays { get; set; }
     public bool IsActive { get; set; }
 
+    // Serving/package information
+    public decimal? ServingSize { get; set; }
+    public string? ServingUnit { get; set; }
+    public decimal? ServingsPerContainer { get; set; }
+
+    /// <summary>
+    /// Calculated total weight in grams (ServingSize × ServingsPerContainer)
+    /// Only valid when ServingUnit is "g"
+    /// </summary>
+    public decimal? TotalWeightGrams =>
+        ServingSize.HasValue && ServingsPerContainer.HasValue &&
+        string.Equals(ServingUnit, "g", StringComparison.OrdinalIgnoreCase)
+            ? ServingSize.Value * ServingsPerContainer.Value
+            : null;
+
     // Phase 2 properties
     public Guid? ProductGroupId { get; set; }
     public string? ProductGroupName { get; set; }
@@ -24,6 +39,7 @@ public class ProductDto
 
     // Related data
     public List<ProductBarcodeDto> Barcodes { get; set; } = new();
+    public List<ProductImageDto> Images { get; set; } = new();
 
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
