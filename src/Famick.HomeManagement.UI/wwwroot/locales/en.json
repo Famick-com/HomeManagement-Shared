@@ -328,5 +328,36 @@
     "MudTablePager_LastPage": "Last page",
     "MudTablePager_NextPage": "Next page",
     "MudTablePager_PreviousPage": "Previous page"
+  },
+
+  "productLookup": {
+    "title": "Search Product Database",
+    "searchPlaceholder": "Enter product name or barcode",
+    "scanBarcode": "Scan Barcode",
+    "searchingByBarcode": "Searching by barcode...",
+    "searchingByName": "Searching by product name...",
+    "resultsCount": "{count} results found",
+    "noResults": "No products found. Try a different search term.",
+    "barcode": "Barcode",
+    "calories": "Calories",
+    "scanError": "Failed to scan barcode. Please try again.",
+    "applyResult": "Apply",
+    "nutrition": "Nutrition Facts",
+    "servingSize": "Serving Size",
+    "servings": "Servings",
+    "perServing": "Per Serving",
+    "totalFat": "Total Fat",
+    "saturatedFat": "Saturated Fat",
+    "transFat": "Trans Fat",
+    "cholesterol": "Cholesterol",
+    "sodium": "Sodium",
+    "totalCarbs": "Total Carbohydrates",
+    "dietaryFiber": "Dietary Fiber",
+    "totalSugars": "Total Sugars",
+    "addedSugars": "Added Sugars",
+    "protein": "Protein",
+    "vitamins": "Vitamins & Minerals",
+    "dataSource": "Data Source",
+    "lastUpdated": "Last Updated"
   }
 }

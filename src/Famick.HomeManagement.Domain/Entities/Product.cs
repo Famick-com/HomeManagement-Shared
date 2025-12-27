@@ -28,4 +28,7 @@ public class Product : BaseTenantEntity
     // Phase 2 navigation properties
     public ProductGroup? ProductGroup { get; set; }
     public ShoppingLocation? ShoppingLocation { get; set; }
+
+    // Nutrition data (optional, populated from external sources)
+    public ProductNutrition? Nutrition { get; set; }
 }

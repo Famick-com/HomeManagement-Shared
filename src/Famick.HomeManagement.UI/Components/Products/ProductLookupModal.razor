@@ -1,0 +1,200 @@
+@using Famick.HomeManagement.Core.Interfaces
+@using Famick.HomeManagement.Core.Interfaces.Plugins
+@using Famick.HomeManagement.Core.DTOs.ProductLookup
+@inject IApiClient ApiClient
+@inject IBarcodeScannerService BarcodeScanner
+@inject ISnackbar Snackbar
+@inject ILocalizer L
+
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6">@L["productLookup.title"]</MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudStack Spacing="3">
+            @* Search input with optional camera button *@
+            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                <MudTextField @bind-Value="_searchQuery"
+                              Label="@L["productLookup.searchPlaceholder"]"
+                              Variant="Variant.Outlined"
+                              Adornment="Adornment.End"
+                              AdornmentIcon="@Icons.Material.Filled.Search"
+                              AdornmentColor="Color.Primary"
+                              OnAdornmentClick="SearchAsync"
+                              OnKeyDown="HandleKeyDown"
+                              Immediate="true"
+                              Class="flex-grow-1" />
+
+                @if (BarcodeScanner.IsAvailable)
+                {
+                    <MudTooltip Text="@L["productLookup.scanBarcode"]">
+                        <MudIconButton Icon="@Icons.Material.Filled.CameraAlt"
+                                       Color="Color.Primary"
+                                       Variant="Variant.Filled"
+                                       Size="Size.Large"
+                                       OnClick="ScanBarcodeAsync" />
+                    </MudTooltip>
+                }
+            </MudStack>
+
+            @* Search type indicator *@
+            @if (!string.IsNullOrWhiteSpace(_searchQuery))
+            {
+                <MudText Typo="Typo.caption" Color="Color.Info">
+                    @(IsBarcode(_searchQuery)
+                        ? L["productLookup.searchingByBarcode"]
+                        : L["productLookup.searchingByName"])
+                </MudText>
+            }
+
+            @* Loading indicator *@
+            @if (_isSearching)
+            {
+                <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+            }
+
+            @* Results list *@
+            @if (_searchResults.Count > 0)
+            {
+                <MudText Typo="Typo.subtitle2" Class="mb-2">
+                    @L["productLookup.resultsCount", _searchResults.Count]
+                </MudText>
+
+                <MudList T="ProductLookupResult" Dense="true" Class="overflow-auto" Style="max-height: 400px;">
+                    @foreach (var result in _searchResults)
+                    {
+                        <MudListItem T="ProductLookupResult"
+                                     OnClick="() => SelectResult(result)"
+                                     Class="cursor-pointer hover-highlight">
+                            <MudStack Spacing="0">
+                                <MudText Typo="Typo.body1">@result.Name</MudText>
+                                @if (!string.IsNullOrEmpty(result.BrandName) || !string.IsNullOrEmpty(result.BrandOwner))
+                                {
+                                    <MudText Typo="Typo.caption" Color="Color.Secondary">
+                                        @(result.BrandName ?? result.BrandOwner)
+                                    </MudText>
+                                }
+                                @if (!string.IsNullOrEmpty(result.Barcode))
+                                {
+                                    <MudText Typo="Typo.caption" Color="Color.Tertiary">
+                                        @L["productLookup.barcode"]: @result.Barcode
+                                    </MudText>
+                                }
+                                @if (result.Nutrition?.Calories.HasValue == true)
+                                {
+                                    <MudText Typo="Typo.caption">
+                                        @L["productLookup.calories"]: @result.Nutrition.Calories
+                                    </MudText>
+                                }
+                            </MudStack>
+                        </MudListItem>
+                        <MudDivider />
+                    }
+                </MudList>
+            }
+            else if (_hasSearched && !_isSearching)
+            {
+                <MudAlert Severity="Severity.Info">
+                    @L["productLookup.noResults"]
+                </MudAlert>
+            }
+        </MudStack>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">@L["common.cancel"]</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter]
+    private MudDialogInstance MudDialog { get; set; } = null!;
+
+    private string _searchQuery = string.Empty;
+    private bool _isSearching;
+    private bool _hasSearched;
+    private List<ProductLookupResult> _searchResults = new();
+
+    private async Task HandleKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter" && !string.IsNullOrWhiteSpace(_searchQuery))
+        {
+            await SearchAsync();
+        }
+    }
+
+    private async Task SearchAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_searchQuery))
+        {
+            return;
+        }
+
+        _isSearching = true;
+        _hasSearched = true;
+        _searchResults.Clear();
+
+        try
+        {
+            var request = new ProductLookupRequest
+            {
+                Query = _searchQuery.Trim(),
+                MaxResults = 20
+            };
+
+            var result = await ApiClient.PostAsync<ProductLookupRequest, List<ProductLookupResult>>(
+                "api/v1/products/lookup", request);
+
+            if (result.IsSuccess && result.Data != null)
+            {
+                _searchResults = result.Data;
+            }
+            else
+            {
+                Snackbar.Add(result.ErrorMessage ?? L["errors.generic"], Severity.Error);
+            }
+        }
+        catch (Exception)
+        {
+            Snackbar.Add(L["errors.generic"], Severity.Error);
+        }
+        finally
+        {
+            _isSearching = false;
+        }
+    }
+
+    private async Task ScanBarcodeAsync()
+    {
+        try
+        {
+            var barcode = await BarcodeScanner.ScanBarcodeAsync();
+
+            if (!string.IsNullOrEmpty(barcode))
+            {
+                _searchQuery = barcode;
+                await SearchAsync();
+            }
+        }
+        catch (Exception)
+        {
+            Snackbar.Add(L["productLookup.scanError"], Severity.Error);
+        }
+    }
+
+    private void SelectResult(ProductLookupResult result)
+    {
+        MudDialog.Close(DialogResult.Ok(result));
+    }
+
+    private void Cancel()
+    {
+        MudDialog.Cancel();
+    }
+
+    private static bool IsBarcode(string input)
+    {
+        if (string.IsNullOrWhiteSpace(input)) return false;
+        var cleaned = input.Trim().Replace("-", "").Replace(" ", "");
+        return System.Text.RegularExpressions.Regex.IsMatch(cleaned, @"^[0-9]{8,14}$");
+    }
+}
