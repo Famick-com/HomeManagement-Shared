@@ -10,6 +10,7 @@
 @using Famick.HomeManagement.Core.DTOs.Products
 @using Famick.HomeManagement.Core.DTOs.Locations
 @using Famick.HomeManagement.Core.DTOs.QuantityUnits
+@using Famick.HomeManagement.Core.Interfaces.Plugins
 
 <MudText Typo="Typo.h4" Class="mb-4">
     @(IsNew ? L["products.newProduct"] : L["products.editProduct"])
@@ -26,11 +27,21 @@ else
             <MudItem xs="12" md="8">
                 <MudPaper Elevation="1" Class="pa-4">
                     <MudStack Spacing="4">
-                        <MudTextField @bind-Value="_name"
-                                      Label="@L["products.name"]"
-                                      Variant="Variant.Outlined"
-                                      Required="true"
-                                      RequiredError="@L["products.nameRequired"]" />
+                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                            <MudTextField @bind-Value="_name"
+                                          Label="@L["products.name"]"
+                                          Variant="Variant.Outlined"
+                                          Required="true"
+                                          RequiredError="@L["products.nameRequired"]"
+                                          Class="flex-grow-1" />
+                            <MudTooltip Text="@L["productLookup.title"]">
+                                <MudIconButton Icon="@Icons.Material.Filled.Search"
+                                               Color="Color.Primary"
+                                               Variant="Variant.Filled"
+                                               Size="Size.Medium"
+                                               OnClick="OpenProductLookupAsync" />
+                            </MudTooltip>
+                        </MudStack>
 
                         <MudTextField @bind-Value="_description"
                                       Label="@L["products.description"]"
@@ -441,5 +452,55 @@ else
     private void NavigateBack()
     {
         Navigation.NavigateTo("/products");
+    }
+
+    private async Task OpenProductLookupAsync()
+    {
+        var options = new DialogOptions
+        {
+            MaxWidth = MaxWidth.Medium,
+            FullWidth = true,
+            CloseOnEscapeKey = true
+        };
+
+        var dialog = await DialogService.ShowAsync<ProductLookupModal>(
+            L["productLookup.title"],
+            options);
+
+        var result = await dialog.Result;
+
+        if (result != null && !result.Canceled && result.Data is ProductLookupResult lookupResult)
+        {
+            // Apply the selected result to the form
+            _name = lookupResult.Name;
+
+            // If brand info is available, append to description
+            if (!string.IsNullOrEmpty(lookupResult.BrandName) || !string.IsNullOrEmpty(lookupResult.BrandOwner))
+            {
+                var brand = lookupResult.BrandName ?? lookupResult.BrandOwner;
+                if (string.IsNullOrEmpty(_description))
+                {
+                    _description = brand;
+                }
+            }
+
+            // If a barcode is returned and we're editing an existing product, add it
+            if (!IsNew && !string.IsNullOrEmpty(lookupResult.Barcode))
+            {
+                var existingBarcode = _barcodes.FirstOrDefault(b => b.Barcode == lookupResult.Barcode);
+                if (existingBarcode == null)
+                {
+                    var newBarcode = new ProductBarcodeDto
+                    {
+                        Barcode = lookupResult.Barcode,
+                        Note = lookupResult.DataSource
+                    };
+                    await HandleBarcodeAdded(newBarcode);
+                }
+            }
+
+            StateHasChanged();
+            Snackbar.Add(L["productLookup.applyResult"], Severity.Success);
+        }
     }
 }
