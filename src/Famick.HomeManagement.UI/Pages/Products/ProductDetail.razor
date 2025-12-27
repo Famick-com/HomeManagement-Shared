@@ -474,7 +474,7 @@ else
             // Apply the selected result to the form
             _name = lookupResult.Name;
 
-            // If brand info is available, append to description
+            // If brand info is available, set as description
             if (!string.IsNullOrEmpty(lookupResult.BrandName) || !string.IsNullOrEmpty(lookupResult.BrandOwner))
             {
                 var brand = lookupResult.BrandName ?? lookupResult.BrandOwner;
@@ -484,23 +484,106 @@ else
                 }
             }
 
-            // If a barcode is returned and we're editing an existing product, add it
-            if (!IsNew && !string.IsNullOrEmpty(lookupResult.Barcode))
+            StateHasChanged();
+
+            // Auto-save the product
+            var savedProductId = await SaveProductAndGetIdAsync();
+
+            if (savedProductId.HasValue)
             {
-                var existingBarcode = _barcodes.FirstOrDefault(b => b.Barcode == lookupResult.Barcode);
-                if (existingBarcode == null)
+                // Add barcode if available
+                if (!string.IsNullOrEmpty(lookupResult.Barcode))
                 {
-                    var newBarcode = new ProductBarcodeDto
+                    var existingBarcode = _barcodes.FirstOrDefault(b => b.Barcode == lookupResult.Barcode);
+                    if (existingBarcode == null)
                     {
-                        Barcode = lookupResult.Barcode,
-                        Note = lookupResult.DataSource
-                    };
-                    await HandleBarcodeAdded(newBarcode);
+                        var newBarcode = new ProductBarcodeDto
+                        {
+                            Barcode = lookupResult.Barcode,
+                            Note = lookupResult.DataSource
+                        };
+                        await HandleBarcodeAdded(newBarcode);
+                    }
+                }
+
+                Snackbar.Add(L["productLookup.resultApplied"], Severity.Success);
+            }
+        }
+    }
+
+    private async Task<Guid?> SaveProductAndGetIdAsync()
+    {
+        _isSaving = true;
+        StateHasChanged();
+
+        try
+        {
+            if (IsNew)
+            {
+                var request = new CreateProductRequest
+                {
+                    Name = _name,
+                    Description = _description,
+                    LocationId = _locationId,
+                    QuantityUnitIdPurchase = _purchaseUnitId,
+                    QuantityUnitIdStock = _stockUnitId,
+                    QuantityUnitFactorPurchaseToStock = _conversionFactor,
+                    MinStockAmount = _minStockAmount,
+                    DefaultBestBeforeDays = _defaultBestBeforeDays,
+                    IsActive = _isActive
+                };
+
+                var result = await ApiClient.PostAsync<CreateProductRequest, ProductDto>("api/v1/products", request);
+
+                if (result.IsSuccess && result.Data != null)
+                {
+                    // Navigate to the saved product (switches from /new to /{id})
+                    Navigation.NavigateTo($"/products/{result.Data.Id}", replace: true);
+                    return result.Data.Id;
+                }
+                else
+                {
+                    Snackbar.Add(result.ErrorMessage ?? L["errors.generic"], Severity.Error);
+                    return null;
                 }
             }
+            else
+            {
+                var request = new UpdateProductRequest
+                {
+                    Name = _name,
+                    Description = _description,
+                    LocationId = _locationId,
+                    QuantityUnitIdPurchase = _purchaseUnitId,
+                    QuantityUnitIdStock = _stockUnitId,
+                    QuantityUnitFactorPurchaseToStock = _conversionFactor,
+                    MinStockAmount = _minStockAmount,
+                    DefaultBestBeforeDays = _defaultBestBeforeDays,
+                    IsActive = _isActive
+                };
 
+                var result = await ApiClient.PutAsync<UpdateProductRequest, ProductDto>($"api/v1/products/{Id}", request);
+
+                if (result.IsSuccess)
+                {
+                    return Id;
+                }
+                else
+                {
+                    Snackbar.Add(result.ErrorMessage ?? L["errors.generic"], Severity.Error);
+                    return null;
+                }
+            }
+        }
+        catch (Exception)
+        {
+            Snackbar.Add(L["errors.generic"], Severity.Error);
+            return null;
+        }
+        finally
+        {
+            _isSaving = false;
             StateHasChanged();
-            Snackbar.Add(L["productLookup.resultApplied"], Severity.Success);
         }
     }
 }
