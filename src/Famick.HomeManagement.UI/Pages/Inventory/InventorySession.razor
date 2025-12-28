@@ -232,9 +232,29 @@
                 await SearchAsync();
             }
         }
-        catch
+        catch (Exception ex)
         {
-            Snackbar.Add(L["inventory.scanError"], Severity.Error);
+            Console.WriteLine($"Barcode scan error: {ex}");
+            // Show error with full message for debugging, then fallback to manual entry
+            Snackbar.Add($"Camera error: {ex.Message}", Severity.Warning, config =>
+            {
+                config.VisibleStateDuration = 10000; // Show for 10 seconds
+            });
+            await ShowManualBarcodeEntryAsync();
+        }
+    }
+
+    private async Task ShowManualBarcodeEntryAsync()
+    {
+        var parameters = new DialogParameters<ManualBarcodeEntryDialog>();
+        var options = new DialogOptions { CloseOnEscapeKey = true, MaxWidth = MaxWidth.Small, FullWidth = true };
+        var dialog = await DialogService.ShowAsync<ManualBarcodeEntryDialog>(L["inventory.enterBarcode"], parameters, options);
+        var result = await dialog.Result;
+
+        if (result is { Canceled: false, Data: string barcode } && !string.IsNullOrEmpty(barcode))
+        {
+            _searchQuery = barcode;
+            await SearchAsync();
         }
     }
 

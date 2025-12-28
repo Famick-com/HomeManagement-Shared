@@ -451,6 +451,9 @@
     "productOpened": "Product marked as opened",
     "saveAndAddStock": "Save & Add Stock",
     "fromSource": "From",
-    "nextItem": "Next Item"
+    "nextItem": "Next Item",
+    "enterBarcode": "Enter Barcode",
+    "barcode": "Barcode",
+    "enterBarcodeHint": "Type or paste barcode number"
   }
 }
