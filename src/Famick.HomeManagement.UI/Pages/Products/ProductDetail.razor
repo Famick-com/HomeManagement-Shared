@@ -11,6 +11,7 @@
 @using Famick.HomeManagement.Core.DTOs.Locations
 @using Famick.HomeManagement.Core.DTOs.QuantityUnits
 @using Famick.HomeManagement.Core.DTOs.ProductLookup
+@using Famick.HomeManagement.Core.DTOs.Stock
 @using Famick.HomeManagement.Core.Interfaces.Plugins
 @using Microsoft.AspNetCore.Components.Forms
 
@@ -208,6 +209,45 @@ else
                             </MudText>
                         }
                     </MudPaper>
+
+                    <MudPaper Elevation="1" Class="pa-3 mt-3">
+                        <MudText Typo="Typo.h6" Class="mb-2">@L["stock.inStock"]</MudText>
+                        @if (_stockEntries.Count == 0)
+                        {
+                            <MudText Typo="Typo.body2" Color="Color.Secondary">
+                                @L["stock.outOfStock"]
+                            </MudText>
+                        }
+                        else
+                        {
+                            <MudStack Spacing="2">
+                                <MudText Typo="Typo.body1" Style="font-weight: 500;">
+                                    @_totalStockAmount.ToString("0.##") @_stockUnitName
+                                </MudText>
+                                @foreach (var entry in _stockEntries)
+                                {
+                                    <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center" Class="py-1" Style="border-bottom: 1px solid var(--mud-palette-divider);">
+                                        <MudStack Spacing="0" Class="flex-grow-1">
+                                            <MudText Typo="Typo.body2">
+                                                @entry.Amount.ToString("0.##") @_stockUnitName
+                                                @if (entry.Open)
+                                                {
+                                                    <MudChip T="string" Size="Size.Small" Color="Color.Info" Variant="Variant.Filled" Class="ml-2">@L["inventory.open"]</MudChip>
+                                                }
+                                            </MudText>
+                                            <MudText Typo="Typo.caption" Color="Color.Secondary">
+                                                @entry.LocationName
+                                                @if (entry.BestBeforeDate.HasValue)
+                                                {
+                                                    @: • @L["stock.expiryDate"]: @entry.BestBeforeDate.Value.ToString("d")
+                                                }
+                                            </MudText>
+                                        </MudStack>
+                                    </MudStack>
+                                }
+                            </MudStack>
+                        }
+                    </MudPaper>
                 }
             </MudItem>
         </MudGrid>
@@ -314,6 +354,9 @@ else
     private List<ProductBarcodeDto> _barcodes = new();
     private List<ProductImageDto> _images = new();
     private ProductNutritionDto? _nutrition;
+    private List<StockEntryDto> _stockEntries = new();
+    private decimal _totalStockAmount;
+    private string _stockUnitName = string.Empty;
 
     // Lookup data
     private List<LocationDto> _locations = new();
@@ -389,9 +432,10 @@ else
                 _servingsPerContainer = product.ServingsPerContainer;
                 _barcodes = product.Barcodes;
                 _images = product.Images ?? new();
+                _stockUnitName = product.QuantityUnitStockName;
 
-                // Load nutrition data
-                await LoadNutritionAsync();
+                // Load additional data
+                await Task.WhenAll(LoadNutritionAsync(), LoadStockAsync());
             }
             else
             {
@@ -609,6 +653,25 @@ else
         catch
         {
             // Nutrition is optional, don't show error
+        }
+    }
+
+    private async Task LoadStockAsync()
+    {
+        if (Id == null) return;
+
+        try
+        {
+            var result = await ApiClient.GetAsync<List<StockEntryDto>>($"api/v1/stock/by-product/{Id}");
+            if (result.IsSuccess && result.Data != null)
+            {
+                _stockEntries = result.Data.OrderBy(s => s.BestBeforeDate).ThenBy(s => s.PurchasedDate).ToList();
+                _totalStockAmount = _stockEntries.Sum(s => s.Amount);
+            }
+        }
+        catch
+        {
+            // Stock is optional, don't show error
         }
     }
 

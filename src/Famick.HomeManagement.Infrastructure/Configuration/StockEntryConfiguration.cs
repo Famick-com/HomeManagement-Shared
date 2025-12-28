@@ -62,6 +62,14 @@ namespace Famick.HomeManagement.Infrastructure.Configuration
                 .HasColumnName("opened_date")
                 .HasColumnType("timestamp with time zone");
 
+            builder.Property(s => s.OpenTrackingMode)
+                .HasColumnName("open_tracking_mode")
+                .HasColumnType("integer");
+
+            builder.Property(s => s.OriginalAmount)
+                .HasColumnName("original_amount")
+                .HasColumnType("numeric(18,4)");
+
             builder.Property(s => s.LocationId)
                 .HasColumnName("location_id")
                 .HasColumnType("uuid");

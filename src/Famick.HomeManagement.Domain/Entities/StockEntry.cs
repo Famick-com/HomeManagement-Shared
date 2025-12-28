@@ -1,4 +1,5 @@
 using System;
+using Famick.HomeManagement.Domain.Enums;
 using Famick.HomeManagement.Domain.Interfaces;
 
 namespace Famick.HomeManagement.Domain.Entities
@@ -55,6 +56,18 @@ namespace Famick.HomeManagement.Domain.Entities
         /// Date when this stock entry was opened
         /// </summary>
         public DateTime? OpenedDate { get; set; }
+
+        /// <summary>
+        /// How the remaining amount is tracked when open (percentage or count).
+        /// Null when not open or tracking mode not yet set.
+        /// </summary>
+        public OpenTrackingMode? OpenTrackingMode { get; set; }
+
+        /// <summary>
+        /// Original amount before the product was opened.
+        /// Used to calculate percentage remaining when OpenTrackingMode is Percentage.
+        /// </summary>
+        public decimal? OriginalAmount { get; set; }
 
         /// <summary>
         /// Location where this stock is stored (overrides product default location if set)

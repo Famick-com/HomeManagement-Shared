@@ -148,7 +148,10 @@ public class ProductsService : IProductsService
         var products = await query.ToListAsync(cancellationToken);
         var dtos = _mapper.Map<List<ProductDto>>(products);
 
-        // Populate image URLs
+        // Get stock data for all products
+        var stockByProduct = await GetStockByProductAndLocationAsync(cancellationToken);
+
+        // Populate image URLs and stock data
         foreach (var dto in dtos)
         {
             if (dto.Images != null)
@@ -162,9 +165,45 @@ public class ProductsService : IProductsService
                     }
                 }
             }
+
+            // Populate stock summary
+            if (stockByProduct.TryGetValue(dto.Id, out var stockLocations))
+            {
+                dto.StockByLocation = stockLocations;
+                dto.TotalStockAmount = stockLocations.Sum(s => s.Amount);
+            }
         }
 
         return dtos;
+    }
+
+    private async Task<Dictionary<Guid, List<ProductStockLocationDto>>> GetStockByProductAndLocationAsync(CancellationToken cancellationToken)
+    {
+        var stockData = await _context.Stock
+            .Include(s => s.Location)
+            .GroupBy(s => new { s.ProductId, s.LocationId, LocationName = s.Location != null ? s.Location.Name : "Unknown" })
+            .Select(g => new
+            {
+                g.Key.ProductId,
+                g.Key.LocationId,
+                g.Key.LocationName,
+                Amount = g.Sum(s => s.Amount),
+                EntryCount = g.Count()
+            })
+            .ToListAsync(cancellationToken);
+
+        return stockData
+            .GroupBy(s => s.ProductId)
+            .ToDictionary(
+                g => g.Key,
+                g => g.Select(s => new ProductStockLocationDto
+                {
+                    LocationId = s.LocationId ?? Guid.Empty,
+                    LocationName = s.LocationName,
+                    Amount = s.Amount,
+                    EntryCount = s.EntryCount
+                }).ToList()
+            );
     }
 
     public async Task<ProductDto> UpdateAsync(Guid id, UpdateProductRequest request, CancellationToken cancellationToken = default)
@@ -274,9 +313,24 @@ public class ProductsService : IProductsService
                 .ThenInclude(p => p.ShoppingLocation)
             .Include(pb => pb.Product)
                 .ThenInclude(p => p.Barcodes)
+            .Include(pb => pb.Product)
+                .ThenInclude(p => p.Images)
             .FirstOrDefaultAsync(pb => pb.Barcode == barcode, cancellationToken);
 
-        return productBarcode?.Product == null ? null : _mapper.Map<ProductDto>(productBarcode.Product);
+        if (productBarcode?.Product == null) return null;
+
+        var dto = _mapper.Map<ProductDto>(productBarcode.Product);
+
+        // Set computed URLs for images
+        foreach (var image in dto.Images)
+        {
+            if (!string.IsNullOrEmpty(image.FileName))
+            {
+                image.Url = _fileStorage.GetProductImageUrl(dto.Id, image.FileName);
+            }
+        }
+
+        return dto;
     }
 
     public async Task DeleteBarcodeAsync(Guid barcodeId, CancellationToken cancellationToken = default)
@@ -497,6 +551,7 @@ public class ProductsService : IProductsService
             .Include(p => p.ProductGroup)
             .Include(p => p.ShoppingLocation)
             .Include(p => p.Barcodes)
+            .Include(p => p.Images)
             .Where(p =>
                 p.Name.ToLower().Contains(normalizedSearchTerm) ||
                 (p.Description != null && p.Description.ToLower().Contains(normalizedSearchTerm)) ||
@@ -506,7 +561,21 @@ public class ProductsService : IProductsService
             .OrderBy(p => p.Name)
             .ToListAsync(cancellationToken);
 
-        return _mapper.Map<List<ProductDto>>(products);
+        var dtos = _mapper.Map<List<ProductDto>>(products);
+
+        // Set computed URLs for images
+        foreach (var dto in dtos)
+        {
+            foreach (var image in dto.Images)
+            {
+                if (!string.IsNullOrEmpty(image.FileName))
+                {
+                    image.Url = _fileStorage.GetProductImageUrl(dto.Id, image.FileName);
+                }
+            }
+        }
+
+        return dtos;
     }
 
     // Private helper methods

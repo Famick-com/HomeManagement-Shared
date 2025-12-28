@@ -37,10 +37,37 @@ public class ProductDto
     public Guid? ShoppingLocationId { get; set; }
     public string? ShoppingLocationName { get; set; }
 
+    // Stock summary
+    /// <summary>
+    /// Total stock amount across all locations
+    /// </summary>
+    public decimal TotalStockAmount { get; set; }
+
+    /// <summary>
+    /// Stock breakdown by location
+    /// </summary>
+    public List<ProductStockLocationDto> StockByLocation { get; set; } = new();
+
+    /// <summary>
+    /// Whether stock is below minimum threshold
+    /// </summary>
+    public bool IsBelowMinStock => TotalStockAmount < MinStockAmount;
+
     // Related data
     public List<ProductBarcodeDto> Barcodes { get; set; } = new();
     public List<ProductImageDto> Images { get; set; } = new();
 
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
+}
+
+/// <summary>
+/// Stock summary for a specific location
+/// </summary>
+public class ProductStockLocationDto
+{
+    public Guid LocationId { get; set; }
+    public string LocationName { get; set; } = string.Empty;
+    public decimal Amount { get; set; }
+    public int EntryCount { get; set; }
 }

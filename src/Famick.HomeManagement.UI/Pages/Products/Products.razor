@@ -124,12 +124,42 @@
                         </CellTemplate>
                     </TemplateColumn>
                     <PropertyColumn Property="x => x.Name" Title="@L["products.name"]" />
-                    <PropertyColumn Property="x => x.LocationName" Title="@L["products.location"]" />
-                    <PropertyColumn Property="x => x.QuantityUnitStockName" Title="@L["products.stockUnit"]" />
+                    <TemplateColumn Title="@L["stock.inStock"]" Sortable="true" SortBy="@(new Func<ProductDto, object>(x => x.TotalStockAmount))">
+                        <CellTemplate>
+                            @if (context.Item.TotalStockAmount > 0)
+                            {
+                                <MudStack Spacing="0">
+                                    <MudText Typo="Typo.body2">
+                                        @context.Item.TotalStockAmount.ToString("0.##") @context.Item.QuantityUnitStockName
+                                    </MudText>
+                                    @if (context.Item.StockByLocation.Count > 1)
+                                    {
+                                        <MudText Typo="Typo.caption" Color="Color.Secondary">
+                                            @string.Join(", ", context.Item.StockByLocation.Select(s => $"{s.LocationName}: {s.Amount:0.##}"))
+                                        </MudText>
+                                    }
+                                    else if (context.Item.StockByLocation.Count == 1)
+                                    {
+                                        <MudText Typo="Typo.caption" Color="Color.Secondary">
+                                            @context.Item.StockByLocation[0].LocationName
+                                        </MudText>
+                                    }
+                                </MudStack>
+                            }
+                            else
+                            {
+                                <MudText Typo="Typo.body2" Color="Color.Warning">@L["stock.outOfStock"]</MudText>
+                            }
+                        </CellTemplate>
+                    </TemplateColumn>
                     <PropertyColumn Property="x => x.MinStockAmount" Title="@L["products.minStock"]" />
                     <TemplateColumn Title="@L["products.status"]">
                         <CellTemplate>
-                            @if (context.Item.IsActive)
+                            @if (context.Item.IsBelowMinStock && context.Item.MinStockAmount > 0)
+                            {
+                                <MudChip T="string" Size="Size.Small" Color="Color.Warning" Variant="Variant.Filled">@L["stock.belowMinStock"]</MudChip>
+                            }
+                            else if (context.Item.IsActive)
                             {
                                 <MudChip T="string" Size="Size.Small" Color="Color.Success" Variant="Variant.Filled">@L["products.active"]</MudChip>
                             }
@@ -137,11 +167,6 @@
                             {
                                 <MudChip T="string" Size="Size.Small" Color="Color.Default" Variant="Variant.Outlined">@L["products.inactive"]</MudChip>
                             }
-                        </CellTemplate>
-                    </TemplateColumn>
-                    <TemplateColumn Title="@L["products.barcodes"]" Sortable="false">
-                        <CellTemplate>
-                            <MudChip T="string" Size="Size.Small" Variant="Variant.Text">@context.Item.Barcodes.Count</MudChip>
                         </CellTemplate>
                     </TemplateColumn>
                 </Columns>
@@ -191,8 +216,21 @@
                             <MudStack Spacing="0" Class="flex-grow-1 overflow-hidden">
                                 <MudText Typo="Typo.body1" Class="text-truncate" Style="font-weight: 500;">@product.Name</MudText>
                                 <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center">
-                                    <MudText Typo="Typo.caption" Color="Color.Secondary">@product.LocationName</MudText>
-                                    @if (!product.IsActive)
+                                    @if (product.TotalStockAmount > 0)
+                                    {
+                                        <MudText Typo="Typo.caption" Color="Color.Secondary">
+                                            @product.TotalStockAmount.ToString("0.##") @product.QuantityUnitStockName
+                                        </MudText>
+                                    }
+                                    else
+                                    {
+                                        <MudText Typo="Typo.caption" Color="Color.Warning">@L["stock.outOfStock"]</MudText>
+                                    }
+                                    @if (product.IsBelowMinStock && product.MinStockAmount > 0)
+                                    {
+                                        <MudChip T="string" Size="Size.Small" Color="Color.Warning" Variant="Variant.Filled" Class="ma-0 pa-1">@L["stock.belowMinStock"]</MudChip>
+                                    }
+                                    else if (!product.IsActive)
                                     {
                                         <MudChip T="string" Size="Size.Small" Color="Color.Default" Variant="Variant.Outlined" Class="ma-0 pa-1">@L["products.inactive"]</MudChip>
                                     }
