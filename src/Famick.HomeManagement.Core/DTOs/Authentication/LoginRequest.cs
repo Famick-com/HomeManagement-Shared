@@ -16,7 +16,9 @@ public class LoginRequest
     public string Password { get; set; } = string.Empty;
 
     /// <summary>
-    /// Whether to extend the refresh token expiration (future use)
+    /// Whether to extend the refresh token expiration.
+    /// When true, uses extended expiration (default 30 days).
+    /// When false, uses standard expiration (default 7 days).
     /// </summary>
     public bool RememberMe { get; set; }
 }

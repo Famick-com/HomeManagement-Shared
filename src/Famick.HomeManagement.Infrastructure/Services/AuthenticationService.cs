@@ -158,7 +158,10 @@ public class AuthenticationService : IAuthenticationService
         var refreshTokenString = _tokenService.GenerateRefreshToken();
         var refreshTokenHash = HashToken(refreshTokenString);
 
-        var refreshTokenExpirationDays = _configuration.GetValue<int>("JwtSettings:RefreshTokenExpirationDays", 7);
+        // Use longer expiration if "Remember Me" is checked
+        var defaultExpirationDays = _configuration.GetValue<int>("JwtSettings:RefreshTokenExpirationDays", 7);
+        var extendedExpirationDays = _configuration.GetValue<int>("JwtSettings:RefreshTokenExtendedExpirationDays", 30);
+        var refreshTokenExpirationDays = request.RememberMe ? extendedExpirationDays : defaultExpirationDays;
 
         var refreshToken = new RefreshToken
         {
