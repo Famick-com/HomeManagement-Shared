@@ -9,7 +9,8 @@ using Microsoft.Extensions.Logging;
 namespace Famick.HomeManagement.Infrastructure.Services;
 
 /// <summary>
-/// Service for searching products across all available plugins
+/// Service for searching products using the plugin pipeline.
+/// Plugins are executed in the order defined in config.json, each can add or enrich results.
 /// </summary>
 public class ProductLookupService : IProductLookupService
 {
@@ -50,56 +51,42 @@ public class ProductLookupService : IProductLookupService
             return new List<ProductLookupResult>();
         }
 
-        // Auto-detect search type based on query format
-        if (IsBarcode(query))
+        // Auto-detect search type and clean query
+        var cleanedQuery = query.Trim();
+        ProductLookupSearchType searchType;
+
+        if (IsBarcode(cleanedQuery))
         {
-            var cleanedBarcode = query.Trim().Replace("-", "").Replace(" ", "");
-            return await SearchByBarcodeAsync(cleanedBarcode, ct);
+            cleanedQuery = cleanedQuery.Replace("-", "").Replace(" ", "");
+            searchType = ProductLookupSearchType.Barcode;
+        }
+        else
+        {
+            searchType = ProductLookupSearchType.Name;
         }
 
-        return await SearchByNameAsync(query, maxResults, ct);
-    }
+        // Create pipeline context
+        var context = new ProductLookupPipelineContext(cleanedQuery, searchType, maxResults);
 
-    public async Task<List<ProductLookupResult>> SearchByBarcodeAsync(string barcode, CancellationToken ct = default)
-    {
-        var plugins = _pluginLoader.GetAvailablePlugins();
-        var results = new List<ProductLookupResult>();
-
-        foreach (var plugin in plugins)
-        {
-            try
-            {
-                var pluginResults = await plugin.SearchByBarcodeAsync(barcode, ct);
-                results.AddRange(pluginResults);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Plugin {PluginId} failed during barcode search", plugin.PluginId);
-            }
-        }
-
-        return results;
-    }
-
-    public async Task<List<ProductLookupResult>> SearchByNameAsync(string query, int maxResults = 20, CancellationToken ct = default)
-    {
-        var plugins = _pluginLoader.GetAvailablePlugins();
-        var results = new List<ProductLookupResult>();
-
-        foreach (var plugin in plugins)
+        // Execute plugins in config.json order (GetAvailablePlugins preserves load order)
+        foreach (var plugin in _pluginLoader.GetAvailablePlugins())
         {
             try
             {
-                var pluginResults = await plugin.SearchByNameAsync(query, maxResults, ct);
-                results.AddRange(pluginResults);
+                await plugin.ProcessPipelineAsync(context, ct);
+                _logger.LogDebug("Plugin {PluginId} processed pipeline. Result count: {Count}",
+                    plugin.PluginId, context.Results.Count);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Plugin {PluginId} failed during name search", plugin.PluginId);
+                _logger.LogError(ex, "Plugin {PluginId} failed during pipeline processing", plugin.PluginId);
             }
         }
 
-        return results;
+        _logger.LogInformation("Pipeline completed with {Count} results for query '{Query}' ({SearchType})",
+            context.Results.Count, cleanedQuery, searchType);
+
+        return context.Results;
     }
 
     public async Task ApplyLookupResultAsync(Guid productId, ProductLookupResult result, CancellationToken ct = default)
@@ -110,6 +97,7 @@ public class ProductLookupService : IProductLookupService
         var product = await _dbContext.Products
             .Include(p => p.Nutrition)
             .Include(p => p.Barcodes)
+            .Include(p => p.Images)
             .FirstOrDefaultAsync(p => p.Id == productId && p.TenantId == tenantId, ct);
 
         if (product == null)
@@ -172,6 +160,42 @@ public class ProductLookupService : IProductLookupService
                     ProductId = productId,
                     Barcode = result.Barcode,
                     Note = $"From {result.DataSource}"
+                });
+            }
+        }
+
+        // Add external image if available and not already present
+        if (!string.IsNullOrEmpty(result.ImageUrl))
+        {
+            // Check if we already have an image from this source
+            var existingImage = product.Images
+                .FirstOrDefault(i => i.ExternalSource == result.DataSource);
+
+            if (existingImage != null)
+            {
+                // Update existing external image
+                existingImage.ExternalUrl = result.ImageUrl;
+                existingImage.ExternalThumbnailUrl = result.ThumbnailUrl;
+            }
+            else
+            {
+                // Add new external image as primary if no primary exists
+                var hasPrimary = product.Images.Any(i => i.IsPrimary);
+
+                _dbContext.ProductImages.Add(new ProductImage
+                {
+                    Id = Guid.NewGuid(),
+                    TenantId = tenantId,
+                    ProductId = productId,
+                    ExternalUrl = result.ImageUrl,
+                    ExternalThumbnailUrl = result.ThumbnailUrl,
+                    ExternalSource = result.DataSource,
+                    FileName = string.Empty, // No local file
+                    OriginalFileName = $"External image from {result.DataSource}",
+                    ContentType = "image/jpeg", // Assume JPEG for external images
+                    FileSize = 0,
+                    SortOrder = product.Images.Count,
+                    IsPrimary = !hasPrimary // Make primary if no other primary exists
                 });
             }
         }

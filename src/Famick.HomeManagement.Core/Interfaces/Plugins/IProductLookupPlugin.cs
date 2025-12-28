@@ -5,6 +5,7 @@ namespace Famick.HomeManagement.Core.Interfaces.Plugins;
 /// <summary>
 /// Interface for product lookup plugins that search external databases
 /// (USDA FoodData Central, Open Food Facts, etc.)
+/// Plugins are called in the order defined in plugins/config.json
 /// </summary>
 public interface IProductLookupPlugin
 {
@@ -25,11 +26,6 @@ public interface IProductLookupPlugin
     string Version { get; }
 
     /// <summary>
-    /// Priority for ordering plugins (lower = higher priority)
-    /// </summary>
-    int Priority { get; }
-
-    /// <summary>
     /// Whether the plugin is currently available (initialized and configured)
     /// </summary>
     bool IsAvailable { get; }
@@ -43,21 +39,16 @@ public interface IProductLookupPlugin
     Task InitAsync(JsonElement? pluginConfig, CancellationToken ct = default);
 
     /// <summary>
-    /// Search for products by barcode (UPC, EAN, etc.)
+    /// Process the lookup pipeline. Called for each plugin in config.json order.
+    /// The plugin can:
+    /// - Add new results to context.Results
+    /// - Find and enrich existing results using context.FindMatchingResult()
+    /// - Access the original query via context.Query
+    /// - Check search type via context.SearchType (Barcode or Name)
     /// </summary>
-    /// <param name="barcode">The barcode to search for</param>
+    /// <param name="context">Pipeline context with accumulated results from previous plugins</param>
     /// <param name="ct">Cancellation token</param>
-    /// <returns>List of matching products</returns>
-    Task<List<ProductLookupResult>> SearchByBarcodeAsync(string barcode, CancellationToken ct = default);
-
-    /// <summary>
-    /// Search for products by name/description
-    /// </summary>
-    /// <param name="query">Search query string</param>
-    /// <param name="maxResults">Maximum number of results to return</param>
-    /// <param name="ct">Cancellation token</param>
-    /// <returns>List of matching products</returns>
-    Task<List<ProductLookupResult>> SearchByNameAsync(string query, int maxResults = 20, CancellationToken ct = default);
+    Task ProcessPipelineAsync(ProductLookupPipelineContext context, CancellationToken ct = default);
 }
 
 /// <summary>
@@ -99,6 +90,16 @@ public class ProductLookupResult
     /// Food category (e.g., "Cheese", "Snacks", "Beverages")
     /// </summary>
     public string? Category { get; set; }
+
+    /// <summary>
+    /// URL to product image (if available)
+    /// </summary>
+    public string? ImageUrl { get; set; }
+
+    /// <summary>
+    /// URL to product thumbnail image (if available)
+    /// </summary>
+    public string? ThumbnailUrl { get; set; }
 
     /// <summary>
     /// Serving size description

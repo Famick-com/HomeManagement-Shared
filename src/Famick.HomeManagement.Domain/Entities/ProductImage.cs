@@ -41,6 +41,22 @@ public class ProductImage : BaseTenantEntity
     /// </summary>
     public bool IsPrimary { get; set; }
 
+    /// <summary>
+    /// External URL for images from product lookup services (Open Food Facts, etc.).
+    /// When set, this URL is used directly instead of local file storage.
+    /// </summary>
+    public string? ExternalUrl { get; set; }
+
+    /// <summary>
+    /// Thumbnail URL for external images (smaller version for lists).
+    /// </summary>
+    public string? ExternalThumbnailUrl { get; set; }
+
+    /// <summary>
+    /// Source of the external image (e.g., "openfoodfacts", "usda").
+    /// </summary>
+    public string? ExternalSource { get; set; }
+
     // Navigation properties
     public Product Product { get; set; } = null!;
 }

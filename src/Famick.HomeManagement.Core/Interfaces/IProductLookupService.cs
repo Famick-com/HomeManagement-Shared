@@ -3,29 +3,21 @@ using Famick.HomeManagement.Core.Interfaces.Plugins;
 namespace Famick.HomeManagement.Core.Interfaces;
 
 /// <summary>
-/// Service for searching products across all available plugins
+/// Service for searching products using the plugin pipeline.
+/// Plugins are executed in the order defined in config.json, each can add or enrich results.
 /// </summary>
 public interface IProductLookupService
 {
     /// <summary>
-    /// Search for products across all enabled plugins.
+    /// Search for products using all enabled plugins in the pipeline.
     /// Automatically detects if the query is a barcode (8-14 digits) or a name search.
+    /// Each plugin can add new results or enrich existing ones (e.g., add images).
     /// </summary>
     /// <param name="query">Search query (barcode or product name)</param>
-    /// <param name="maxResults">Maximum results per plugin</param>
+    /// <param name="maxResults">Maximum results to return</param>
     /// <param name="ct">Cancellation token</param>
-    /// <returns>Combined results from all plugins</returns>
+    /// <returns>Accumulated results from the plugin pipeline</returns>
     Task<List<ProductLookupResult>> SearchAsync(string query, int maxResults = 20, CancellationToken ct = default);
-
-    /// <summary>
-    /// Search for products by barcode across all enabled plugins
-    /// </summary>
-    Task<List<ProductLookupResult>> SearchByBarcodeAsync(string barcode, CancellationToken ct = default);
-
-    /// <summary>
-    /// Search for products by name across all enabled plugins
-    /// </summary>
-    Task<List<ProductLookupResult>> SearchByNameAsync(string query, int maxResults = 20, CancellationToken ct = default);
 
     /// <summary>
     /// Apply a lookup result to an existing product, updating its nutrition data

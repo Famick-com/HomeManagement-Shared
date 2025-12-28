@@ -14,9 +14,18 @@
 @using Famick.HomeManagement.Core.Interfaces.Plugins
 @using Microsoft.AspNetCore.Components.Forms
 
-<MudText Typo="Typo.h4" Class="mb-4">
-    @(IsNew ? L["products.newProduct"] : L["products.editProduct"])
-</MudText>
+@* Desktop title *@
+<MudHidden Breakpoint="Breakpoint.SmAndDown">
+    <MudText Typo="Typo.h4" Class="mb-4">
+        @(IsNew ? L["products.newProduct"] : L["products.editProduct"])
+    </MudText>
+</MudHidden>
+@* Mobile title *@
+<MudHidden Breakpoint="Breakpoint.MdAndUp">
+    <MudText Typo="Typo.h5" Class="mb-2">
+        @(IsNew ? L["products.newProduct"] : L["products.editProduct"])
+    </MudText>
+</MudHidden>
 
 @if (_isLoading)
 {
@@ -25,10 +34,10 @@
 else
 {
     <MudForm @ref="_form" @bind-IsValid="_formValid">
-        <MudGrid>
+        <MudGrid Spacing="2">
             <MudItem xs="12" md="8">
-                <MudPaper Elevation="1" Class="pa-4">
-                    <MudStack Spacing="4">
+                <MudPaper Elevation="1" Class="pa-3">
+                    <MudStack Spacing="3">
                         <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
                             <MudTextField @bind-Value="_name"
                                           Label="@L["products.name"]"
@@ -148,8 +157,8 @@ else
             </MudItem>
 
             <MudItem xs="12" md="4">
-                <MudPaper Elevation="1" Class="pa-4">
-                    <MudText Typo="Typo.h6" Class="mb-3">@L["products.barcodes"]</MudText>
+                <MudPaper Elevation="1" Class="pa-3">
+                    <MudText Typo="Typo.h6" Class="mb-2">@L["products.barcodes"]</MudText>
                     <ProductBarcodeList ProductId="@(Id ?? Guid.Empty)"
                                         Barcodes="@_barcodes"
                                         ReadOnly="@IsNew"
@@ -164,8 +173,8 @@ else
                     }
                 </MudPaper>
 
-                <MudPaper Elevation="1" Class="pa-4 mt-4">
-                    <MudText Typo="Typo.h6" Class="mb-3">@L["products.images"]</MudText>
+                <MudPaper Elevation="1" Class="pa-3 mt-3">
+                    <MudText Typo="Typo.h6" Class="mb-2">@L["products.images"]</MudText>
                     <ProductImageGallery ProductId="@(Id ?? Guid.Empty)"
                                          Images="@_images"
                                          ReadOnly="@IsNew"
@@ -183,7 +192,7 @@ else
 
                 @if (!IsNew)
                 {
-                    <MudPaper Elevation="1" Class="pa-4 mt-4">
+                    <MudPaper Elevation="1" Class="pa-3 mt-3">
                         @if (_nutrition != null)
                         {
                             <NutritionFactsCard Nutrition="_nutrition"
@@ -203,13 +212,51 @@ else
             </MudItem>
         </MudGrid>
 
-        <MudStack Row="true" Spacing="2" Class="mt-4" Justify="Justify.SpaceBetween">
-            <MudStack Row="true" Spacing="2">
+        @* Desktop button bar *@
+        <MudHidden Breakpoint="Breakpoint.SmAndDown">
+            <MudStack Row="true" Spacing="2" Class="mt-4" Justify="Justify.SpaceBetween">
+                <MudStack Row="true" Spacing="2">
+                    <MudButton Variant="Variant.Filled"
+                               Color="Color.Primary"
+                               StartIcon="@Icons.Material.Filled.Save"
+                               OnClick="HandleSave"
+                               Disabled="@(!_formValid || _isSaving)">
+                        @if (_isSaving)
+                        {
+                            <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                        }
+                        @L["common.save"]
+                    </MudButton>
+
+                    <MudButton Variant="Variant.Outlined"
+                               Color="Color.Default"
+                               OnClick="NavigateBack">
+                        @L["common.cancel"]
+                    </MudButton>
+                </MudStack>
+
+                @if (!IsNew)
+                {
+                    <MudButton Variant="Variant.Outlined"
+                               Color="Color.Error"
+                               StartIcon="@Icons.Material.Filled.Delete"
+                               OnClick="HandleDelete"
+                               Disabled="@_isSaving">
+                        @L["common.delete"]
+                    </MudButton>
+                }
+            </MudStack>
+        </MudHidden>
+
+        @* Mobile button bar - stacked *@
+        <MudHidden Breakpoint="Breakpoint.MdAndUp">
+            <MudStack Spacing="2" Class="mt-3">
                 <MudButton Variant="Variant.Filled"
                            Color="Color.Primary"
                            StartIcon="@Icons.Material.Filled.Save"
                            OnClick="HandleSave"
-                           Disabled="@(!_formValid || _isSaving)">
+                           Disabled="@(!_formValid || _isSaving)"
+                           FullWidth="true">
                     @if (_isSaving)
                     {
                         <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
@@ -219,22 +266,24 @@ else
 
                 <MudButton Variant="Variant.Outlined"
                            Color="Color.Default"
-                           OnClick="NavigateBack">
+                           OnClick="NavigateBack"
+                           FullWidth="true">
                     @L["common.cancel"]
                 </MudButton>
-            </MudStack>
 
-            @if (!IsNew)
-            {
-                <MudButton Variant="Variant.Outlined"
-                           Color="Color.Error"
-                           StartIcon="@Icons.Material.Filled.Delete"
-                           OnClick="HandleDelete"
-                           Disabled="@_isSaving">
-                    @L["common.delete"]
-                </MudButton>
-            }
-        </MudStack>
+                @if (!IsNew)
+                {
+                    <MudButton Variant="Variant.Outlined"
+                               Color="Color.Error"
+                               StartIcon="@Icons.Material.Filled.Delete"
+                               OnClick="HandleDelete"
+                               Disabled="@_isSaving"
+                               FullWidth="true">
+                        @L["common.delete"]
+                    </MudButton>
+                }
+            </MudStack>
+        </MudHidden>
     </MudForm>
 }
 
@@ -719,8 +768,9 @@ else
                     }
                 }
 
-                // Reload barcodes and nutrition to reflect changes
+                // Reload barcodes, images, and nutrition to reflect changes
                 await LoadProductBarcodes(savedProductId.Value);
+                await LoadProductImages(savedProductId.Value);
                 await LoadNutritionAsync(savedProductId.Value);
 
                 StateHasChanged();
@@ -733,7 +783,7 @@ else
     {
         try
         {
-            // Create the request with nutrition data
+            // Create the request with nutrition data and images
             var request = new ApplyLookupResultRequest
             {
                 ExternalId = lookupResult.ExternalId,
@@ -744,6 +794,8 @@ else
                 Barcode = lookupResult.Barcode,
                 ServingSizeDescription = lookupResult.ServingSizeDescription,
                 Ingredients = lookupResult.Ingredients,
+                ImageUrl = lookupResult.ImageUrl,
+                ThumbnailUrl = lookupResult.ThumbnailUrl,
                 UpdateName = false, // Already updated
                 AddBarcode = true,  // Let backend handle barcode
                 Nutrition = lookupResult.Nutrition != null ? new ProductNutritionDto
@@ -811,6 +863,22 @@ else
         catch
         {
             // Ignore errors - barcodes already loaded
+        }
+    }
+
+    private async Task LoadProductImages(Guid productId)
+    {
+        try
+        {
+            var result = await ApiClient.GetAsync<ProductDto>($"api/v1/products/{productId}");
+            if (result.IsSuccess && result.Data != null)
+            {
+                _images = result.Data.Images ?? new();
+            }
+        }
+        catch
+        {
+            // Ignore errors - images already loaded
         }
     }
 

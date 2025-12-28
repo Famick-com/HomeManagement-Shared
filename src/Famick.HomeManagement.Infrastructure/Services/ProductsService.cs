@@ -84,6 +84,7 @@ public class ProductsService : IProductsService
             .Include(p => p.ProductGroup)
             .Include(p => p.ShoppingLocation)
             .Include(p => p.Barcodes)
+            .Include(p => p.Images)
             .AsQueryable();
 
         if (filter != null)
@@ -145,7 +146,25 @@ public class ProductsService : IProductsService
         }
 
         var products = await query.ToListAsync(cancellationToken);
-        return _mapper.Map<List<ProductDto>>(products);
+        var dtos = _mapper.Map<List<ProductDto>>(products);
+
+        // Populate image URLs
+        foreach (var dto in dtos)
+        {
+            if (dto.Images != null)
+            {
+                foreach (var image in dto.Images)
+                {
+                    // Set local URL for non-external images
+                    if (!string.IsNullOrEmpty(image.FileName))
+                    {
+                        image.Url = _fileStorage.GetProductImageUrl(dto.Id, image.FileName);
+                    }
+                }
+            }
+        }
+
+        return dtos;
     }
 
     public async Task<ProductDto> UpdateAsync(Guid id, UpdateProductRequest request, CancellationToken cancellationToken = default)

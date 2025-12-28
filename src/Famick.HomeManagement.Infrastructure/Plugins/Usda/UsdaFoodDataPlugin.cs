@@ -6,7 +6,8 @@ using Microsoft.Extensions.Logging;
 namespace Famick.HomeManagement.Infrastructure.Plugins.Usda;
 
 /// <summary>
-/// Built-in plugin for USDA FoodData Central API
+/// Built-in plugin for USDA FoodData Central API.
+/// Provides nutrition data for products. Should be first in the pipeline.
 /// https://fdc.nal.usda.gov/api-guide.html
 /// </summary>
 public class UsdaFoodDataPlugin : IProductLookupPlugin
@@ -21,7 +22,6 @@ public class UsdaFoodDataPlugin : IProductLookupPlugin
     public string PluginId => "usda";
     public string DisplayName => "USDA FoodData Central";
     public string Version => "1.0.0";
-    public int Priority => 100;
     public bool IsAvailable => _isInitialized && !string.IsNullOrEmpty(_apiKey);
 
     public UsdaFoodDataPlugin(HttpClient httpClient, ILogger<UsdaFoodDataPlugin> logger)
@@ -65,79 +65,82 @@ public class UsdaFoodDataPlugin : IProductLookupPlugin
         return Task.CompletedTask;
     }
 
-    public async Task<List<ProductLookupResult>> SearchByBarcodeAsync(string barcode, CancellationToken ct = default)
+    public async Task ProcessPipelineAsync(ProductLookupPipelineContext context, CancellationToken ct = default)
     {
         if (!IsAvailable)
         {
             _logger.LogWarning("USDA plugin is not available (missing API key)");
-            return new List<ProductLookupResult>();
+            return;
         }
 
-        _logger.LogInformation("Searching USDA by barcode: {Barcode}", barcode);
+        _logger.LogInformation("USDA plugin processing pipeline: {Query} ({SearchType})",
+            context.Query, context.SearchType);
 
         try
         {
-            // USDA uses gtinUpc field for barcodes, search for it
-            var request = new UsdaSearchRequest
-            {
-                Query = barcode,
-                DataType = new List<string> { "Branded" }, // Branded foods have barcodes
-                PageSize = 10
-            };
+            List<ProductLookupResult> results;
 
-            var response = await SearchFoodsAsync(request, ct);
-            if (response?.Foods == null || response.Foods.Count == 0)
+            if (context.SearchType == ProductLookupSearchType.Barcode)
             {
-                return new List<ProductLookupResult>();
+                results = await SearchByBarcodeInternalAsync(context.Query, ct);
+            }
+            else
+            {
+                results = await SearchByNameInternalAsync(context.Query, context.MaxResults, ct);
             }
 
-            // Filter results to only those with matching barcode
-            var matchingFoods = response.Foods
-                .Where(f => !string.IsNullOrEmpty(f.GtinUpc) &&
-                           f.GtinUpc.Equals(barcode, StringComparison.OrdinalIgnoreCase))
-                .ToList();
+            // Add results to pipeline (USDA is typically first, so no enrichment needed)
+            context.AddResults(results);
 
-            return matchingFoods.Select(MapToLookupResult).ToList();
+            _logger.LogDebug("USDA plugin added {Count} results to pipeline", results.Count);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to search USDA by barcode: {Barcode}", barcode);
-            return new List<ProductLookupResult>();
+            _logger.LogError(ex, "USDA plugin failed during pipeline processing: {Query}", context.Query);
         }
     }
 
-    public async Task<List<ProductLookupResult>> SearchByNameAsync(string query, int maxResults = 20, CancellationToken ct = default)
+    private async Task<List<ProductLookupResult>> SearchByBarcodeInternalAsync(string barcode, CancellationToken ct)
     {
-        if (!IsAvailable)
+        // USDA uses gtinUpc field for barcodes, search for it
+        var request = new UsdaSearchRequest
         {
-            _logger.LogWarning("USDA plugin is not available (missing API key)");
+            Query = barcode,
+            DataType = new List<string> { "Branded" }, // Branded foods have barcodes
+            PageSize = 10
+        };
+
+        var response = await SearchFoodsAsync(request, ct);
+        if (response?.Foods == null || response.Foods.Count == 0)
+        {
             return new List<ProductLookupResult>();
         }
 
-        _logger.LogInformation("Searching USDA by name: {Query}", query);
+        // Filter results to only those with matching barcode
+        var matchingFoods = response.Foods
+            .Where(f => !string.IsNullOrEmpty(f.GtinUpc) &&
+                       f.GtinUpc.Equals(barcode, StringComparison.OrdinalIgnoreCase))
+            .ToList();
 
-        try
+        return matchingFoods.Select(MapToLookupResult).ToList();
+    }
+
+    private async Task<List<ProductLookupResult>> SearchByNameInternalAsync(string query, int maxResults, CancellationToken ct)
+    {
+        var request = new UsdaSearchRequest
         {
-            var request = new UsdaSearchRequest
-            {
-                Query = query,
-                DataType = new List<string> { "Branded", "Foundation", "SR Legacy" },
-                PageSize = maxResults > 0 ? maxResults : _defaultMaxResults
-            };
+            Query = query,
+            DataType = new List<string> { "Branded", "Foundation", "SR Legacy" },
+            PageSize = maxResults > 0 ? maxResults : _defaultMaxResults
+        };
 
-            var response = await SearchFoodsAsync(request, ct);
-            if (response?.Foods == null || response.Foods.Count == 0)
-            {
-                return new List<ProductLookupResult>();
-            }
-
-            return response.Foods.Select(MapToLookupResult).ToList();
-        }
-        catch (Exception ex)
+        var response = await SearchFoodsAsync(request, ct);
+        if (response?.Foods == null || response.Foods.Count == 0)
         {
-            _logger.LogError(ex, "Failed to search USDA by name: {Query}", query);
             return new List<ProductLookupResult>();
         }
+
+        return response.Foods.Select(MapToLookupResult).ToList();
     }
 
     private async Task<UsdaSearchResponse?> SearchFoodsAsync(UsdaSearchRequest request, CancellationToken ct)

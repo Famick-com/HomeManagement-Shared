@@ -66,34 +66,54 @@
                         <MudListItem T="ProductLookupResult"
                                      OnClick="() => SelectResult(result)"
                                      Class="cursor-pointer hover-highlight">
-                            <MudStack Spacing="0">
-                                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
-                                    <MudText Typo="Typo.body1">@result.Name</MudText>
-                                    @if (!string.IsNullOrEmpty(result.Category))
+                            <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Start">
+                                @* Product thumbnail *@
+                                @if (!string.IsNullOrEmpty(result.ThumbnailUrl))
+                                {
+                                    <MudImage Src="@result.ThumbnailUrl"
+                                              Width="48" Height="48"
+                                              ObjectFit="ObjectFit.Cover"
+                                              Class="rounded"
+                                              Alt="@result.Name" />
+                                }
+                                else
+                                {
+                                    <MudIcon Icon="@Icons.Material.Outlined.Image"
+                                             Size="Size.Large"
+                                             Color="Color.Default"
+                                             Style="width:48px;height:48px;opacity:0.3;" />
+                                }
+
+                                @* Product details *@
+                                <MudStack Spacing="0" Class="flex-grow-1">
+                                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                        <MudText Typo="Typo.body1">@result.Name</MudText>
+                                        @if (!string.IsNullOrEmpty(result.Category))
+                                        {
+                                            <MudChip T="string" Size="Size.Small" Color="Color.Info" Variant="Variant.Outlined">
+                                                @result.Category
+                                            </MudChip>
+                                        }
+                                    </MudStack>
+                                    @if (!string.IsNullOrEmpty(result.BrandName) || !string.IsNullOrEmpty(result.BrandOwner))
                                     {
-                                        <MudChip T="string" Size="Size.Small" Color="Color.Info" Variant="Variant.Outlined">
-                                            @result.Category
-                                        </MudChip>
+                                        <MudText Typo="Typo.caption" Color="Color.Secondary">
+                                            @(result.BrandName ?? result.BrandOwner)
+                                        </MudText>
+                                    }
+                                    @if (!string.IsNullOrEmpty(result.Barcode))
+                                    {
+                                        <MudText Typo="Typo.caption" Color="Color.Tertiary">
+                                            @L["productLookup.barcode"]: @result.Barcode
+                                        </MudText>
+                                    }
+                                    @if (result.Nutrition?.Calories.HasValue == true)
+                                    {
+                                        <MudText Typo="Typo.caption">
+                                            @L["productLookup.calories"]: @result.Nutrition.Calories
+                                        </MudText>
                                     }
                                 </MudStack>
-                                @if (!string.IsNullOrEmpty(result.BrandName) || !string.IsNullOrEmpty(result.BrandOwner))
-                                {
-                                    <MudText Typo="Typo.caption" Color="Color.Secondary">
-                                        @(result.BrandName ?? result.BrandOwner)
-                                    </MudText>
-                                }
-                                @if (!string.IsNullOrEmpty(result.Barcode))
-                                {
-                                    <MudText Typo="Typo.caption" Color="Color.Tertiary">
-                                        @L["productLookup.barcode"]: @result.Barcode
-                                    </MudText>
-                                }
-                                @if (result.Nutrition?.Calories.HasValue == true)
-                                {
-                                    <MudText Typo="Typo.caption">
-                                        @L["productLookup.calories"]: @result.Nutrition.Calories
-                                    </MudText>
-                                }
                             </MudStack>
                         </MudListItem>
                         <MudDivider />

@@ -46,6 +46,16 @@ public class ApplyLookupResultRequest
     public string? Ingredients { get; set; }
 
     /// <summary>
+    /// Product image URL from the lookup
+    /// </summary>
+    public string? ImageUrl { get; set; }
+
+    /// <summary>
+    /// Product thumbnail URL from the lookup
+    /// </summary>
+    public string? ThumbnailUrl { get; set; }
+
+    /// <summary>
     /// Whether to update the product name
     /// </summary>
     public bool UpdateName { get; set; } = true;

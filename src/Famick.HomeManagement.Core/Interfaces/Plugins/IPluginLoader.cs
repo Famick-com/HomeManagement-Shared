@@ -11,7 +11,7 @@ public interface IPluginLoader
     IReadOnlyList<IProductLookupPlugin> Plugins { get; }
 
     /// <summary>
-    /// Get all enabled and available plugins, sorted by priority
+    /// Get all enabled and available plugins in config.json order (pipeline execution order)
     /// </summary>
     IReadOnlyList<IProductLookupPlugin> GetAvailablePlugins();
 

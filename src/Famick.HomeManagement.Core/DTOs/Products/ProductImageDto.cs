@@ -15,9 +15,37 @@ public class ProductImageDto
     public bool IsPrimary { get; set; }
 
     /// <summary>
-    /// Computed URL for displaying the image.
+    /// Computed URL for displaying the image (for local files).
     /// </summary>
     public string Url { get; set; } = string.Empty;
+
+    /// <summary>
+    /// External URL for images from product lookup services.
+    /// When set, use this URL directly instead of the local Url.
+    /// </summary>
+    public string? ExternalUrl { get; set; }
+
+    /// <summary>
+    /// Thumbnail URL for external images (smaller version for lists).
+    /// </summary>
+    public string? ExternalThumbnailUrl { get; set; }
+
+    /// <summary>
+    /// Source of the external image (e.g., "openfoodfacts").
+    /// </summary>
+    public string? ExternalSource { get; set; }
+
+    /// <summary>
+    /// Gets the display URL (external URL if available, otherwise local URL).
+    /// </summary>
+    public string DisplayUrl => !string.IsNullOrEmpty(ExternalUrl) ? ExternalUrl : Url;
+
+    /// <summary>
+    /// Gets the thumbnail URL for display (external thumbnail if available).
+    /// </summary>
+    public string ThumbnailDisplayUrl => !string.IsNullOrEmpty(ExternalThumbnailUrl)
+        ? ExternalThumbnailUrl
+        : DisplayUrl;
 
     public DateTime CreatedAt { get; set; }
 }

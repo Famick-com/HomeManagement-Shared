@@ -35,9 +35,9 @@ public class PluginLoader : IPluginLoader
 
     public IReadOnlyList<IProductLookupPlugin> GetAvailablePlugins()
     {
+        // Returns plugins in config.json order (order they were loaded)
         return _plugins
             .Where(p => p.IsAvailable)
-            .OrderBy(p => p.Priority)
             .ToList()
             .AsReadOnly();
     }

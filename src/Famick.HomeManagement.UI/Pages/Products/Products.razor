@@ -11,37 +11,71 @@
 <MudText Typo="Typo.h4" Class="mb-4">@L["products.title"]</MudText>
 
 <MudPaper Elevation="1" Class="pa-4">
-    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="3" Class="mb-4">
-        <MudTextField @bind-Value="_searchText"
-                      Placeholder="@L["products.searchProducts"]"
-                      Variant="Variant.Outlined"
-                      Margin="Margin.Dense"
-                      Adornment="Adornment.Start"
-                      AdornmentIcon="@Icons.Material.Filled.Search"
-                      Immediate="true"
-                      DebounceInterval="300"
-                      OnDebounceIntervalElapsed="OnSearchChanged"
-                      Style="max-width: 300px;" />
+    @* Desktop toolbar *@
+    <MudHidden Breakpoint="Breakpoint.SmAndDown">
+        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="3" Class="mb-4">
+            <MudTextField @bind-Value="_searchText"
+                          Placeholder="@L["products.searchProducts"]"
+                          Variant="Variant.Outlined"
+                          Margin="Margin.Dense"
+                          Adornment="Adornment.Start"
+                          AdornmentIcon="@Icons.Material.Filled.Search"
+                          Immediate="true"
+                          DebounceInterval="300"
+                          OnDebounceIntervalElapsed="OnSearchChanged"
+                          Style="max-width: 300px;" />
 
-        <MudSelect T="string" @bind-Value="_statusFilter"
-                   Label="@L["products.filterByStatus"]"
-                   Variant="Variant.Outlined"
-                   Margin="Margin.Dense"
-                   Style="max-width: 180px;">
-            <MudSelectItem Value="@("all")">@L["products.allProducts"]</MudSelectItem>
-            <MudSelectItem Value="@("active")">@L["products.activeOnly"]</MudSelectItem>
-            <MudSelectItem Value="@("inactive")">@L["products.inactiveOnly"]</MudSelectItem>
-        </MudSelect>
+            <MudSelect T="string" @bind-Value="_statusFilter"
+                       Label="@L["products.filterByStatus"]"
+                       Variant="Variant.Outlined"
+                       Margin="Margin.Dense"
+                       Style="max-width: 180px;">
+                <MudSelectItem Value="@("all")">@L["products.allProducts"]</MudSelectItem>
+                <MudSelectItem Value="@("active")">@L["products.activeOnly"]</MudSelectItem>
+                <MudSelectItem Value="@("inactive")">@L["products.inactiveOnly"]</MudSelectItem>
+            </MudSelect>
 
-        <MudSpacer />
+            <MudSpacer />
 
-        <MudButton Variant="Variant.Filled"
-                   Color="Color.Primary"
-                   StartIcon="@Icons.Material.Filled.Add"
-                   OnClick="NavigateToNewProduct">
-            @L["products.addProduct"]
-        </MudButton>
-    </MudStack>
+            <MudButton Variant="Variant.Filled"
+                       Color="Color.Primary"
+                       StartIcon="@Icons.Material.Filled.Add"
+                       OnClick="NavigateToNewProduct">
+                @L["products.addProduct"]
+            </MudButton>
+        </MudStack>
+    </MudHidden>
+
+    @* Mobile toolbar *@
+    <MudHidden Breakpoint="Breakpoint.MdAndUp">
+        <MudStack Spacing="2" Class="mb-3">
+            <MudStack Row="true" Spacing="2">
+                <MudTextField @bind-Value="_searchText"
+                              Placeholder="@L["products.searchProducts"]"
+                              Variant="Variant.Outlined"
+                              Margin="Margin.Dense"
+                              Adornment="Adornment.Start"
+                              AdornmentIcon="@Icons.Material.Filled.Search"
+                              Immediate="true"
+                              DebounceInterval="300"
+                              OnDebounceIntervalElapsed="OnSearchChanged"
+                              FullWidth="true" />
+                <MudIconButton Icon="@Icons.Material.Filled.Add"
+                               Color="Color.Primary"
+                               Variant="Variant.Filled"
+                               OnClick="NavigateToNewProduct" />
+            </MudStack>
+            <MudSelect T="string" @bind-Value="_statusFilter"
+                       Label="@L["products.filterByStatus"]"
+                       Variant="Variant.Outlined"
+                       Margin="Margin.Dense"
+                       FullWidth="true">
+                <MudSelectItem Value="@("all")">@L["products.allProducts"]</MudSelectItem>
+                <MudSelectItem Value="@("active")">@L["products.activeOnly"]</MudSelectItem>
+                <MudSelectItem Value="@("inactive")">@L["products.inactiveOnly"]</MudSelectItem>
+            </MudSelect>
+        </MudStack>
+    </MudHidden>
 
     @if (_isLoading)
     {
@@ -53,54 +87,123 @@
     }
     else
     {
-        <MudDataGrid T="ProductDto"
-                     Items="@_filteredProducts"
-                     SortMode="SortMode.Single"
-                     Filterable="false"
-                     Hideable="false"
-                     RowClick="OnRowClick"
-                     Dense="true"
-                     Hover="true"
-                     Class="cursor-pointer">
-            <Columns>
-                <HierarchyColumn T="ProductDto" />
-                <PropertyColumn Property="x => x.Name" Title="@L["products.name"]" />
-                <PropertyColumn Property="x => x.LocationName" Title="@L["products.location"]" />
-                <PropertyColumn Property="x => x.QuantityUnitStockName" Title="@L["products.stockUnit"]" />
-                <PropertyColumn Property="x => x.MinStockAmount" Title="@L["products.minStock"]" />
-                <TemplateColumn Title="@L["products.status"]">
-                    <CellTemplate>
-                        @if (context.Item.IsActive)
-                        {
-                            <MudChip T="string" Size="Size.Small" Color="Color.Success" Variant="Variant.Filled">@L["products.active"]</MudChip>
-                        }
-                        else
-                        {
-                            <MudChip T="string" Size="Size.Small" Color="Color.Default" Variant="Variant.Outlined">@L["products.inactive"]</MudChip>
-                        }
-                    </CellTemplate>
-                </TemplateColumn>
-                <TemplateColumn Title="@L["products.barcodes"]" Sortable="false">
-                    <CellTemplate>
-                        <MudChip T="string" Size="Size.Small" Variant="Variant.Text">@context.Item.Barcodes.Count</MudChip>
-                    </CellTemplate>
-                </TemplateColumn>
-            </Columns>
-            <ChildRowContent>
-                <MudCard Elevation="0" Class="pa-4 ma-2" Style="background-color: var(--mud-palette-background-grey);">
-                    <MudCardContent>
-                        <MudText Typo="Typo.subtitle2" Class="mb-2">@L["products.barcodes"]</MudText>
-                        <ProductBarcodeList ProductId="@context.Item.Id"
-                                            Barcodes="@context.Item.Barcodes"
-                                            OnBarcodeAdded="@(barcode => HandleBarcodeAdded(context.Item, barcode))"
-                                            OnBarcodeDeleted="@(barcode => HandleBarcodeDeleted(context.Item, barcode))" />
-                    </MudCardContent>
-                </MudCard>
-            </ChildRowContent>
-            <PagerContent>
-                <MudDataGridPager T="ProductDto" />
-            </PagerContent>
-        </MudDataGrid>
+        @* Desktop: Full DataGrid *@
+        <MudHidden Breakpoint="Breakpoint.SmAndDown">
+            <MudDataGrid T="ProductDto"
+                         Items="@_filteredProducts"
+                         SortMode="SortMode.Single"
+                         Filterable="false"
+                         Hideable="false"
+                         RowClick="OnRowClick"
+                         Dense="true"
+                         Hover="true"
+                         Class="cursor-pointer">
+                <Columns>
+                    <HierarchyColumn T="ProductDto" />
+                    <TemplateColumn Title="" Sortable="false" Filterable="false" Style="width: 50px;">
+                        <CellTemplate>
+                            @{
+                                var primaryImage = context.Item.Images?.FirstOrDefault(i => i.IsPrimary)
+                                    ?? context.Item.Images?.FirstOrDefault();
+                            }
+                            @if (primaryImage != null && !string.IsNullOrEmpty(primaryImage.ThumbnailDisplayUrl))
+                            {
+                                <MudImage Src="@primaryImage.ThumbnailDisplayUrl"
+                                          Width="40" Height="40"
+                                          ObjectFit="ObjectFit.Cover"
+                                          Class="rounded"
+                                          Alt="@context.Item.Name" />
+                            }
+                            else
+                            {
+                                <MudIcon Icon="@Icons.Material.Outlined.Inventory2"
+                                         Size="Size.Medium"
+                                         Color="Color.Default"
+                                         Style="opacity: 0.3;" />
+                            }
+                        </CellTemplate>
+                    </TemplateColumn>
+                    <PropertyColumn Property="x => x.Name" Title="@L["products.name"]" />
+                    <PropertyColumn Property="x => x.LocationName" Title="@L["products.location"]" />
+                    <PropertyColumn Property="x => x.QuantityUnitStockName" Title="@L["products.stockUnit"]" />
+                    <PropertyColumn Property="x => x.MinStockAmount" Title="@L["products.minStock"]" />
+                    <TemplateColumn Title="@L["products.status"]">
+                        <CellTemplate>
+                            @if (context.Item.IsActive)
+                            {
+                                <MudChip T="string" Size="Size.Small" Color="Color.Success" Variant="Variant.Filled">@L["products.active"]</MudChip>
+                            }
+                            else
+                            {
+                                <MudChip T="string" Size="Size.Small" Color="Color.Default" Variant="Variant.Outlined">@L["products.inactive"]</MudChip>
+                            }
+                        </CellTemplate>
+                    </TemplateColumn>
+                    <TemplateColumn Title="@L["products.barcodes"]" Sortable="false">
+                        <CellTemplate>
+                            <MudChip T="string" Size="Size.Small" Variant="Variant.Text">@context.Item.Barcodes.Count</MudChip>
+                        </CellTemplate>
+                    </TemplateColumn>
+                </Columns>
+                <ChildRowContent>
+                    <MudCard Elevation="0" Class="pa-4 ma-2" Style="background-color: var(--mud-palette-background-grey);">
+                        <MudCardContent>
+                            <MudText Typo="Typo.subtitle2" Class="mb-2">@L["products.barcodes"]</MudText>
+                            <ProductBarcodeList ProductId="@context.Item.Id"
+                                                Barcodes="@context.Item.Barcodes"
+                                                OnBarcodeAdded="@(barcode => HandleBarcodeAdded(context.Item, barcode))"
+                                                OnBarcodeDeleted="@(barcode => HandleBarcodeDeleted(context.Item, barcode))" />
+                        </MudCardContent>
+                    </MudCard>
+                </ChildRowContent>
+                <PagerContent>
+                    <MudDataGridPager T="ProductDto" />
+                </PagerContent>
+            </MudDataGrid>
+        </MudHidden>
+
+        @* Mobile: Compact list view *@
+        <MudHidden Breakpoint="Breakpoint.MdAndUp">
+            <MudList T="ProductDto" Dense="true" Class="pa-0">
+                @foreach (var product in _filteredProducts)
+                {
+                    var primaryImage = product.Images?.FirstOrDefault(i => i.IsPrimary)
+                        ?? product.Images?.FirstOrDefault();
+                    <MudListItem T="ProductDto" OnClick="@(() => NavigateToProduct(product.Id))" Class="pa-2 rounded mb-1" Style="background: var(--mud-palette-surface);">
+                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="3">
+                            @if (primaryImage != null && !string.IsNullOrEmpty(primaryImage.ThumbnailDisplayUrl))
+                            {
+                                <MudImage Src="@primaryImage.ThumbnailDisplayUrl"
+                                          Width="48" Height="48"
+                                          ObjectFit="ObjectFit.Cover"
+                                          Class="rounded"
+                                          Alt="@product.Name" />
+                            }
+                            else
+                            {
+                                <MudPaper Width="48px" Height="48px" Elevation="0" Class="d-flex align-center justify-center rounded" Style="background: var(--mud-palette-background-grey);">
+                                    <MudIcon Icon="@Icons.Material.Outlined.Inventory2"
+                                             Size="Size.Medium"
+                                             Color="Color.Default"
+                                             Style="opacity: 0.4;" />
+                                </MudPaper>
+                            }
+                            <MudStack Spacing="0" Class="flex-grow-1 overflow-hidden">
+                                <MudText Typo="Typo.body1" Class="text-truncate" Style="font-weight: 500;">@product.Name</MudText>
+                                <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center">
+                                    <MudText Typo="Typo.caption" Color="Color.Secondary">@product.LocationName</MudText>
+                                    @if (!product.IsActive)
+                                    {
+                                        <MudChip T="string" Size="Size.Small" Color="Color.Default" Variant="Variant.Outlined" Class="ma-0 pa-1">@L["products.inactive"]</MudChip>
+                                    }
+                                </MudStack>
+                            </MudStack>
+                            <MudIcon Icon="@Icons.Material.Filled.ChevronRight" Color="Color.Default" />
+                        </MudStack>
+                    </MudListItem>
+                }
+            </MudList>
+        </MudHidden>
     }
 </MudPaper>
 
@@ -163,6 +266,11 @@
     private void OnRowClick(DataGridRowClickEventArgs<ProductDto> args)
     {
         Navigation.NavigateTo($"/products/{args.Item.Id}");
+    }
+
+    private void NavigateToProduct(Guid productId)
+    {
+        Navigation.NavigateTo($"/products/{productId}");
     }
 
     private async Task HandleBarcodeAdded(ProductDto product, ProductBarcodeDto barcode)

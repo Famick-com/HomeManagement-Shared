@@ -1,6 +1,9 @@
 @inherits LayoutComponentBase
+@implements IDisposable
 @using Famick.HomeManagement.UI.Theme
 @inject ILocalizer L
+@inject NavigationManager Navigation
+@inject IJSRuntime JS
 
 <LocalizationInitializer>
     <MudThemeProvider Theme="FamickTheme.Theme" IsDarkMode="_isDarkMode" />
@@ -10,7 +13,21 @@
 
     <MudLayout>
         <MudAppBar Elevation="1">
-            <MudIconButton Icon="@Icons.Material.Filled.Menu" Color="Color.Inherit" Edge="Edge.Start" OnClick="@ToggleDrawer" />
+            @* Desktop: Menu button *@
+            <MudHidden Breakpoint="Breakpoint.SmAndDown">
+                <MudIconButton Icon="@Icons.Material.Filled.Menu" Color="Color.Inherit" Edge="Edge.Start" OnClick="@ToggleDrawer" />
+            </MudHidden>
+            @* Mobile: Back button when on detail page, otherwise menu *@
+            <MudHidden Breakpoint="Breakpoint.MdAndUp">
+                @if (_canGoBack)
+                {
+                    <MudIconButton Icon="@Icons.Material.Filled.ArrowBack" Color="Color.Inherit" Edge="Edge.Start" OnClick="@GoBack" />
+                }
+                else
+                {
+                    <MudIconButton Icon="@Icons.Material.Filled.Menu" Color="Color.Inherit" Edge="Edge.Start" OnClick="@ToggleDrawer" />
+                }
+            </MudHidden>
             <MudImage Src="_content/Famick.HomeManagement.UI/images/icon.svg" Height="28" Class="ml-1" Alt="Famick" />
             <MudText Typo="Typo.h6" Class="ml-1" Style="white-space: nowrap;">@L["nav.homeManagement"]</MudText>
             <MudSpacer />
@@ -27,17 +44,57 @@
             <NavMenu />
         </MudDrawer>
 
-        <MudMainContent Class="pt-16 px-4">
-            <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="my-4">
-                @Body
-            </MudContainer>
-        </MudMainContent>
+        @* Desktop: Normal padding and container *@
+        <MudHidden Breakpoint="Breakpoint.SmAndDown">
+            <MudMainContent Class="pt-16 px-4">
+                <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="my-4">
+                    @Body
+                </MudContainer>
+            </MudMainContent>
+        </MudHidden>
+
+        @* Mobile: Minimal padding, no container constraints *@
+        <MudHidden Breakpoint="Breakpoint.MdAndUp">
+            <MudMainContent Class="pt-16 px-2">
+                <div class="py-2">
+                    @Body
+                </div>
+            </MudMainContent>
+        </MudHidden>
     </MudLayout>
 </LocalizationInitializer>
 
 @code {
     private bool _drawerOpen = true;
     private bool _isDarkMode = false;
+    private bool _canGoBack = false;
+
+    // Pages that are considered "root" pages (no back button)
+    private static readonly string[] RootPages = { "/", "/products", "/stock", "/locations", "/quantity-units", "/settings", "/login" };
+
+    protected override void OnInitialized()
+    {
+        Navigation.LocationChanged += OnLocationChanged;
+        UpdateCanGoBack();
+    }
+
+    private void OnLocationChanged(object? sender, LocationChangedEventArgs e)
+    {
+        UpdateCanGoBack();
+        StateHasChanged();
+    }
+
+    private void UpdateCanGoBack()
+    {
+        var path = new Uri(Navigation.Uri).AbsolutePath.ToLowerInvariant();
+        // Show back button if not on a root page
+        _canGoBack = !RootPages.Any(p => path.Equals(p, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private async Task GoBack()
+    {
+        await JS.InvokeVoidAsync("history.back");
+    }
 
     private void ToggleDrawer()
     {
@@ -47,5 +104,10 @@
     private void ToggleDarkMode()
     {
         _isDarkMode = !_isDarkMode;
+    }
+
+    public void Dispose()
+    {
+        Navigation.LocationChanged -= OnLocationChanged;
     }
 }

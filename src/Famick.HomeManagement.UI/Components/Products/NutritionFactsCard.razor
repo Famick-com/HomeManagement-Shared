@@ -41,14 +41,14 @@
         <div class="nutrition-facts__divider"></div>
 
         @* Macronutrients *@
-        @RenderRow(L["nutrition.totalFat"], Nutrition.TotalFat, "g", CalculateDV(Nutrition.TotalFat, 78m), true, false)
-        @RenderRow(L["nutrition.saturatedFat"], Nutrition.SaturatedFat, "g", CalculateDV(Nutrition.SaturatedFat, 20m), false, true)
-        @RenderRow(L["nutrition.transFat"], Nutrition.TransFat, "g", null, false, true)
-        @RenderRow(L["nutrition.cholesterol"], Nutrition.Cholesterol, "mg", CalculateDV(Nutrition.Cholesterol, 300m), true, false)
-        @RenderRow(L["nutrition.sodium"], Nutrition.Sodium, "mg", CalculateDV(Nutrition.Sodium, 2300m), true, false)
-        @RenderRow(L["nutrition.totalCarbohydrate"], Nutrition.TotalCarbohydrates, "g", CalculateDV(Nutrition.TotalCarbohydrates, 275m), true, false)
-        @RenderRow(L["nutrition.dietaryFiber"], Nutrition.DietaryFiber, "g", CalculateDV(Nutrition.DietaryFiber, 28m), false, true)
-        @RenderRow(L["nutrition.totalSugars"], Nutrition.TotalSugars, "g", null, false, true)
+        @RenderRow(L["nutrition.totalFat"] + " ", Nutrition.TotalFat, "g", CalculateDV(Nutrition.TotalFat, 78m), true, false)
+        @RenderRow(L["nutrition.saturatedFat"] + " ", Nutrition.SaturatedFat, "g", CalculateDV(Nutrition.SaturatedFat, 20m), false, true)
+        @RenderRow(L["nutrition.transFat"] + " ", Nutrition.TransFat, "g", null, false, true)
+        @RenderRow(L["nutrition.cholesterol"] + " ", Nutrition.Cholesterol, "mg", CalculateDV(Nutrition.Cholesterol, 300m), true, false)
+        @RenderRow(L["nutrition.sodium"] + " ", Nutrition.Sodium, "mg", CalculateDV(Nutrition.Sodium, 2300m), true, false)
+        @RenderRow(L["nutrition.totalCarbohydrate"] + " ", Nutrition.TotalCarbohydrates, "g", CalculateDV(Nutrition.TotalCarbohydrates, 275m), true, false)
+        @RenderRow(L["nutrition.dietaryFiber"] + " ", Nutrition.DietaryFiber, "g", CalculateDV(Nutrition.DietaryFiber, 28m), false, true)
+        @RenderRow(L["nutrition.totalSugars"] + " ", Nutrition.TotalSugars, "g", null, false, true)
 
         @if (Nutrition.AddedSugars.HasValue)
         {
