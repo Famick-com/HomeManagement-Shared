@@ -42,7 +42,9 @@
     "total": "Total",
     "notes": "Notes",
     "active": "Active",
-    "inactive": "Inactive"
+    "inactive": "Inactive",
+    "all": "All",
+    "unknown": "Unknown"
   },
 
   "auth": {
@@ -105,6 +107,8 @@
     "addStockEntry": "Add Stock Entry",
     "expiringSoon": "Expiring Soon",
     "noExpiringItems": "No items expiring in the next 7 days.",
+    "noItemsExpiringSoon": "No items expiring in the next 5 days.",
+    "itemsExpiringSoon": "{0} items expiring within 5 days. Click to view.",
     "recentActivity": "Recent Activity"
   },
 
@@ -154,22 +158,52 @@
 
   "stock": {
     "title": "Stock Overview",
+    "overview": "Stock overview",
+    "products": "Products",
+    "totalValue": "total value",
     "product": "Product",
     "location": "Location",
     "quantity": "Quantity",
+    "amount": "Amount",
     "minStock": "Min. Stock",
     "expiryDate": "Expiry Date",
     "purchaseDate": "Purchase Date",
     "openDate": "Open Date",
+    "nextDueDate": "Next Due Date",
     "addToStock": "Add to Stock",
     "consume": "Consume",
+    "consumeOne": "Consume 1",
+    "consumeAll": "Consume All",
+    "addOne": "Add 1",
     "transfer": "Transfer",
     "inventory": "Inventory",
-    "expired": "Expired",
+    "expired": "products are expired",
+    "overdue": "products overdue",
+    "dueSoon": "products due within 5 days",
+    "belowMinStock": "products below min. stock",
     "expiringSoon": "Expiring Soon",
-    "belowMinStock": "Below Minimum Stock",
     "inStock": "In Stock",
-    "outOfStock": "Out of Stock"
+    "outOfStock": "Out of Stock",
+    "noItems": "No stock entries found",
+    "journal": "Journal",
+    "filterProductGroup": "Product Group",
+    "filterStatus": "Status",
+    "statusExpired": "Expired",
+    "statusDueSoon": "Due Soon",
+    "statusBelowMin": "Below Min. Stock",
+    "noJournalEntries": "No journal entries found",
+    "journalDate": "Date",
+    "journalProduct": "Product",
+    "journalType": "Type",
+    "journalAmount": "Amount",
+    "journalLocation": "Location",
+    "spoiled": "Spoiled",
+    "txPurchase": "Purchase",
+    "txConsume": "Consume",
+    "txCorrection": "Correction",
+    "txOpened": "Opened",
+    "txEditNew": "Edit (new)",
+    "txEditOld": "Edit (old)"
   },
 
   "products": {

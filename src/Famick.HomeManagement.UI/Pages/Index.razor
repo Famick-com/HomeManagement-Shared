@@ -1,16 +1,21 @@
 @page "/"
 @attribute [Authorize]
+@using Famick.HomeManagement.Core.DTOs.Stock
+@using Famick.HomeManagement.UI.Services
+@inject IApiClient ApiClient
+@inject NavigationManager Navigation
+@inject ILocalizer L
 
-<PageTitle>Dashboard - Home Management</PageTitle>
+<PageTitle>@L["nav.dashboard"] - Home Management</PageTitle>
 
-<MudText Typo="Typo.h4" Class="mb-4">Dashboard</MudText>
+<MudText Typo="Typo.h4" Class="mb-4">@L["nav.dashboard"]</MudText>
 
 <MudGrid>
     <MudItem xs="12" sm="6" md="3">
         <MudPaper Class="pa-4" Elevation="2">
             <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween">
                 <MudStack Spacing="1">
-                    <MudText Typo="Typo.body2" Color="Color.Secondary">Shopping Lists</MudText>
+                    <MudText Typo="Typo.body2" Color="Color.Secondary">@L["dashboard.shoppingLists"]</MudText>
                     <MudText Typo="Typo.h4">--</MudText>
                 </MudStack>
                 <MudIcon Icon="@Icons.Material.Filled.ShoppingCart" Size="Size.Large" Color="Color.Primary" />
@@ -19,11 +24,11 @@
     </MudItem>
 
     <MudItem xs="12" sm="6" md="3">
-        <MudPaper Class="pa-4" Elevation="2">
+        <MudPaper Class="pa-4 clickable-card" Elevation="2" @onclick="NavigateToLowStock" Style="cursor: pointer;">
             <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween">
                 <MudStack Spacing="1">
-                    <MudText Typo="Typo.body2" Color="Color.Secondary">Low Stock Items</MudText>
-                    <MudText Typo="Typo.h4">--</MudText>
+                    <MudText Typo="Typo.body2" Color="Color.Secondary">@L["dashboard.lowStockItems"]</MudText>
+                    <MudText Typo="Typo.h4">@(_statistics?.BelowMinStockCount.ToString() ?? "--")</MudText>
                 </MudStack>
                 <MudIcon Icon="@Icons.Material.Filled.Warning" Size="Size.Large" Color="Color.Warning" />
             </MudStack>
@@ -34,7 +39,7 @@
         <MudPaper Class="pa-4" Elevation="2">
             <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween">
                 <MudStack Spacing="1">
-                    <MudText Typo="Typo.body2" Color="Color.Secondary">Chores Due</MudText>
+                    <MudText Typo="Typo.body2" Color="Color.Secondary">@L["dashboard.choresDue"]</MudText>
                     <MudText Typo="Typo.h4">--</MudText>
                 </MudStack>
                 <MudIcon Icon="@Icons.Material.Filled.CleaningServices" Size="Size.Large" Color="Color.Error" />
@@ -46,7 +51,7 @@
         <MudPaper Class="pa-4" Elevation="2">
             <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween">
                 <MudStack Spacing="1">
-                    <MudText Typo="Typo.body2" Color="Color.Secondary">Pending Tasks</MudText>
+                    <MudText Typo="Typo.body2" Color="Color.Secondary">@L["dashboard.pendingTasks"]</MudText>
                     <MudText Typo="Typo.h4">--</MudText>
                 </MudStack>
                 <MudIcon Icon="@Icons.Material.Filled.TaskAlt" Size="Size.Large" Color="Color.Success" />
@@ -58,42 +63,100 @@
 <MudGrid Class="mt-6">
     <MudItem xs="12" md="6">
         <MudPaper Class="pa-4" Elevation="2">
-            <MudText Typo="Typo.h6" Class="mb-4">Quick Actions</MudText>
+            <MudText Typo="Typo.h6" Class="mb-4">@L["dashboard.quickActions"]</MudText>
             <MudStack Spacing="2">
                 <MudButton Variant="Variant.Outlined"
                            Color="Color.Primary"
                            StartIcon="@Icons.Material.Filled.Add"
                            Href="/shopping-lists/new"
                            FullWidth="true">
-                    New Shopping List
+                    @L["dashboard.newShoppingList"]
                 </MudButton>
                 <MudButton Variant="Variant.Outlined"
                            Color="Color.Secondary"
                            StartIcon="@Icons.Material.Filled.ShoppingBasket"
                            Href="/shopping-mode"
                            FullWidth="true">
-                    Start Shopping Mode
+                    @L["dashboard.startShoppingMode"]
                 </MudButton>
                 <MudButton Variant="Variant.Outlined"
                            Color="Color.Tertiary"
                            StartIcon="@Icons.Material.Filled.Inventory"
                            Href="/inventory"
                            FullWidth="true">
-                    Add Stock Entry
+                    @L["dashboard.addStockEntry"]
                 </MudButton>
             </MudStack>
         </MudPaper>
     </MudItem>
 
     <MudItem xs="12" md="6">
-        <MudPaper Class="pa-4" Elevation="2">
-            <MudText Typo="Typo.h6" Class="mb-4">Expiring Soon</MudText>
-            <MudText Typo="Typo.body2" Color="Color.Secondary">
-                No items expiring in the next 7 days.
-            </MudText>
+        <MudPaper Class="pa-4 clickable-card" Elevation="2" @onclick="NavigateToExpiringSoon" Style="cursor: pointer;">
+            <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="mb-4">
+                <MudText Typo="Typo.h6">@L["dashboard.expiringSoon"]</MudText>
+                @if (_statistics != null && _statistics.DueSoonCount > 0)
+                {
+                    <MudChip T="string" Color="Color.Warning" Size="Size.Small">@_statistics.DueSoonCount</MudChip>
+                }
+            </MudStack>
+            @if (_statistics == null)
+            {
+                <MudProgressLinear Color="Color.Primary" Indeterminate="true" />
+            }
+            else if (_statistics.DueSoonCount == 0)
+            {
+                <MudText Typo="Typo.body2" Color="Color.Secondary">
+                    @L["dashboard.noItemsExpiringSoon"]
+                </MudText>
+            }
+            else
+            {
+                <MudText Typo="Typo.body2" Color="Color.Warning">
+                    @string.Format(L["dashboard.itemsExpiringSoon"], _statistics.DueSoonCount)
+                </MudText>
+            }
         </MudPaper>
     </MudItem>
 </MudGrid>
 
+<style>
+    .clickable-card:hover {
+        background-color: var(--mud-palette-action-default-hover);
+        transition: background-color 0.2s;
+    }
+</style>
+
 @code {
+    private StockStatisticsDto? _statistics;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadStatisticsAsync();
+    }
+
+    private async Task LoadStatisticsAsync()
+    {
+        try
+        {
+            var result = await ApiClient.GetAsync<StockStatisticsDto>("api/v1/stock/statistics");
+            if (result.IsSuccess)
+            {
+                _statistics = result.Data;
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading statistics: {ex.Message}");
+        }
+    }
+
+    private void NavigateToLowStock()
+    {
+        Navigation.NavigateTo("/stock?status=belowMinStock");
+    }
+
+    private void NavigateToExpiringSoon()
+    {
+        Navigation.NavigateTo("/stock?status=dueSoon");
+    }
 }

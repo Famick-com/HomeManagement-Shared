@@ -340,4 +340,239 @@ public class StockService : IStockService
             UpdatedAt = entry.UpdatedAt ?? entry.CreatedAt
         };
     }
+
+    public async Task<StockStatisticsDto> GetStatisticsAsync(CancellationToken cancellationToken = default)
+    {
+        var today = DateTime.UtcNow.Date;
+        var dueSoonDate = today.AddDays(5);
+
+        // Get all stock entries with product info for statistics
+        var stockEntries = await _context.Stock
+            .Include(s => s.Product)
+            .ToListAsync(cancellationToken);
+
+        // Group by product to get unique product counts
+        var productGroups = stockEntries
+            .GroupBy(s => s.ProductId)
+            .Select(g => new
+            {
+                ProductId = g.Key,
+                TotalAmount = g.Sum(s => s.Amount),
+                TotalValue = g.Sum(s => (s.Price ?? 0) * s.Amount),
+                MinStockAmount = g.First().Product?.MinStockAmount ?? 0,
+                EarliestExpiry = g.Min(s => s.BestBeforeDate),
+                HasExpired = g.Any(s => s.BestBeforeDate.HasValue && s.BestBeforeDate.Value < today),
+                IsDueSoon = g.Any(s => s.BestBeforeDate.HasValue && s.BestBeforeDate.Value >= today && s.BestBeforeDate.Value <= dueSoonDate)
+            })
+            .ToList();
+
+        return new StockStatisticsDto
+        {
+            TotalProductCount = productGroups.Count,
+            TotalStockValue = productGroups.Sum(p => p.TotalValue),
+            ExpiredCount = productGroups.Count(p => p.HasExpired),
+            OverdueCount = 0, // TODO: Implement based on product's DefaultConsumeWithinDays
+            DueSoonCount = productGroups.Count(p => p.IsDueSoon && !p.HasExpired),
+            BelowMinStockCount = productGroups.Count(p => p.MinStockAmount > 0 && p.TotalAmount < p.MinStockAmount)
+        };
+    }
+
+    public async Task<List<StockOverviewItemDto>> GetOverviewAsync(StockOverviewFilterRequest? filter = null, CancellationToken cancellationToken = default)
+    {
+        var today = DateTime.UtcNow.Date;
+        var dueSoonDate = today.AddDays(5);
+
+        var query = _context.Stock
+            .Include(s => s.Product)
+                .ThenInclude(p => p!.QuantityUnitStock)
+            .Include(s => s.Product)
+                .ThenInclude(p => p!.ProductGroup)
+            .Include(s => s.Location)
+            .AsQueryable();
+
+        // Apply location filter
+        if (filter?.LocationId.HasValue == true)
+            query = query.Where(s => s.LocationId == filter.LocationId.Value);
+
+        // Apply product group filter
+        if (filter?.ProductGroupId.HasValue == true)
+            query = query.Where(s => s.Product != null && s.Product.ProductGroupId == filter.ProductGroupId.Value);
+
+        // Apply search filter
+        if (!string.IsNullOrWhiteSpace(filter?.SearchTerm))
+        {
+            var term = filter.SearchTerm.ToLower();
+            query = query.Where(s => s.Product != null && s.Product.Name.ToLower().Contains(term));
+        }
+
+        var entries = await query.ToListAsync(cancellationToken);
+
+        // Group by product
+        var productGroups = entries
+            .GroupBy(s => s.ProductId)
+            .Select(g =>
+            {
+                var product = g.First().Product;
+                var totalAmount = g.Sum(s => s.Amount);
+                var minStock = product?.MinStockAmount ?? 0;
+                var earliestExpiry = g.Min(s => s.BestBeforeDate);
+                var hasExpired = g.Any(s => s.BestBeforeDate.HasValue && s.BestBeforeDate.Value < today);
+                var isDueSoon = earliestExpiry.HasValue && earliestExpiry.Value >= today && earliestExpiry.Value <= dueSoonDate;
+
+                return new StockOverviewItemDto
+                {
+                    ProductId = g.Key,
+                    ProductName = product?.Name ?? string.Empty,
+                    ProductGroupId = product?.ProductGroupId,
+                    ProductGroupName = product?.ProductGroup?.Name,
+                    TotalAmount = totalAmount,
+                    QuantityUnitName = product?.QuantityUnitStock?.Name ?? string.Empty,
+                    NextDueDate = earliestExpiry,
+                    DaysUntilDue = earliestExpiry.HasValue ? (int)(earliestExpiry.Value - today).TotalDays : null,
+                    TotalValue = g.Sum(s => (s.Price ?? 0) * s.Amount),
+                    MinStockAmount = minStock,
+                    IsBelowMinStock = minStock > 0 && totalAmount < minStock,
+                    IsExpired = hasExpired,
+                    IsDueSoon = isDueSoon && !hasExpired,
+                    StockEntryCount = g.Count()
+                };
+            })
+            .ToList();
+
+        // Apply status filter
+        if (!string.IsNullOrWhiteSpace(filter?.Status))
+        {
+            productGroups = filter.Status.ToLower() switch
+            {
+                "expired" => productGroups.Where(p => p.IsExpired).ToList(),
+                "duesoon" => productGroups.Where(p => p.IsDueSoon).ToList(),
+                "belowminstock" => productGroups.Where(p => p.IsBelowMinStock).ToList(),
+                _ => productGroups
+            };
+        }
+
+        // Apply sorting
+        productGroups = filter?.SortBy?.ToLower() switch
+        {
+            "productname" => filter.Descending ? productGroups.OrderByDescending(p => p.ProductName).ToList() : productGroups.OrderBy(p => p.ProductName).ToList(),
+            "amount" => filter.Descending ? productGroups.OrderByDescending(p => p.TotalAmount).ToList() : productGroups.OrderBy(p => p.TotalAmount).ToList(),
+            "nextduedate" => filter.Descending ? productGroups.OrderByDescending(p => p.NextDueDate).ToList() : productGroups.OrderBy(p => p.NextDueDate).ToList(),
+            "value" => filter.Descending ? productGroups.OrderByDescending(p => p.TotalValue).ToList() : productGroups.OrderBy(p => p.TotalValue).ToList(),
+            _ => productGroups.OrderBy(p => p.NextDueDate ?? DateTime.MaxValue).ThenBy(p => p.ProductName).ToList()
+        };
+
+        return productGroups;
+    }
+
+    public async Task<List<StockLogDto>> GetLogAsync(int? limit = 50, CancellationToken cancellationToken = default)
+    {
+        var query = _context.StockLog
+            .Include(l => l.Product)
+            .Include(l => l.Location)
+            .OrderByDescending(l => l.CreatedAt)
+            .AsQueryable();
+
+        if (limit.HasValue)
+            query = query.Take(limit.Value);
+
+        var logs = await query.ToListAsync(cancellationToken);
+
+        return logs.Select(l => new StockLogDto
+        {
+            Id = l.Id,
+            ProductId = l.ProductId,
+            ProductName = l.Product?.Name ?? string.Empty,
+            Amount = l.Amount,
+            TransactionType = l.TransactionType,
+            CreatedAt = l.CreatedAt,
+            LocationName = l.Location?.Name,
+            Note = l.Note,
+            Spoiled = l.Spoiled == 1
+        }).ToList();
+    }
+
+    public async Task QuickConsumeAsync(QuickConsumeRequest request, CancellationToken cancellationToken = default)
+    {
+        // Get stock entries for product, ordered by FEFO (First Expire First Out)
+        var entries = await _context.Stock
+            .Include(s => s.Product)
+            .Where(s => s.ProductId == request.ProductId)
+            .OrderBy(s => s.Open ? 0 : 1) // Opened first
+            .ThenBy(s => s.BestBeforeDate ?? DateTime.MaxValue) // Then earliest expiry
+            .ThenBy(s => s.PurchasedDate) // Then FIFO
+            .ToListAsync(cancellationToken);
+
+        if (entries.Count == 0)
+        {
+            throw new EntityNotFoundException(nameof(Product), request.ProductId);
+        }
+
+        if (request.ConsumeAll)
+        {
+            // Consume all entries
+            foreach (var entry in entries)
+            {
+                var log = CreateStockLog(entry, "consume", -entry.Amount);
+                _context.StockLog.Add(log);
+                _context.Stock.Remove(entry);
+            }
+        }
+        else
+        {
+            // Consume specified amount using FEFO
+            var remainingToConsume = request.Amount;
+            foreach (var entry in entries)
+            {
+                if (remainingToConsume <= 0) break;
+
+                var consumeFromThis = Math.Min(remainingToConsume, entry.Amount);
+                var log = CreateStockLog(entry, "consume", -consumeFromThis);
+                _context.StockLog.Add(log);
+
+                if (consumeFromThis >= entry.Amount)
+                {
+                    _context.Stock.Remove(entry);
+                }
+                else
+                {
+                    entry.Amount -= consumeFromThis;
+                    entry.UpdatedAt = DateTime.UtcNow;
+                }
+
+                remainingToConsume -= consumeFromThis;
+            }
+
+            if (remainingToConsume > 0)
+            {
+                var totalAvailable = entries.Sum(e => e.Amount);
+                throw new InsufficientStockException(request.ProductId, request.Amount, totalAvailable);
+            }
+        }
+
+        await _context.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task QuickAddAsync(Guid productId, decimal amount = 1, CancellationToken cancellationToken = default)
+    {
+        var product = await _context.Products
+            .FirstOrDefaultAsync(p => p.Id == productId, cancellationToken);
+
+        if (product == null)
+        {
+            throw new EntityNotFoundException(nameof(Product), productId);
+        }
+
+        var request = new AddStockRequest
+        {
+            ProductId = productId,
+            Amount = amount,
+            LocationId = product.LocationId,
+            PurchasedDate = DateTime.UtcNow,
+            BestBeforeDate = product.DefaultBestBeforeDays > 0
+                ? DateTime.UtcNow.AddDays(product.DefaultBestBeforeDays)
+                : null
+        };
+
+        await AddStockAsync(request, cancellationToken);
+    }
 }

@@ -56,4 +56,29 @@ public interface IStockService
     /// Get stock entries for a product at a specific location.
     /// </summary>
     Task<List<StockEntryDto>> GetByProductAndLocationAsync(Guid productId, Guid locationId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Get aggregate statistics for stock overview page.
+    /// </summary>
+    Task<StockStatisticsDto> GetStatisticsAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Get stock overview grouped by product.
+    /// </summary>
+    Task<List<StockOverviewItemDto>> GetOverviewAsync(StockOverviewFilterRequest? filter = null, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Get stock log entries for journal display.
+    /// </summary>
+    Task<List<StockLogDto>> GetLogAsync(int? limit = 50, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Quick consume action - consumes from oldest entry (FEFO).
+    /// </summary>
+    Task QuickConsumeAsync(QuickConsumeRequest request, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Quick add action - adds stock using product's default location.
+    /// </summary>
+    Task QuickAddAsync(Guid productId, decimal amount = 1, CancellationToken cancellationToken = default);
 }
