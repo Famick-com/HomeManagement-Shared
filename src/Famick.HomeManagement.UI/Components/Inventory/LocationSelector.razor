@@ -72,7 +72,16 @@
             if (result.IsSuccess && result.Data != null)
             {
                 _locations = result.Data.Where(l => l.IsActive).OrderBy(l => l.SortOrder).ToList();
+                Console.WriteLine($"Loaded {_locations.Count} locations");
             }
+            else
+            {
+                Console.WriteLine($"Failed to load locations: {result.ErrorMessage} (Status: {result.StatusCode})");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Exception loading locations: {ex.Message}");
         }
         finally
         {

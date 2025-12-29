@@ -221,23 +221,30 @@ public class HttpApiClient : IApiClient
         if (!string.IsNullOrEmpty(token))
         {
             _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+            Console.WriteLine($"[HttpApiClient] Set auth header with token: {token.Substring(0, Math.Min(20, token.Length))}...");
         }
         else
         {
             _httpClient.DefaultRequestHeaders.Authorization = null;
+            Console.WriteLine("[HttpApiClient] No token available - cleared auth header");
         }
     }
 
     private async Task<ApiResult<T>> ExecuteWithRetry<T>(Func<Task<ApiResult<T>>> action)
     {
         var result = await action();
+        Console.WriteLine($"[HttpApiClient] Initial request result: Status={result.StatusCode}, Success={result.IsSuccess}");
 
         if (result.StatusCode == (int)HttpStatusCode.Unauthorized && !_isRefreshing)
         {
+            Console.WriteLine("[HttpApiClient] Got 401, attempting token refresh...");
             var refreshed = await TryRefreshToken();
+            Console.WriteLine($"[HttpApiClient] Token refresh result: {refreshed}");
             if (refreshed)
             {
+                Console.WriteLine("[HttpApiClient] Retrying request after refresh...");
                 result = await action();
+                Console.WriteLine($"[HttpApiClient] Retry result: Status={result.StatusCode}, Success={result.IsSuccess}");
             }
         }
 
