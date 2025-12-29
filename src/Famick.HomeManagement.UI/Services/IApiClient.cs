@@ -1,4 +1,5 @@
 using Famick.HomeManagement.Core.DTOs.Authentication;
+using Famick.HomeManagement.Core.DTOs.Setup;
 
 namespace Famick.HomeManagement.UI.Services;
 
@@ -26,6 +27,16 @@ public interface IApiClient
     /// Logout from all devices.
     /// </summary>
     Task<ApiResult> LogoutAllAsync();
+
+    /// <summary>
+    /// Register a new user account.
+    /// </summary>
+    Task<ApiResult<RegisterResponse>> RegisterAsync(RegisterRequest request);
+
+    /// <summary>
+    /// Check if initial setup is required.
+    /// </summary>
+    Task<ApiResult<SetupStatusResponse>> GetSetupStatusAsync();
 
     /// <summary>
     /// Send a GET request to the specified endpoint.

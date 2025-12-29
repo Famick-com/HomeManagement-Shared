@@ -3,6 +3,7 @@ using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
 using Famick.HomeManagement.Core.DTOs.Authentication;
+using Famick.HomeManagement.Core.DTOs.Setup;
 using Microsoft.Extensions.Logging;
 
 namespace Famick.HomeManagement.UI.Services;
@@ -132,6 +133,62 @@ public class HttpApiClient : IApiClient
             _logger.LogError(ex, "Logout all failed");
             await _tokenStorage.ClearTokensAsync();
             return ApiResult.Failure("Logout failed.");
+        }
+    }
+
+    public async Task<ApiResult<RegisterResponse>> RegisterAsync(RegisterRequest request)
+    {
+        try
+        {
+            var response = await _httpClient.PostAsJsonAsync("api/auth/register", request, JsonOptions);
+
+            if (response.IsSuccessStatusCode)
+            {
+                var registerResponse = await response.Content.ReadFromJsonAsync<RegisterResponse>(JsonOptions);
+                if (registerResponse != null)
+                {
+                    // Store tokens if auto-login was enabled
+                    if (!string.IsNullOrEmpty(registerResponse.AccessToken) &&
+                        !string.IsNullOrEmpty(registerResponse.RefreshToken))
+                    {
+                        await _tokenStorage.SetTokensAsync(registerResponse.AccessToken, registerResponse.RefreshToken);
+                    }
+                    return ApiResult<RegisterResponse>.Success(registerResponse);
+                }
+            }
+
+            var error = await ReadErrorMessage(response);
+            return ApiResult<RegisterResponse>.Failure(error, (int)response.StatusCode);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Registration failed");
+            return ApiResult<RegisterResponse>.Failure("Registration failed. Please try again.");
+        }
+    }
+
+    public async Task<ApiResult<SetupStatusResponse>> GetSetupStatusAsync()
+    {
+        try
+        {
+            var response = await _httpClient.GetAsync("api/setup/status");
+
+            if (response.IsSuccessStatusCode)
+            {
+                var statusResponse = await response.Content.ReadFromJsonAsync<SetupStatusResponse>(JsonOptions);
+                if (statusResponse != null)
+                {
+                    return ApiResult<SetupStatusResponse>.Success(statusResponse);
+                }
+            }
+
+            var error = await ReadErrorMessage(response);
+            return ApiResult<SetupStatusResponse>.Failure(error, (int)response.StatusCode);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to get setup status");
+            return ApiResult<SetupStatusResponse>.Failure("Failed to check setup status.");
         }
     }
 

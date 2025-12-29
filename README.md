@@ -1,6 +1,8 @@
 # Famick.HomeManagement.Shared
 
-Shared libraries and core business logic for Famick HomeManagement - a household management system for inventory, recipes, chores, and tasks.
+Shared libraries and core business logic for Famick HomeManagement - a household management system
+
+This readme is intended for developers.  For installation instructions, go to the 
 
 ## 📦 NuGet Packages
 
@@ -15,31 +17,6 @@ This repository contains the following packages:
 
 These packages support both deployment models:
 - **Self-Hosted** (single-tenant, open source)
-- **Cloud SaaS** (multi-tenant, managed service)
-
-### Configurable Multi-Tenancy
-
-The infrastructure supports runtime configuration for tenant isolation:
-
-```csharp
-// Multi-tenant mode (cloud)
-services.AddDbContext<HomeManagementDbContext>(options =>
-{
-    options.UseNpgsql(connectionString);
-}, ServiceLifetime.Scoped);
-
-services.AddSingleton<IMultiTenancyOptions>(new MultiTenancyOptions 
-{ 
-    IsMultiTenantEnabled = true 
-});
-
-// Single-tenant mode (self-hosted)
-services.AddSingleton<IMultiTenancyOptions>(new MultiTenancyOptions 
-{ 
-    IsMultiTenantEnabled = false,
-    FixedTenantId = Guid.Parse("00000000-0000-0000-0000-000000000001")
-});
-```
 
 ## 🚀 Getting Started
 
