@@ -172,6 +172,7 @@ public class AuthenticationService : IAuthenticationService
             ExpiresAt = DateTime.UtcNow.AddDays(refreshTokenExpirationDays),
             DeviceInfo = deviceInfo ?? string.Empty,
             IpAddress = ipAddress ?? string.Empty,
+            RememberMe = request.RememberMe,
             IsRevoked = false,
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow
@@ -245,7 +246,10 @@ public class AuthenticationService : IAuthenticationService
         var newRefreshTokenString = _tokenService.GenerateRefreshToken();
         var newRefreshTokenHash = HashToken(newRefreshTokenString);
 
-        var refreshTokenExpirationDays = _configuration.GetValue<int>("JwtSettings:RefreshTokenExpirationDays", 7);
+        // Preserve the "Remember Me" preference from the original token
+        var defaultExpirationDays = _configuration.GetValue<int>("JwtSettings:RefreshTokenExpirationDays", 7);
+        var extendedExpirationDays = _configuration.GetValue<int>("JwtSettings:RefreshTokenExtendedExpirationDays", 30);
+        var refreshTokenExpirationDays = refreshToken.RememberMe ? extendedExpirationDays : defaultExpirationDays;
 
         var newRefreshToken = new RefreshToken
         {
@@ -256,6 +260,7 @@ public class AuthenticationService : IAuthenticationService
             ExpiresAt = DateTime.UtcNow.AddDays(refreshTokenExpirationDays),
             DeviceInfo = deviceInfo ?? string.Empty,
             IpAddress = ipAddress ?? string.Empty,
+            RememberMe = refreshToken.RememberMe,
             IsRevoked = false,
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow

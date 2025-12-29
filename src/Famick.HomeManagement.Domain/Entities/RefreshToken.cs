@@ -48,6 +48,12 @@ public class RefreshToken : BaseEntity, ITenantEntity
     public string IpAddress { get; set; } = string.Empty;
 
     /// <summary>
+    /// Whether the user selected "Remember Me" during login.
+    /// This preference is preserved during token refresh to maintain extended expiration.
+    /// </summary>
+    public bool RememberMe { get; set; }
+
+    /// <summary>
     /// Whether this token has been explicitly revoked
     /// </summary>
     public bool IsRevoked { get; set; }
