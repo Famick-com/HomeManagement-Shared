@@ -1,9 +1,11 @@
 @inherits LayoutComponentBase
 @implements IDisposable
 @using Famick.HomeManagement.UI.Theme
+@using Famick.HomeManagement.Core.Services
 @inject ILocalizer L
 @inject NavigationManager Navigation
 @inject IJSRuntime JS
+@inject IVersionService VersionService
 
 <LocalizationInitializer>
     <MudThemeProvider Theme="FamickTheme.Theme" IsDarkMode="_isDarkMode" />
@@ -41,7 +43,13 @@
         </MudAppBar>
 
         <MudDrawer @bind-Open="_drawerOpen" ClipMode="DrawerClipMode.Always" Elevation="2">
-            <NavMenu />
+            <div class="d-flex flex-column" style="height: 100%;">
+                <NavMenu />
+                <MudSpacer />
+                <MudText Typo="Typo.caption" Class="pa-2" Style="color: var(--mud-palette-text-secondary); opacity: 0.6;">
+                    v@(VersionService.Version)
+                </MudText>
+            </div>
         </MudDrawer>
 
         @* Desktop: Normal padding and container *@
