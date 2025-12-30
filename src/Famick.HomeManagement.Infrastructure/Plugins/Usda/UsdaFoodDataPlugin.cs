@@ -24,9 +24,9 @@ public class UsdaFoodDataPlugin : IProductLookupPlugin
     public string Version => "1.0.0";
     public bool IsAvailable => _isInitialized && !string.IsNullOrEmpty(_apiKey);
 
-    public UsdaFoodDataPlugin(HttpClient httpClient, ILogger<UsdaFoodDataPlugin> logger)
+    public UsdaFoodDataPlugin(IHttpClientFactory httpClientFactory, ILogger<UsdaFoodDataPlugin> logger)
     {
-        _httpClient = httpClient;
+        _httpClient = httpClientFactory.CreateClient();
         _logger = logger;
     }
 

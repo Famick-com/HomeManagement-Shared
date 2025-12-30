@@ -32,6 +32,47 @@ namespace Famick.HomeManagement.Infrastructure.Configuration
                 .HasColumnName("description")
                 .HasColumnType("text");
 
+            // Store Integration fields
+            builder.Property(sl => sl.IntegrationType)
+                .HasColumnName("integration_type")
+                .HasColumnType("character varying(50)");
+
+            builder.Property(sl => sl.ExternalLocationId)
+                .HasColumnName("external_location_id")
+                .HasColumnType("character varying(100)");
+
+            builder.Property(sl => sl.ExternalChainId)
+                .HasColumnName("external_chain_id")
+                .HasColumnType("character varying(100)");
+
+            builder.Property(sl => sl.OAuthAccessToken)
+                .HasColumnName("oauth_access_token")
+                .HasColumnType("text");
+
+            builder.Property(sl => sl.OAuthRefreshToken)
+                .HasColumnName("oauth_refresh_token")
+                .HasColumnType("text");
+
+            builder.Property(sl => sl.OAuthTokenExpiresAt)
+                .HasColumnName("oauth_token_expires_at")
+                .HasColumnType("timestamp with time zone");
+
+            builder.Property(sl => sl.StoreAddress)
+                .HasColumnName("store_address")
+                .HasColumnType("character varying(500)");
+
+            builder.Property(sl => sl.StorePhone)
+                .HasColumnName("store_phone")
+                .HasColumnType("character varying(50)");
+
+            builder.Property(sl => sl.Latitude)
+                .HasColumnName("latitude")
+                .HasColumnType("double precision");
+
+            builder.Property(sl => sl.Longitude)
+                .HasColumnName("longitude")
+                .HasColumnType("double precision");
+
             builder.Property(sl => sl.CreatedAt)
                 .HasColumnName("created_at")
                 .HasColumnType("timestamp with time zone")
@@ -53,11 +94,20 @@ namespace Famick.HomeManagement.Infrastructure.Configuration
                 .IsUnique()
                 .HasDatabaseName("ux_shopping_locations_tenant_name");
 
+            // Index on integration type for filtering
+            builder.HasIndex(sl => new { sl.TenantId, sl.IntegrationType })
+                .HasDatabaseName("ix_shopping_locations_tenant_integration_type");
+
             // Navigation properties
             builder.HasMany(sl => sl.Products)
                 .WithOne(p => p.ShoppingLocation)
                 .HasForeignKey(p => p.ShoppingLocationId)
                 .OnDelete(DeleteBehavior.SetNull);
+
+            builder.HasMany(sl => sl.ProductStoreMetadata)
+                .WithOne(psm => psm.ShoppingLocation)
+                .HasForeignKey(psm => psm.ShoppingLocationId)
+                .OnDelete(DeleteBehavior.Cascade);
         }
     }
 }

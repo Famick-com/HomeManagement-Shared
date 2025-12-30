@@ -58,6 +58,9 @@ public class HomeManagementDbContext : DbContext
     public DbSet<ShoppingList> ShoppingLists => Set<ShoppingList>();
     public DbSet<ShoppingListItem> ShoppingListItems => Set<ShoppingListItem>();
 
+    // Store integrations
+    public DbSet<ProductStoreMetadata> ProductStoreMetadata => Set<ProductStoreMetadata>();
+
     // Phase 2 - Recipes
     public DbSet<Recipe> Recipes => Set<Recipe>();
     public DbSet<RecipePosition> RecipePositions => Set<RecipePosition>();

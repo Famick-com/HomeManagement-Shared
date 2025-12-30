@@ -23,9 +23,9 @@ public class OpenFoodFactsPlugin : IProductLookupPlugin
     public string Version => "1.0.0";
     public bool IsAvailable => _isInitialized;
 
-    public OpenFoodFactsPlugin(HttpClient httpClient, ILogger<OpenFoodFactsPlugin> logger)
+    public OpenFoodFactsPlugin(IHttpClientFactory httpClientFactory, ILogger<OpenFoodFactsPlugin> logger)
     {
-        _httpClient = httpClient;
+        _httpClient = httpClientFactory.CreateClient();
         _logger = logger;
 
         // Set User-Agent as required by Open Food Facts API guidelines
