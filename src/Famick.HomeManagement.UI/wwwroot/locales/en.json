@@ -155,6 +155,18 @@
       "confirmDelete": "Are you sure you want to delete this unit? Products using this unit may be affected.",
       "inUse": "This unit is in use by products and cannot be deleted"
     },
+    "stores": {
+      "title": "Stores",
+      "add": "Add Store",
+      "edit": "Edit Store",
+      "saved": "Store saved successfully",
+      "deleted": "Store deleted successfully",
+      "confirmDelete": "Are you sure you want to delete this store? Products associated with this store may be affected.",
+      "noStores": "No stores configured. Add a store to start tracking your shopping locations.",
+      "productCount": "Products",
+      "integration": "Integration",
+      "notLinked": "Not linked"
+    },
     "storeIntegrations": {
       "title": "Store Integrations",
       "description": "Connect your stores to external store APIs like Kroger to get product prices, availability, and aisle locations.",

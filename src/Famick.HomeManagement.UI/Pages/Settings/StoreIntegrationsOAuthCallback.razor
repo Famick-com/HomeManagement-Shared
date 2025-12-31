@@ -75,9 +75,22 @@
 
         try
         {
-            // Parse state to get the shopping location ID and plugin ID
-            // State format: shoppingLocationId (the plugin ID is determined by the shopping location's IntegrationType)
-            if (!Guid.TryParse(State, out var shoppingLocationId))
+            // Parse state to get the shopping location ID
+            // State format: base64("{shoppingLocationId}|{randomGuid}")
+            Guid shoppingLocationId;
+            try
+            {
+                var decodedState = System.Text.Encoding.UTF8.GetString(Convert.FromBase64String(State));
+                var parts = decodedState.Split('|');
+                if (parts.Length < 1 || !Guid.TryParse(parts[0], out shoppingLocationId))
+                {
+                    _hasError = true;
+                    _errorMessage = L["settings.storeIntegrations.invalidState"];
+                    _isProcessing = false;
+                    return;
+                }
+            }
+            catch
             {
                 _hasError = true;
                 _errorMessage = L["settings.storeIntegrations.invalidState"];
