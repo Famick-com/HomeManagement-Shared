@@ -315,7 +315,33 @@
     "setPrimaryFailed": "Failed to set primary image",
     "confirmDeleteImage": "Are you sure you want to delete this image?",
     "invalidImageType": "Only image files (JPG, PNG, GIF, WebP) are allowed",
-    "imageTooLarge": "Image file is too large (max 5MB)"
+    "imageTooLarge": "Image file is too large (max 5MB)",
+    "stores": {
+      "title": "Store Prices",
+      "add": "Add Store",
+      "noStores": "No stores linked to this product",
+      "noPrice": "No price",
+      "price": "Price",
+      "priceUnit": "Unit",
+      "aisle": "Aisle",
+      "shelf": "Shelf",
+      "lastUpdated": "Updated",
+      "refresh": "Refresh price",
+      "refreshed": "Price refreshed from store",
+      "unlink": "Remove",
+      "confirmUnlink": "Remove this store from the product?",
+      "unlinked": "Store removed",
+      "linked": "Store linked successfully",
+      "selectStore": "Select Store",
+      "lookup": "Lookup Price",
+      "lookingUp": "Looking up...",
+      "lookupSuccess": "Found product",
+      "noResults": "No product found",
+      "notConnected": "Connect store first",
+      "externalProductId": "Store Product ID / SKU",
+      "inStock": "In Stock",
+      "outOfStock": "Out of Stock"
+    }
   },
 
   "shoppingList": {
@@ -394,6 +420,7 @@
   },
 
   "confirmations": {
+    "title": "Confirm",
     "delete": "Are you sure you want to delete this item?",
     "deleteTitle": "Confirm Delete",
     "disconnectTitle": "Confirm Disconnect",

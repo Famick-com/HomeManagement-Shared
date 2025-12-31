@@ -273,10 +273,10 @@ public class KrogerAisleLocation
     public string? Number { get; set; }
 
     [JsonPropertyName("numberOfFacings")]
-    public int? NumberOfFacings { get; set; }
+    public string? NumberOfFacings { get; set; }
 
     [JsonPropertyName("sequenceNumber")]
-    public int? SequenceNumber { get; set; }
+    public string? SequenceNumber { get; set; }
 
     [JsonPropertyName("side")]
     public string? Side { get; set; }

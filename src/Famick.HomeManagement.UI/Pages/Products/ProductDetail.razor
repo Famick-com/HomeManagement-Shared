@@ -158,59 +158,9 @@ else
             </MudItem>
 
             <MudItem xs="12" md="4">
-                <MudPaper Elevation="1" Class="pa-3">
-                    <MudText Typo="Typo.h6" Class="mb-2">@L["products.barcodes"]</MudText>
-                    <ProductBarcodeList ProductId="@(Id ?? Guid.Empty)"
-                                        Barcodes="@_barcodes"
-                                        ReadOnly="@IsNew"
-                                        OnBarcodeAdded="HandleBarcodeAdded"
-                                        OnBarcodeDeleted="HandleBarcodeDeleted" />
-
-                    @if (IsNew)
-                    {
-                        <MudAlert Severity="Severity.Info" Class="mt-3" Dense="true">
-                            Save the product first to add barcodes.
-                        </MudAlert>
-                    }
-                </MudPaper>
-
-                <MudPaper Elevation="1" Class="pa-3 mt-3">
-                    <MudText Typo="Typo.h6" Class="mb-2">@L["products.images"]</MudText>
-                    <ProductImageGallery ProductId="@(Id ?? Guid.Empty)"
-                                         Images="@_images"
-                                         ReadOnly="@IsNew"
-                                         OnImageUploaded="HandleImageUploaded"
-                                         OnImageDeleted="HandleImageDeleted"
-                                         OnPrimaryChanged="HandleImagePrimaryChanged" />
-
-                    @if (IsNew)
-                    {
-                        <MudAlert Severity="Severity.Info" Class="mt-3" Dense="true">
-                            Save the product first to add images.
-                        </MudAlert>
-                    }
-                </MudPaper>
-
                 @if (!IsNew)
                 {
-                    <MudPaper Elevation="1" Class="pa-3 mt-3">
-                        @if (_nutrition != null)
-                        {
-                            <NutritionFactsCard Nutrition="_nutrition"
-                                                ServingSize="@_servingSize"
-                                                ServingUnit="@_servingUnit"
-                                                ServingsPerContainer="@_servingsPerContainer" />
-                        }
-                        else
-                        {
-                            <MudText Typo="Typo.h6" Class="mb-2">@L["nutrition.title"]</MudText>
-                            <MudText Typo="Typo.body2" Color="Color.Secondary">
-                                @L["nutrition.noData"]
-                            </MudText>
-                        }
-                    </MudPaper>
-
-                    <MudPaper Elevation="1" Class="pa-3 mt-3">
+                    <MudPaper Elevation="1" Class="pa-3">
                         <MudText Typo="Typo.h6" Class="mb-2">@L["stock.inStock"]</MudText>
                         @if (_stockEntries.Count == 0)
                         {
@@ -247,6 +197,77 @@ else
                                 }
                             </MudStack>
                         }
+                    </MudPaper>
+
+                    <ProductStoreList ProductId="@Id!.Value" ProductName="@_name" OnBarcodeAdded="RefreshBarcodes" />
+                }
+
+                <MudPaper Elevation="1" Class="@(!IsNew ? "pa-3 mt-3" : "pa-3")">
+                    <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween"
+                              Class="cursor-pointer" @onclick="() => _barcodesExpanded = !_barcodesExpanded">
+                        <MudText Typo="Typo.h6">@L["products.barcodes"] (@_barcodes.Count)</MudText>
+                        <MudIcon Icon="@(_barcodesExpanded ? Icons.Material.Filled.ExpandLess : Icons.Material.Filled.ExpandMore)" />
+                    </MudStack>
+                    <MudCollapse Expanded="_barcodesExpanded">
+                        <div class="mt-2">
+                            <ProductBarcodeList ProductId="@(Id ?? Guid.Empty)"
+                                                Barcodes="@_barcodes"
+                                                ReadOnly="@IsNew"
+                                                OnBarcodeAdded="HandleBarcodeAdded"
+                                                OnBarcodeDeleted="HandleBarcodeDeleted" />
+
+                            @if (IsNew)
+                            {
+                                <MudAlert Severity="Severity.Info" Class="mt-3" Dense="true">
+                                    Save the product first to add barcodes.
+                                </MudAlert>
+                            }
+                        </div>
+                    </MudCollapse>
+                </MudPaper>
+
+                <MudPaper Elevation="1" Class="pa-3 mt-3">
+                    <MudText Typo="Typo.h6" Class="mb-2">@L["products.images"]</MudText>
+                    <ProductImageGallery ProductId="@(Id ?? Guid.Empty)"
+                                         Images="@_images"
+                                         ReadOnly="@IsNew"
+                                         OnImageUploaded="HandleImageUploaded"
+                                         OnImageDeleted="HandleImageDeleted"
+                                         OnPrimaryChanged="HandleImagePrimaryChanged" />
+
+                    @if (IsNew)
+                    {
+                        <MudAlert Severity="Severity.Info" Class="mt-3" Dense="true">
+                            Save the product first to add images.
+                        </MudAlert>
+                    }
+                </MudPaper>
+
+                @if (!IsNew)
+                {
+                    <MudPaper Elevation="1" Class="pa-3 mt-3">
+                        <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween"
+                                  Class="cursor-pointer" @onclick="() => _nutritionExpanded = !_nutritionExpanded">
+                            <MudText Typo="Typo.h6">@L["nutrition.title"]</MudText>
+                            <MudIcon Icon="@(_nutritionExpanded ? Icons.Material.Filled.ExpandLess : Icons.Material.Filled.ExpandMore)" />
+                        </MudStack>
+                        <MudCollapse Expanded="_nutritionExpanded">
+                            <div class="mt-2">
+                                @if (_nutrition != null)
+                                {
+                                    <NutritionFactsCard Nutrition="_nutrition"
+                                                        ServingSize="@_servingSize"
+                                                        ServingUnit="@_servingUnit"
+                                                        ServingsPerContainer="@_servingsPerContainer" />
+                                }
+                                else
+                                {
+                                    <MudText Typo="Typo.body2" Color="Color.Secondary">
+                                        @L["nutrition.noData"]
+                                    </MudText>
+                                }
+                            </div>
+                        </MudCollapse>
                     </MudPaper>
                 }
             </MudItem>
@@ -357,6 +378,8 @@ else
     private List<StockEntryDto> _stockEntries = new();
     private decimal _totalStockAmount;
     private string _stockUnitName = string.Empty;
+    private bool _barcodesExpanded = false;
+    private bool _nutritionExpanded = false;
 
     // Lookup data
     private List<LocationDto> _locations = new();
@@ -596,6 +619,25 @@ else
         catch (Exception)
         {
             Snackbar.Add(L["errors.generic"], Severity.Error);
+        }
+    }
+
+    private async Task RefreshBarcodes()
+    {
+        if (Id == null) return;
+
+        try
+        {
+            var result = await ApiClient.GetAsync<ProductDto>($"api/v1/products/{Id}");
+            if (result.IsSuccess && result.Data != null)
+            {
+                _barcodes = result.Data.Barcodes;
+                StateHasChanged();
+            }
+        }
+        catch
+        {
+            // Silently fail - barcodes will refresh on next page load
         }
     }
 
