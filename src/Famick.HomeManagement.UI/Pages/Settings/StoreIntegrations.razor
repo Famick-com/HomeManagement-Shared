@@ -355,7 +355,7 @@
                 Longitude = _selectedStore.Longitude
             };
 
-            var result = await ApiClient.PostAsync<LinkStoreLocationRequest, object>(
+            var result = await ApiClient.PostAsync(
                 $"api/v1/storeintegrations/shoppinglocations/{_linkingLocation.Id}/link", request);
 
             if (result.IsSuccess)
@@ -428,7 +428,7 @@
 
         try
         {
-            var result = await ApiClient.PostAsync<object, object>(
+            var result = await ApiClient.PostAsync(
                 $"api/v1/storeintegrations/shoppinglocations/{location.Id}/disconnect", new { });
 
             if (result.IsSuccess)

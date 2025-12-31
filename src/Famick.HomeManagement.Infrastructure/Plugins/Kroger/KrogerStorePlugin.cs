@@ -104,7 +104,7 @@ public class KrogerStorePlugin : IStoreIntegrationPlugin
     {
         if (!IsAvailable)
         {
-            throw new InvalidOperationException("Kroger plugin is not configured");
+            return OAuthTokenResult.Fail("Kroger plugin is not configured");
         }
 
         var content = new FormUrlEncodedContent(new Dictionary<string, string>
@@ -129,21 +129,19 @@ public class KrogerStorePlugin : IStoreIntegrationPlugin
         {
             _logger.LogError("Failed to exchange code for token. Status: {Status}, Response: {Response}",
                 response.StatusCode, responseContent);
-            throw new InvalidOperationException($"Failed to exchange code for token: {response.StatusCode}");
+            return OAuthTokenResult.Fail($"Failed to exchange code for token: {response.StatusCode}");
         }
 
         var tokenResponse = JsonSerializer.Deserialize<KrogerTokenResponse>(responseContent);
         if (tokenResponse == null)
         {
-            throw new InvalidOperationException("Invalid token response from Kroger");
+            return OAuthTokenResult.Fail("Invalid token response from Kroger");
         }
 
-        return new OAuthTokenResult
-        {
-            AccessToken = tokenResponse.AccessToken,
-            RefreshToken = tokenResponse.RefreshToken,
-            ExpiresAt = DateTime.UtcNow.AddSeconds(tokenResponse.ExpiresIn)
-        };
+        return OAuthTokenResult.Ok(
+            tokenResponse.AccessToken ?? string.Empty,
+            tokenResponse.RefreshToken,
+            DateTime.UtcNow.AddSeconds(tokenResponse.ExpiresIn));
     }
 
     public async Task<OAuthTokenResult> RefreshTokenAsync(
@@ -152,7 +150,7 @@ public class KrogerStorePlugin : IStoreIntegrationPlugin
     {
         if (!IsAvailable)
         {
-            throw new InvalidOperationException("Kroger plugin is not configured");
+            return OAuthTokenResult.Fail("Kroger plugin is not configured");
         }
 
         var content = new FormUrlEncodedContent(new Dictionary<string, string>
@@ -176,21 +174,19 @@ public class KrogerStorePlugin : IStoreIntegrationPlugin
         {
             _logger.LogError("Failed to refresh token. Status: {Status}, Response: {Response}",
                 response.StatusCode, responseContent);
-            throw new InvalidOperationException($"Failed to refresh token: {response.StatusCode}");
+            return OAuthTokenResult.Fail($"Failed to refresh token: {response.StatusCode}");
         }
 
         var tokenResponse = JsonSerializer.Deserialize<KrogerTokenResponse>(responseContent);
         if (tokenResponse == null)
         {
-            throw new InvalidOperationException("Invalid token response from Kroger");
+            return OAuthTokenResult.Fail("Invalid token response from Kroger");
         }
 
-        return new OAuthTokenResult
-        {
-            AccessToken = tokenResponse.AccessToken,
-            RefreshToken = tokenResponse.RefreshToken ?? refreshToken, // Keep old refresh token if not returned
-            ExpiresAt = DateTime.UtcNow.AddSeconds(tokenResponse.ExpiresIn)
-        };
+        return OAuthTokenResult.Ok(
+            tokenResponse.AccessToken ?? string.Empty,
+            tokenResponse.RefreshToken ?? refreshToken, // Keep old refresh token if not returned
+            DateTime.UtcNow.AddSeconds(tokenResponse.ExpiresIn));
     }
 
     private void AddBasicAuthHeader(HttpRequestMessage request)
