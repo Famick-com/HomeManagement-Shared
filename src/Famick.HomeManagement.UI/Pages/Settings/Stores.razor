@@ -1,0 +1,270 @@
+@page "/settings/stores"
+@attribute [Authorize]
+@inject IApiClient ApiClient
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+@inject ILocalizer L
+@using Famick.HomeManagement.Core.DTOs.ShoppingLocations
+
+<MudText Typo="Typo.h4" Class="mb-4">@L["settings.stores.title"]</MudText>
+
+<MudPaper Elevation="1" Class="pa-4">
+    <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.FlexEnd" Class="mb-4">
+        <MudButton Variant="Variant.Filled"
+                   Color="Color.Primary"
+                   StartIcon="@Icons.Material.Filled.Add"
+                   OnClick="OpenAddDialog">
+            @L["settings.stores.add"]
+        </MudButton>
+    </MudStack>
+
+    @if (_isLoading)
+    {
+        <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+    }
+    else if (_stores.Count == 0)
+    {
+        <MudAlert Severity="Severity.Info">@L["settings.stores.noStores"]</MudAlert>
+    }
+    else
+    {
+        <MudDataGrid T="ShoppingLocationDto"
+                     Items="@_stores"
+                     SortMode="SortMode.Single"
+                     Filterable="false"
+                     Hideable="false"
+                     Dense="true"
+                     Hover="true">
+            <Columns>
+                <PropertyColumn Property="x => x.Name" Title="@L["common.name"]" />
+                <PropertyColumn Property="x => x.Description" Title="@L["common.description"]" />
+                <TemplateColumn Title="@L["settings.stores.integration"]">
+                    <CellTemplate>
+                        @if (context.Item.HasIntegration)
+                        {
+                            <MudChip T="string" Size="Size.Small" Color="Color.Primary" Variant="Variant.Filled">@context.Item.IntegrationType</MudChip>
+                        }
+                        else
+                        {
+                            <MudText Typo="Typo.body2" Color="Color.Default">@L["settings.stores.notLinked"]</MudText>
+                        }
+                    </CellTemplate>
+                </TemplateColumn>
+                <PropertyColumn Property="x => x.ProductCount" Title="@L["settings.stores.productCount"]" />
+                <TemplateColumn Title="@L["common.actions"]" Sortable="false">
+                    <CellTemplate>
+                        <MudStack Row="true" Spacing="1">
+                            <MudIconButton Icon="@Icons.Material.Filled.Edit"
+                                           Size="Size.Small"
+                                           Color="Color.Primary"
+                                           OnClick="@(() => OpenEditDialog(context.Item))" />
+                            <MudIconButton Icon="@Icons.Material.Filled.Delete"
+                                           Size="Size.Small"
+                                           Color="Color.Error"
+                                           OnClick="@(() => HandleDelete(context.Item))" />
+                        </MudStack>
+                    </CellTemplate>
+                </TemplateColumn>
+            </Columns>
+        </MudDataGrid>
+    }
+</MudPaper>
+
+@* Add/Edit Dialog *@
+<MudDialog @bind-Visible="_dialogVisible" Options="@(new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true })">
+    <TitleContent>
+        <MudText Typo="Typo.h6">@(_editingStore == null ? L["settings.stores.add"] : L["settings.stores.edit"])</MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudForm @ref="_form" @bind-IsValid="_formValid">
+            <MudStack Spacing="3">
+                <MudTextField @bind-Value="_formName"
+                              Label="@L["common.name"]"
+                              Variant="Variant.Outlined"
+                              Required="true"
+                              RequiredError="@L["validation.required", L["common.name"]]" />
+
+                <MudTextField @bind-Value="_formDescription"
+                              Label="@L["common.description"]"
+                              Variant="Variant.Outlined"
+                              Lines="2" />
+            </MudStack>
+        </MudForm>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="CloseDialog">@L["common.cancel"]</MudButton>
+        <MudButton Variant="Variant.Filled"
+                   Color="Color.Primary"
+                   OnClick="HandleSave"
+                   Disabled="@(!_formValid || _isSaving)">
+            @if (_isSaving)
+            {
+                <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+            }
+            @L["common.save"]
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    private List<ShoppingLocationDto> _stores = new();
+    private bool _isLoading = true;
+    private bool _dialogVisible;
+    private bool _formValid;
+    private bool _isSaving;
+    private MudForm? _form;
+
+    private ShoppingLocationDto? _editingStore;
+    private string _formName = string.Empty;
+    private string? _formDescription;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadStoresAsync();
+    }
+
+    private async Task LoadStoresAsync()
+    {
+        _isLoading = true;
+
+        try
+        {
+            var result = await ApiClient.GetAsync<List<ShoppingLocationDto>>("api/v1/shoppinglocations");
+            if (result.IsSuccess && result.Data != null)
+            {
+                _stores = result.Data;
+            }
+            else
+            {
+                Snackbar.Add(result.ErrorMessage ?? L["errors.generic"], Severity.Error);
+            }
+        }
+        catch (Exception)
+        {
+            Snackbar.Add(L["errors.generic"], Severity.Error);
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private void OpenAddDialog()
+    {
+        _editingStore = null;
+        _formName = string.Empty;
+        _formDescription = null;
+        _dialogVisible = true;
+    }
+
+    private void OpenEditDialog(ShoppingLocationDto store)
+    {
+        _editingStore = store;
+        _formName = store.Name;
+        _formDescription = store.Description;
+        _dialogVisible = true;
+    }
+
+    private void CloseDialog()
+    {
+        _dialogVisible = false;
+        _editingStore = null;
+    }
+
+    private async Task HandleSave()
+    {
+        if (_form != null)
+        {
+            await _form.Validate();
+            if (!_formValid) return;
+        }
+
+        _isSaving = true;
+
+        try
+        {
+            if (_editingStore == null)
+            {
+                // Create new
+                var request = new CreateShoppingLocationRequest
+                {
+                    Name = _formName,
+                    Description = _formDescription
+                };
+
+                var result = await ApiClient.PostAsync<CreateShoppingLocationRequest, ShoppingLocationDto>("api/v1/shoppinglocations", request);
+
+                if (result.IsSuccess)
+                {
+                    Snackbar.Add(L["settings.stores.saved"], Severity.Success);
+                    CloseDialog();
+                    await LoadStoresAsync();
+                }
+                else
+                {
+                    Snackbar.Add(result.ErrorMessage ?? L["errors.generic"], Severity.Error);
+                }
+            }
+            else
+            {
+                // Update existing
+                var request = new UpdateShoppingLocationRequest
+                {
+                    Name = _formName,
+                    Description = _formDescription
+                };
+
+                var result = await ApiClient.PutAsync<UpdateShoppingLocationRequest, ShoppingLocationDto>($"api/v1/shoppinglocations/{_editingStore.Id}", request);
+
+                if (result.IsSuccess)
+                {
+                    Snackbar.Add(L["settings.stores.saved"], Severity.Success);
+                    CloseDialog();
+                    await LoadStoresAsync();
+                }
+                else
+                {
+                    Snackbar.Add(result.ErrorMessage ?? L["errors.generic"], Severity.Error);
+                }
+            }
+        }
+        catch (Exception)
+        {
+            Snackbar.Add(L["errors.generic"], Severity.Error);
+        }
+        finally
+        {
+            _isSaving = false;
+        }
+    }
+
+    private async Task HandleDelete(ShoppingLocationDto store)
+    {
+        var confirmed = await DialogService.ShowMessageBox(
+            L["confirmations.deleteTitle"],
+            L["settings.stores.confirmDelete"],
+            yesText: L["common.delete"],
+            cancelText: L["common.cancel"]);
+
+        if (confirmed != true) return;
+
+        try
+        {
+            var result = await ApiClient.DeleteAsync($"api/v1/shoppinglocations/{store.Id}");
+
+            if (result.IsSuccess)
+            {
+                Snackbar.Add(L["settings.stores.deleted"], Severity.Success);
+                await LoadStoresAsync();
+            }
+            else
+            {
+                Snackbar.Add(result.ErrorMessage ?? L["errors.generic"], Severity.Error);
+            }
+        }
+        catch (Exception)
+        {
+            Snackbar.Add(L["errors.generic"], Severity.Error);
+        }
+    }
+}
