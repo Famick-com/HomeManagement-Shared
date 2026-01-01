@@ -60,6 +60,7 @@ public class HomeManagementDbContext : DbContext
 
     // Store integrations
     public DbSet<ProductStoreMetadata> ProductStoreMetadata => Set<ProductStoreMetadata>();
+    public DbSet<TenantIntegrationToken> TenantIntegrationTokens => Set<TenantIntegrationToken>();
 
     // Phase 2 - Recipes
     public DbSet<Recipe> Recipes => Set<Recipe>();

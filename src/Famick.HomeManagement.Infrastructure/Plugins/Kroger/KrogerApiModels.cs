@@ -316,3 +316,61 @@ public class KrogerPagination
 }
 
 #endregion
+
+#region Cart Response Models
+
+public class KrogerCartResponse
+{
+    [JsonPropertyName("data")]
+    public KrogerCartData? Data { get; set; }
+}
+
+public class KrogerCartData
+{
+    [JsonPropertyName("items")]
+    public List<KrogerCartItem>? Items { get; set; }
+
+    [JsonPropertyName("subtotal")]
+    public decimal? Subtotal { get; set; }
+
+    [JsonPropertyName("cartId")]
+    public string? CartId { get; set; }
+}
+
+public class KrogerCartItem
+{
+    [JsonPropertyName("upc")]
+    public string? Upc { get; set; }
+
+    [JsonPropertyName("productId")]
+    public string? ProductId { get; set; }
+
+    [JsonPropertyName("description")]
+    public string? Description { get; set; }
+
+    [JsonPropertyName("quantity")]
+    public int Quantity { get; set; }
+
+    [JsonPropertyName("price")]
+    public decimal? Price { get; set; }
+
+    [JsonPropertyName("imageUrl")]
+    public string? ImageUrl { get; set; }
+}
+
+public class KrogerCartUpdateRequest
+{
+    [JsonPropertyName("items")]
+    public List<KrogerCartItemUpdate> Items { get; set; } = new();
+}
+
+public class KrogerCartItemUpdate
+{
+    [JsonPropertyName("upc")]
+    public string Upc { get; set; } = string.Empty;
+
+    [JsonPropertyName("quantity")]
+    public int Quantity { get; set; }
+}
+
+#endregion

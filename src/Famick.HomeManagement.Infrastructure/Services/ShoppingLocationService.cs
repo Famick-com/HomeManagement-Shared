@@ -3,6 +3,7 @@ using Famick.HomeManagement.Core.DTOs.ProductGroups;
 using Famick.HomeManagement.Core.DTOs.ShoppingLocations;
 using Famick.HomeManagement.Core.Exceptions;
 using Famick.HomeManagement.Core.Interfaces;
+using Famick.HomeManagement.Core.Interfaces.Plugins;
 using Famick.HomeManagement.Domain.Entities;
 using Famick.HomeManagement.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
@@ -15,15 +16,18 @@ public class ShoppingLocationService : IShoppingLocationService
     private readonly HomeManagementDbContext _context;
     private readonly IMapper _mapper;
     private readonly ILogger<ShoppingLocationService> _logger;
+    private readonly IStoreIntegrationLoader _storeIntegrationLoader;
 
     public ShoppingLocationService(
         HomeManagementDbContext context,
         IMapper mapper,
-        ILogger<ShoppingLocationService> logger)
+        ILogger<ShoppingLocationService> logger,
+        IStoreIntegrationLoader storeIntegrationLoader)
     {
         _context = context;
         _mapper = mapper;
         _logger = logger;
+        _storeIntegrationLoader = storeIntegrationLoader;
     }
 
     public async Task<ShoppingLocationDto> CreateAsync(
@@ -49,7 +53,9 @@ public class ShoppingLocationService : IShoppingLocationService
 
         _logger.LogInformation("Created shopping location: {Id} - {Name}", shoppingLocation.Id, shoppingLocation.Name);
 
-        return _mapper.Map<ShoppingLocationDto>(shoppingLocation);
+        var dto = _mapper.Map<ShoppingLocationDto>(shoppingLocation);
+        await PopulateIsConnectedAsync(new[] { dto }, cancellationToken);
+        return dto;
     }
 
     public async Task<ShoppingLocationDto?> GetByIdAsync(
@@ -60,7 +66,12 @@ public class ShoppingLocationService : IShoppingLocationService
             .Include(sl => sl.Products)
             .FirstOrDefaultAsync(sl => sl.Id == id, cancellationToken);
 
-        return shoppingLocation != null ? _mapper.Map<ShoppingLocationDto>(shoppingLocation) : null;
+        if (shoppingLocation == null)
+            return null;
+
+        var dto = _mapper.Map<ShoppingLocationDto>(shoppingLocation);
+        await PopulateIsConnectedAsync(new[] { dto }, cancellationToken);
+        return dto;
     }
 
     public async Task<List<ShoppingLocationDto>> ListAsync(
@@ -97,7 +108,9 @@ public class ShoppingLocationService : IShoppingLocationService
 
         var shoppingLocations = await query.ToListAsync(cancellationToken);
 
-        return _mapper.Map<List<ShoppingLocationDto>>(shoppingLocations);
+        var dtos = _mapper.Map<List<ShoppingLocationDto>>(shoppingLocations);
+        await PopulateIsConnectedAsync(dtos, cancellationToken);
+        return dtos;
     }
 
     public async Task<ShoppingLocationDto> UpdateAsync(
@@ -132,7 +145,9 @@ public class ShoppingLocationService : IShoppingLocationService
             .Include(sl => sl.Products)
             .FirstAsync(sl => sl.Id == id, cancellationToken);
 
-        return _mapper.Map<ShoppingLocationDto>(shoppingLocation);
+        var dto = _mapper.Map<ShoppingLocationDto>(shoppingLocation);
+        await PopulateIsConnectedAsync(new[] { dto }, cancellationToken);
+        return dto;
     }
 
     public async Task DeleteAsync(
@@ -170,5 +185,64 @@ public class ShoppingLocationService : IShoppingLocationService
             .ToListAsync(cancellationToken);
 
         return _mapper.Map<List<ProductSummaryDto>>(products);
+    }
+
+    /// <summary>
+    /// Populates the IsConnected property on ShoppingLocationDto instances.
+    /// For plugins that don't require OAuth, IsConnected is always true.
+    /// For OAuth plugins, checks the TenantIntegrationTokens table for valid tokens.
+    /// </summary>
+    private async Task PopulateIsConnectedAsync(
+        IEnumerable<ShoppingLocationDto> dtos,
+        CancellationToken cancellationToken)
+    {
+        // Get unique integration types that have shopping locations
+        var integrationTypes = dtos
+            .Where(d => !string.IsNullOrEmpty(d.IntegrationType))
+            .Select(d => d.IntegrationType!)
+            .Distinct()
+            .ToList();
+
+        if (integrationTypes.Count == 0)
+            return;
+
+        // Build a set of plugins that don't require OAuth (always connected)
+        var noOAuthPlugins = _storeIntegrationLoader.Plugins
+            .Where(p => integrationTypes.Contains(p.PluginId) && !p.Capabilities.RequiresOAuth)
+            .Select(p => p.PluginId)
+            .ToHashSet();
+
+        // Get OAuth-requiring integration types
+        var oauthIntegrationTypes = integrationTypes
+            .Where(t => !noOAuthPlugins.Contains(t))
+            .ToList();
+
+        // Query tokens only for OAuth-requiring plugins
+        var connectedOAuthPlugins = new HashSet<string>();
+        if (oauthIntegrationTypes.Count > 0)
+        {
+            var tokens = await _context.TenantIntegrationTokens
+                .Where(t => oauthIntegrationTypes.Contains(t.PluginId))
+                .ToListAsync(cancellationToken);
+
+            connectedOAuthPlugins = tokens
+                .Where(t => !string.IsNullOrEmpty(t.AccessToken) &&
+                            !t.RequiresReauth &&
+                            t.ExpiresAt.HasValue &&
+                            t.ExpiresAt.Value > DateTime.UtcNow)
+                .Select(t => t.PluginId)
+                .ToHashSet();
+        }
+
+        // Set IsConnected on each DTO
+        foreach (var dto in dtos)
+        {
+            if (!string.IsNullOrEmpty(dto.IntegrationType))
+            {
+                // No OAuth required = always connected; OAuth required = check token
+                dto.IsConnected = noOAuthPlugins.Contains(dto.IntegrationType) ||
+                                  connectedOAuthPlugins.Contains(dto.IntegrationType);
+            }
+        }
     }
 }

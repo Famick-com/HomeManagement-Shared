@@ -30,6 +30,16 @@ public class KrogerStorePlugin : IStoreIntegrationPlugin
     public string Version => "1.0.0";
     public bool IsAvailable => !string.IsNullOrEmpty(_clientId) && !string.IsNullOrEmpty(_clientSecret);
 
+    public StoreIntegrationCapabilities Capabilities => new()
+    {
+        RequiresOAuth = true,
+        HasProductLookup = true,
+        HasStoreProductLookup = true,
+        HasShoppingCart = true,
+        CanReadShoppingCart = true,
+        CanDownloadProductImages = true
+    };
+
     public KrogerStorePlugin(IHttpClientFactory httpClientFactory, ILogger<KrogerStorePlugin> logger)
     {
         _httpClient = httpClientFactory.CreateClient();
@@ -573,6 +583,137 @@ public class KrogerStorePlugin : IStoreIntegrationPlugin
         var expectedCheckDigit = (10 - (sum % 10)) % 10;
 
         return checkDigit == expectedCheckDigit;
+    }
+
+    #endregion
+
+    #region Shopping Cart
+
+    public async Task<ShoppingCartResult?> GetShoppingCartAsync(
+        string accessToken,
+        string storeLocationId,
+        CancellationToken ct = default)
+    {
+        if (!IsAvailable)
+        {
+            throw new InvalidOperationException("Kroger plugin is not configured");
+        }
+
+        var url = $"{KrogerApiBaseUrl}/cart";
+
+        var request = new HttpRequestMessage(HttpMethod.Get, url);
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+
+        var response = await _httpClient.SendAsync(request, ct);
+        var responseContent = await response.Content.ReadAsStringAsync(ct);
+
+        if (!response.IsSuccessStatusCode)
+        {
+            _logger.LogError("Failed to get cart. Status: {Status}, Response: {Response}",
+                response.StatusCode, responseContent);
+            return null;
+        }
+
+        var cartResponse = JsonSerializer.Deserialize<KrogerCartResponse>(responseContent);
+        if (cartResponse?.Data == null)
+        {
+            return new ShoppingCartResult { StoreLocationId = storeLocationId };
+        }
+
+        return MapToShoppingCartResult(cartResponse.Data, storeLocationId);
+    }
+
+    public async Task<ShoppingCartResult?> AddToCartAsync(
+        string accessToken,
+        string storeLocationId,
+        List<CartItemRequest> items,
+        CancellationToken ct = default)
+    {
+        if (!IsAvailable)
+        {
+            throw new InvalidOperationException("Kroger plugin is not configured");
+        }
+
+        var krogerItems = items.Select(i => new KrogerCartItemUpdate
+        {
+            Upc = i.ExternalProductId,
+            Quantity = i.Quantity
+        }).ToList();
+
+        var updateRequest = new KrogerCartUpdateRequest { Items = krogerItems };
+
+        var url = $"{KrogerApiBaseUrl}/cart/add";
+
+        var request = new HttpRequestMessage(HttpMethod.Put, url)
+        {
+            Content = JsonContent.Create(updateRequest)
+        };
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+
+        var response = await _httpClient.SendAsync(request, ct);
+        var responseContent = await response.Content.ReadAsStringAsync(ct);
+
+        if (!response.IsSuccessStatusCode)
+        {
+            _logger.LogError("Failed to add to cart. Status: {Status}, Response: {Response}",
+                response.StatusCode, responseContent);
+            return null;
+        }
+
+        // Return updated cart
+        return await GetShoppingCartAsync(accessToken, storeLocationId, ct);
+    }
+
+    public async Task<ShoppingCartResult?> UpdateCartItemAsync(
+        string accessToken,
+        string storeLocationId,
+        string productId,
+        int quantity,
+        CancellationToken ct = default)
+    {
+        // Kroger cart API treats add/update the same - PUT with new quantity replaces
+        return await AddToCartAsync(accessToken, storeLocationId, new List<CartItemRequest>
+        {
+            new() { ExternalProductId = productId, Quantity = quantity }
+        }, ct);
+    }
+
+    public async Task<ShoppingCartResult?> RemoveFromCartAsync(
+        string accessToken,
+        string storeLocationId,
+        string productId,
+        CancellationToken ct = default)
+    {
+        // Kroger removes items by setting quantity to 0
+        return await UpdateCartItemAsync(accessToken, storeLocationId, productId, 0, ct);
+    }
+
+    private static ShoppingCartResult MapToShoppingCartResult(KrogerCartData cartData, string storeLocationId)
+    {
+        var result = new ShoppingCartResult
+        {
+            StoreLocationId = storeLocationId,
+            Items = new List<CartItemResult>()
+        };
+
+        if (cartData.Items != null)
+        {
+            foreach (var item in cartData.Items)
+            {
+                result.Items.Add(new CartItemResult
+                {
+                    ExternalProductId = item.Upc ?? item.ProductId ?? string.Empty,
+                    Name = item.Description ?? string.Empty,
+                    Quantity = item.Quantity,
+                    Price = item.Price,
+                    ImageUrl = item.ImageUrl
+                });
+            }
+        }
+
+        result.Subtotal = cartData.Subtotal;
+
+        return result;
     }
 
     #endregion

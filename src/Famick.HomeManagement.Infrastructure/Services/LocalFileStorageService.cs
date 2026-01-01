@@ -12,15 +12,18 @@ public class LocalFileStorageService : IFileStorageService
     private readonly string _basePath;
     private readonly string _baseUrl;
     private readonly ILogger<LocalFileStorageService> _logger;
+    private readonly HttpClient _httpClient;
 
     public LocalFileStorageService(
         string webRootPath,
         string baseUrl,
-        ILogger<LocalFileStorageService> logger)
+        ILogger<LocalFileStorageService> logger,
+        IHttpClientFactory? httpClientFactory = null)
     {
         _basePath = Path.Combine(webRootPath, "uploads");
         _baseUrl = baseUrl.TrimEnd('/');
         _logger = logger;
+        _httpClient = httpClientFactory?.CreateClient("ImageDownloader") ?? new HttpClient();
 
         // Ensure base uploads directory exists
         Directory.CreateDirectory(_basePath);
@@ -94,6 +97,88 @@ public class LocalFileStorageService : IFileStorageService
         }
 
         return Task.CompletedTask;
+    }
+
+    public async Task<string?> DownloadAndSaveProductImageAsync(
+        Guid productId,
+        string imageUrl,
+        string source,
+        CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(imageUrl))
+        {
+            return null;
+        }
+
+        try
+        {
+            // Download the image
+            using var response = await _httpClient.GetAsync(imageUrl, ct);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                _logger.LogWarning("Failed to download image from {Url}: {StatusCode}", imageUrl, response.StatusCode);
+                return null;
+            }
+
+            // Determine file extension from content type or URL
+            var contentType = response.Content.Headers.ContentType?.MediaType;
+            var extension = GetExtensionFromContentType(contentType) ?? GetExtensionFromUrl(imageUrl) ?? ".jpg";
+
+            // Generate filename with source prefix
+            var timestamp = DateTime.UtcNow.ToString("yyyyMMdd_HHmmss");
+            var random = Guid.NewGuid().ToString("N")[..8];
+            var fileName = $"{source}_{timestamp}_{random}{extension}";
+
+            // Save the image
+            var directory = GetProductImageDirectory(productId);
+            Directory.CreateDirectory(directory);
+
+            var filePath = Path.Combine(directory, fileName);
+
+            await using var stream = await response.Content.ReadAsStreamAsync(ct);
+            await using var fileStream = File.Create(filePath);
+            await stream.CopyToAsync(fileStream, ct);
+
+            _logger.LogInformation("Downloaded and saved product image {FileName} from {Source} for product {ProductId}",
+                fileName, source, productId);
+
+            return fileName;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to download and save product image from {Url} for product {ProductId}", imageUrl, productId);
+            return null;
+        }
+    }
+
+    private static string? GetExtensionFromContentType(string? contentType)
+    {
+        return contentType?.ToLowerInvariant() switch
+        {
+            "image/jpeg" => ".jpg",
+            "image/png" => ".png",
+            "image/gif" => ".gif",
+            "image/webp" => ".webp",
+            "image/svg+xml" => ".svg",
+            "image/bmp" => ".bmp",
+            _ => null
+        };
+    }
+
+    private static string? GetExtensionFromUrl(string url)
+    {
+        try
+        {
+            var uri = new Uri(url);
+            var path = uri.AbsolutePath;
+            var extension = Path.GetExtension(path);
+            return string.IsNullOrEmpty(extension) ? null : extension.ToLowerInvariant();
+        }
+        catch
+        {
+            return null;
+        }
     }
 
     private string GetProductImageDirectory(Guid productId)

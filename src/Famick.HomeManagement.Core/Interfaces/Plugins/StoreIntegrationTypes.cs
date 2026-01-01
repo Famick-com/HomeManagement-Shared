@@ -194,3 +194,71 @@ public class StoreProductResult
     /// </summary>
     public string? Size { get; set; }
 }
+
+/// <summary>
+/// Result from getting a user's shopping cart (single cart per user)
+/// </summary>
+public class ShoppingCartResult
+{
+    /// <summary>
+    /// Items currently in the cart
+    /// </summary>
+    public List<CartItemResult> Items { get; set; } = new();
+
+    /// <summary>
+    /// Subtotal of all items in the cart
+    /// </summary>
+    public decimal? Subtotal { get; set; }
+
+    /// <summary>
+    /// The store location ID the cart is associated with
+    /// </summary>
+    public string? StoreLocationId { get; set; }
+}
+
+/// <summary>
+/// Represents an item in the shopping cart
+/// </summary>
+public class CartItemResult
+{
+    /// <summary>
+    /// Store's internal product ID/SKU
+    /// </summary>
+    public string ExternalProductId { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Product name
+    /// </summary>
+    public string Name { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Quantity in cart
+    /// </summary>
+    public int Quantity { get; set; }
+
+    /// <summary>
+    /// Price per item
+    /// </summary>
+    public decimal? Price { get; set; }
+
+    /// <summary>
+    /// URL to product image
+    /// </summary>
+    public string? ImageUrl { get; set; }
+}
+
+/// <summary>
+/// Request to add/update items in a shopping cart
+/// </summary>
+public class CartItemRequest
+{
+    /// <summary>
+    /// Store's internal product ID/SKU
+    /// </summary>
+    public string ExternalProductId { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Quantity to add/set
+    /// </summary>
+    public int Quantity { get; set; }
+}

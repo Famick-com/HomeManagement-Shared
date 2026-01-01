@@ -20,7 +20,8 @@ public interface IStoreIntegrationService
     #region OAuth Flow
 
     /// <summary>
-    /// Get the OAuth authorization URL for a plugin
+    /// Get the OAuth authorization URL for a plugin.
+    /// State parameter encodes the shopping location ID for linking after OAuth completes.
     /// </summary>
     /// <param name="pluginId">Plugin identifier</param>
     /// <param name="shoppingLocationId">Shopping location to link</param>
@@ -34,7 +35,8 @@ public interface IStoreIntegrationService
         CancellationToken ct = default);
 
     /// <summary>
-    /// Complete the OAuth flow by exchanging the authorization code for tokens
+    /// Complete the OAuth flow by exchanging the authorization code for tokens.
+    /// Stores tokens in the shared TenantIntegrationToken table.
     /// </summary>
     /// <param name="pluginId">Plugin identifier</param>
     /// <param name="shoppingLocationId">Shopping location to link</param>
@@ -50,7 +52,33 @@ public interface IStoreIntegrationService
         CancellationToken ct = default);
 
     /// <summary>
-    /// Refresh the OAuth token for a shopping location if needed
+    /// Get a valid access token for a plugin, automatically refreshing if needed.
+    /// Returns null if no token exists or re-authentication is required.
+    /// </summary>
+    /// <param name="pluginId">Plugin identifier</param>
+    /// <param name="ct">Cancellation token</param>
+    /// <returns>Access token or null if not connected</returns>
+    Task<string?> GetAccessTokenAsync(string pluginId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Check if a plugin has a valid OAuth connection for the current tenant.
+    /// </summary>
+    /// <param name="pluginId">Plugin identifier</param>
+    /// <param name="ct">Cancellation token</param>
+    /// <returns>True if connected with valid token</returns>
+    Task<bool> IsConnectedAsync(string pluginId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Check if a plugin requires re-authentication (refresh token failed).
+    /// </summary>
+    /// <param name="pluginId">Plugin identifier</param>
+    /// <param name="ct">Cancellation token</param>
+    /// <returns>True if re-auth is required</returns>
+    Task<bool> RequiresReauthAsync(string pluginId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Refresh the OAuth token for a shopping location if needed.
+    /// Uses the shared token for the plugin.
     /// </summary>
     /// <param name="shoppingLocationId">Shopping location ID</param>
     /// <param name="ct">Cancellation token</param>
@@ -58,10 +86,20 @@ public interface IStoreIntegrationService
     Task<bool> RefreshTokenIfNeededAsync(Guid shoppingLocationId, CancellationToken ct = default);
 
     /// <summary>
-    /// Disconnect a store integration (remove OAuth tokens)
+    /// Disconnect a plugin's OAuth connection for the current tenant.
+    /// This removes the shared token, affecting all stores using this plugin.
+    /// </summary>
+    /// <param name="pluginId">Plugin identifier</param>
+    /// <param name="ct">Cancellation token</param>
+    Task DisconnectPluginAsync(string pluginId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Disconnect a store integration (legacy method - now just unlinks the store).
+    /// OAuth tokens are managed at the plugin level via DisconnectPluginAsync.
     /// </summary>
     /// <param name="shoppingLocationId">Shopping location ID</param>
     /// <param name="ct">Cancellation token</param>
+    [Obsolete("Use DisconnectPluginAsync to remove OAuth tokens, or UnlinkStoreLocationAsync to unlink a store")]
     Task DisconnectIntegrationAsync(Guid shoppingLocationId, CancellationToken ct = default);
 
     #endregion
