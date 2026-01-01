@@ -14,5 +14,18 @@ public class CreateShoppingLocationRequestValidator : AbstractValidator<CreateSh
         RuleFor(x => x.Description)
             .MaximumLength(1000).WithMessage("Description cannot exceed 1000 characters")
             .When(x => !string.IsNullOrEmpty(x.Description));
+
+        RuleFor(x => x.StoreAddress)
+            .MaximumLength(500).WithMessage("Store address cannot exceed 500 characters")
+            .When(x => !string.IsNullOrEmpty(x.StoreAddress));
+
+        RuleFor(x => x.StorePhone)
+            .MaximumLength(50).WithMessage("Store phone cannot exceed 50 characters")
+            .When(x => !string.IsNullOrEmpty(x.StorePhone));
+
+        // Integration validation: if PluginId is provided, ExternalLocationId must also be provided
+        RuleFor(x => x.ExternalLocationId)
+            .NotEmpty().WithMessage("External location ID is required when creating from integration")
+            .When(x => !string.IsNullOrEmpty(x.PluginId));
     }
 }
