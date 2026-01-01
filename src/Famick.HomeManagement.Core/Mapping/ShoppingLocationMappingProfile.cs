@@ -24,17 +24,19 @@ public class ShoppingLocationMappingProfile : Profile
             .ForMember(dest => dest.UpdatedAt, opt => opt.Ignore())
             .ForMember(dest => dest.Products, opt => opt.Ignore())
             .ForMember(dest => dest.ProductStoreMetadata, opt => opt.Ignore())
-            // Ignore integration fields for create
-            .ForMember(dest => dest.IntegrationType, opt => opt.Ignore())
-            .ForMember(dest => dest.ExternalLocationId, opt => opt.Ignore())
-            .ForMember(dest => dest.ExternalChainId, opt => opt.Ignore())
+            // Map address fields
+            .ForMember(dest => dest.StoreAddress, opt => opt.MapFrom(src => src.StoreAddress))
+            .ForMember(dest => dest.StorePhone, opt => opt.MapFrom(src => src.StorePhone))
+            .ForMember(dest => dest.Latitude, opt => opt.MapFrom(src => src.Latitude))
+            .ForMember(dest => dest.Longitude, opt => opt.MapFrom(src => src.Longitude))
+            // Map integration fields (PluginId -> IntegrationType)
+            .ForMember(dest => dest.IntegrationType, opt => opt.MapFrom(src => src.PluginId))
+            .ForMember(dest => dest.ExternalLocationId, opt => opt.MapFrom(src => src.ExternalLocationId))
+            .ForMember(dest => dest.ExternalChainId, opt => opt.MapFrom(src => src.ExternalChainId))
+            // Ignore OAuth fields (handled by OAuth flow)
             .ForMember(dest => dest.OAuthAccessToken, opt => opt.Ignore())
             .ForMember(dest => dest.OAuthRefreshToken, opt => opt.Ignore())
-            .ForMember(dest => dest.OAuthTokenExpiresAt, opt => opt.Ignore())
-            .ForMember(dest => dest.StoreAddress, opt => opt.Ignore())
-            .ForMember(dest => dest.StorePhone, opt => opt.Ignore())
-            .ForMember(dest => dest.Latitude, opt => opt.Ignore())
-            .ForMember(dest => dest.Longitude, opt => opt.Ignore());
+            .ForMember(dest => dest.OAuthTokenExpiresAt, opt => opt.Ignore());
 
         CreateMap<UpdateShoppingLocationRequest, ShoppingLocation>()
             .ForMember(dest => dest.Id, opt => opt.Ignore())
@@ -43,16 +45,17 @@ public class ShoppingLocationMappingProfile : Profile
             .ForMember(dest => dest.UpdatedAt, opt => opt.Ignore())
             .ForMember(dest => dest.Products, opt => opt.Ignore())
             .ForMember(dest => dest.ProductStoreMetadata, opt => opt.Ignore())
+            // Map address fields (editable for all stores)
+            .ForMember(dest => dest.StoreAddress, opt => opt.MapFrom(src => src.StoreAddress))
+            .ForMember(dest => dest.StorePhone, opt => opt.MapFrom(src => src.StorePhone))
+            .ForMember(dest => dest.Latitude, opt => opt.MapFrom(src => src.Latitude))
+            .ForMember(dest => dest.Longitude, opt => opt.MapFrom(src => src.Longitude))
             // Ignore integration fields for update (handled by separate API)
             .ForMember(dest => dest.IntegrationType, opt => opt.Ignore())
             .ForMember(dest => dest.ExternalLocationId, opt => opt.Ignore())
             .ForMember(dest => dest.ExternalChainId, opt => opt.Ignore())
             .ForMember(dest => dest.OAuthAccessToken, opt => opt.Ignore())
             .ForMember(dest => dest.OAuthRefreshToken, opt => opt.Ignore())
-            .ForMember(dest => dest.OAuthTokenExpiresAt, opt => opt.Ignore())
-            .ForMember(dest => dest.StoreAddress, opt => opt.Ignore())
-            .ForMember(dest => dest.StorePhone, opt => opt.Ignore())
-            .ForMember(dest => dest.Latitude, opt => opt.Ignore())
-            .ForMember(dest => dest.Longitude, opt => opt.Ignore());
+            .ForMember(dest => dest.OAuthTokenExpiresAt, opt => opt.Ignore());
     }
 }
