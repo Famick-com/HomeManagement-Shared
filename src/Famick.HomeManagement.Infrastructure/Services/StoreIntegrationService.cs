@@ -9,7 +9,8 @@ using Microsoft.Extensions.Logging;
 namespace Famick.HomeManagement.Infrastructure.Services;
 
 /// <summary>
-/// Service for managing store integrations
+/// Service for managing store integrations.
+/// OAuth tokens are now shared per tenant/plugin in TenantIntegrationToken table.
 /// </summary>
 public class StoreIntegrationService : IStoreIntegrationService
 {
@@ -32,19 +33,48 @@ public class StoreIntegrationService : IStoreIntegrationService
 
     #region Plugin Discovery
 
-    public Task<List<StoreIntegrationPluginInfo>> GetAvailablePluginsAsync(CancellationToken ct = default)
+    public async Task<List<StoreIntegrationPluginInfo>> GetAvailablePluginsAsync(CancellationToken ct = default)
     {
-        var plugins = _pluginLoader.Plugins
-            .Select(p => new StoreIntegrationPluginInfo
-            {
-                PluginId = p.PluginId,
-                DisplayName = p.DisplayName,
-                Version = p.Version,
-                IsAvailable = p.IsAvailable
-            })
-            .ToList();
+        var tenantId = _tenantProvider.TenantId;
 
-        return Task.FromResult(plugins);
+        var plugins = new List<StoreIntegrationPluginInfo>();
+
+        foreach (var plugin in _pluginLoader.Plugins)
+        {
+            var info = new StoreIntegrationPluginInfo
+            {
+                PluginId = plugin.PluginId,
+                DisplayName = plugin.DisplayName,
+                Version = plugin.Version,
+                IsAvailable = plugin.IsAvailable,
+                Capabilities = plugin.Capabilities
+            };
+
+            // Plugins that don't require OAuth are always "connected"
+            if (!plugin.Capabilities.RequiresOAuth)
+            {
+                info.IsConnected = true;
+            }
+            else if (tenantId.HasValue)
+            {
+                // Check if we have a valid token for this plugin
+                var token = await _dbContext.TenantIntegrationTokens
+                    .FirstOrDefaultAsync(t => t.TenantId == tenantId.Value && t.PluginId == plugin.PluginId, ct);
+
+                if (token != null)
+                {
+                    info.IsConnected = !string.IsNullOrEmpty(token.AccessToken) &&
+                                       !token.RequiresReauth &&
+                                       token.ExpiresAt.HasValue &&
+                                       token.ExpiresAt.Value > DateTime.UtcNow;
+                    info.RequiresReauth = token.RequiresReauth;
+                }
+            }
+
+            plugins.Add(info);
+        }
+
+        return plugins;
     }
 
     #endregion
@@ -80,6 +110,9 @@ public class StoreIntegrationService : IStoreIntegrationService
         string redirectUri,
         CancellationToken ct = default)
     {
+        var tenantId = _tenantProvider.TenantId
+            ?? throw new InvalidOperationException("Tenant ID not available");
+
         var plugin = GetPluginOrThrow(pluginId);
 
         var tokenResult = await plugin.ExchangeCodeForTokenAsync(code, redirectUri, ct);
@@ -92,27 +125,99 @@ public class StoreIntegrationService : IStoreIntegrationService
             return false;
         }
 
-        var location = await _dbContext.ShoppingLocations
-            .FirstOrDefaultAsync(sl => sl.Id == shoppingLocationId, ct);
+        // Store tokens in TenantIntegrationToken (shared across all stores for this tenant/plugin)
+        var existingToken = await _dbContext.TenantIntegrationTokens
+            .FirstOrDefaultAsync(t => t.TenantId == tenantId && t.PluginId == pluginId, ct);
 
-        if (location == null)
+        if (existingToken != null)
         {
-            _logger.LogWarning("Shopping location {ShoppingLocationId} not found", shoppingLocationId);
-            return false;
+            // Update existing token
+            existingToken.AccessToken = tokenResult.AccessToken;
+            existingToken.RefreshToken = tokenResult.RefreshToken ?? existingToken.RefreshToken;
+            existingToken.ExpiresAt = tokenResult.ExpiresAt;
+            existingToken.LastRefreshedAt = DateTime.UtcNow;
+            existingToken.RequiresReauth = false;
         }
-
-        // Store tokens (in production, these should be encrypted)
-        location.OAuthAccessToken = tokenResult.AccessToken;
-        location.OAuthRefreshToken = tokenResult.RefreshToken;
-        location.OAuthTokenExpiresAt = tokenResult.ExpiresAt;
+        else
+        {
+            // Create new token
+            var newToken = new TenantIntegrationToken
+            {
+                Id = Guid.NewGuid(),
+                TenantId = tenantId,
+                PluginId = pluginId,
+                AccessToken = tokenResult.AccessToken,
+                RefreshToken = tokenResult.RefreshToken,
+                ExpiresAt = tokenResult.ExpiresAt,
+                LastRefreshedAt = DateTime.UtcNow,
+                RequiresReauth = false
+            };
+            _dbContext.TenantIntegrationTokens.Add(newToken);
+        }
 
         await _dbContext.SaveChangesAsync(ct);
 
         _logger.LogInformation(
-            "OAuth flow completed for shopping location {ShoppingLocationId} with plugin {PluginId}",
-            shoppingLocationId, pluginId);
+            "OAuth flow completed for plugin {PluginId}, shopping location {ShoppingLocationId}",
+            pluginId, shoppingLocationId);
 
         return true;
+    }
+
+    public async Task<string?> GetAccessTokenAsync(string pluginId, CancellationToken ct = default)
+    {
+        var tenantId = _tenantProvider.TenantId;
+        if (!tenantId.HasValue)
+            return null;
+
+        var token = await _dbContext.TenantIntegrationTokens
+            .FirstOrDefaultAsync(t => t.TenantId == tenantId.Value && t.PluginId == pluginId, ct);
+
+        if (token == null || token.RequiresReauth)
+            return null;
+
+        // Check if token needs refresh (5 minute buffer)
+        if (token.ExpiresAt.HasValue && token.ExpiresAt.Value <= DateTime.UtcNow.AddMinutes(5))
+        {
+            if (!await RefreshSharedTokenAsync(pluginId, ct))
+            {
+                return null;
+            }
+            // Re-fetch updated token
+            token = await _dbContext.TenantIntegrationTokens
+                .FirstOrDefaultAsync(t => t.TenantId == tenantId.Value && t.PluginId == pluginId, ct);
+        }
+
+        return token?.AccessToken;
+    }
+
+    public async Task<bool> IsConnectedAsync(string pluginId, CancellationToken ct = default)
+    {
+        var tenantId = _tenantProvider.TenantId;
+        if (!tenantId.HasValue)
+            return false;
+
+        var token = await _dbContext.TenantIntegrationTokens
+            .FirstOrDefaultAsync(t => t.TenantId == tenantId.Value && t.PluginId == pluginId, ct);
+
+        if (token == null || token.RequiresReauth)
+            return false;
+
+        // Token exists and doesn't require re-auth
+        // We consider it "connected" even if expired (auto-refresh will handle it)
+        return !string.IsNullOrEmpty(token.AccessToken) || !string.IsNullOrEmpty(token.RefreshToken);
+    }
+
+    public async Task<bool> RequiresReauthAsync(string pluginId, CancellationToken ct = default)
+    {
+        var tenantId = _tenantProvider.TenantId;
+        if (!tenantId.HasValue)
+            return false;
+
+        var token = await _dbContext.TenantIntegrationTokens
+            .FirstOrDefaultAsync(t => t.TenantId == tenantId.Value && t.PluginId == pluginId, ct);
+
+        return token?.RequiresReauth ?? false;
     }
 
     public async Task<bool> RefreshTokenIfNeededAsync(Guid shoppingLocationId, CancellationToken ct = default)
@@ -125,67 +230,99 @@ public class StoreIntegrationService : IStoreIntegrationService
             return false;
         }
 
+        return await RefreshSharedTokenAsync(location.IntegrationType, ct);
+    }
+
+    private async Task<bool> RefreshSharedTokenAsync(string pluginId, CancellationToken ct)
+    {
+        var tenantId = _tenantProvider.TenantId;
+        if (!tenantId.HasValue)
+            return false;
+
+        var token = await _dbContext.TenantIntegrationTokens
+            .FirstOrDefaultAsync(t => t.TenantId == tenantId.Value && t.PluginId == pluginId, ct);
+
+        if (token == null)
+        {
+            _logger.LogWarning("No token found for plugin {PluginId}", pluginId);
+            return false;
+        }
+
         // Check if token is still valid (with 5 minute buffer)
-        if (location.OAuthTokenExpiresAt.HasValue &&
-            location.OAuthTokenExpiresAt.Value > DateTime.UtcNow.AddMinutes(5))
+        if (token.ExpiresAt.HasValue && token.ExpiresAt.Value > DateTime.UtcNow.AddMinutes(5))
         {
             return true; // Token is still valid
         }
 
-        if (string.IsNullOrEmpty(location.OAuthRefreshToken))
+        if (string.IsNullOrEmpty(token.RefreshToken))
         {
-            _logger.LogWarning(
-                "Cannot refresh token for shopping location {ShoppingLocationId}: no refresh token",
-                shoppingLocationId);
+            _logger.LogWarning("Cannot refresh token for plugin {PluginId}: no refresh token", pluginId);
+            token.RequiresReauth = true;
+            await _dbContext.SaveChangesAsync(ct);
             return false;
         }
 
-        var plugin = _pluginLoader.GetPlugin(location.IntegrationType);
+        var plugin = _pluginLoader.GetPlugin(pluginId);
         if (plugin == null)
         {
-            _logger.LogWarning(
-                "Plugin {PluginId} not found for shopping location {ShoppingLocationId}",
-                location.IntegrationType, shoppingLocationId);
+            _logger.LogWarning("Plugin {PluginId} not found", pluginId);
             return false;
         }
 
-        var tokenResult = await plugin.RefreshTokenAsync(location.OAuthRefreshToken, ct);
+        var tokenResult = await plugin.RefreshTokenAsync(token.RefreshToken, ct);
 
         if (!tokenResult.Success)
         {
             _logger.LogWarning(
-                "Token refresh failed for shopping location {ShoppingLocationId}: {Error}",
-                shoppingLocationId, tokenResult.ErrorMessage);
+                "Token refresh failed for plugin {PluginId}: {Error}. Re-authentication required.",
+                pluginId, tokenResult.ErrorMessage);
+
+            // Mark as requiring re-auth instead of failing completely
+            token.RequiresReauth = true;
+            await _dbContext.SaveChangesAsync(ct);
             return false;
         }
 
-        location.OAuthAccessToken = tokenResult.AccessToken;
+        // Update token
+        token.AccessToken = tokenResult.AccessToken;
         if (!string.IsNullOrEmpty(tokenResult.RefreshToken))
         {
-            location.OAuthRefreshToken = tokenResult.RefreshToken;
+            token.RefreshToken = tokenResult.RefreshToken;
         }
-        location.OAuthTokenExpiresAt = tokenResult.ExpiresAt;
+        token.ExpiresAt = tokenResult.ExpiresAt;
+        token.LastRefreshedAt = DateTime.UtcNow;
+        token.RequiresReauth = false;
 
         await _dbContext.SaveChangesAsync(ct);
 
-        _logger.LogInformation("Token refreshed for shopping location {ShoppingLocationId}", shoppingLocationId);
+        _logger.LogInformation("Token refreshed for plugin {PluginId}", pluginId);
         return true;
     }
 
+    public async Task DisconnectPluginAsync(string pluginId, CancellationToken ct = default)
+    {
+        var tenantId = _tenantProvider.TenantId;
+        if (!tenantId.HasValue)
+            return;
+
+        var token = await _dbContext.TenantIntegrationTokens
+            .FirstOrDefaultAsync(t => t.TenantId == tenantId.Value && t.PluginId == pluginId, ct);
+
+        if (token != null)
+        {
+            _dbContext.TenantIntegrationTokens.Remove(token);
+            await _dbContext.SaveChangesAsync(ct);
+
+            _logger.LogInformation("Disconnected plugin {PluginId} for tenant {TenantId}", pluginId, tenantId);
+        }
+    }
+
+    [Obsolete("Use DisconnectPluginAsync to remove OAuth tokens, or UnlinkStoreLocationAsync to unlink a store")]
     public async Task DisconnectIntegrationAsync(Guid shoppingLocationId, CancellationToken ct = default)
     {
-        var location = await _dbContext.ShoppingLocations
-            .FirstOrDefaultAsync(sl => sl.Id == shoppingLocationId, ct);
-
-        if (location == null) return;
-
-        location.OAuthAccessToken = null;
-        location.OAuthRefreshToken = null;
-        location.OAuthTokenExpiresAt = null;
-
-        await _dbContext.SaveChangesAsync(ct);
-
-        _logger.LogInformation("Disconnected integration for shopping location {ShoppingLocationId}", shoppingLocationId);
+        // For backward compatibility, just unlink the store
+        // OAuth tokens are now managed at the plugin level
+        await UnlinkStoreLocationAsync(shoppingLocationId, ct);
     }
 
     #endregion
@@ -259,10 +396,8 @@ public class StoreIntegrationService : IStoreIntegrationService
         location.IntegrationType = null;
         location.ExternalLocationId = null;
         location.ExternalChainId = null;
-        location.OAuthAccessToken = null;
-        location.OAuthRefreshToken = null;
-        location.OAuthTokenExpiresAt = null;
         // Keep address/phone/coordinates as they might be useful
+        // OAuth tokens are now stored in TenantIntegrationToken, not here
 
         await _dbContext.SaveChangesAsync(ct);
 
@@ -290,19 +425,16 @@ public class StoreIntegrationService : IStoreIntegrationService
         if (string.IsNullOrEmpty(location.ExternalLocationId))
             throw new InvalidOperationException("Shopping location has no external location ID");
 
-        // Ensure token is valid
-        if (!await RefreshTokenIfNeededAsync(shoppingLocationId, ct))
-            throw new InvalidOperationException("Unable to authenticate with store");
+        // Get access token (auto-refreshes if needed)
+        var accessToken = await GetAccessTokenAsync(location.IntegrationType, ct);
+        if (accessToken == null)
+            throw new InvalidOperationException("Unable to authenticate with store. Please reconnect the integration.");
 
-        // Re-fetch to get updated token
-        location = await _dbContext.ShoppingLocations
-            .FirstOrDefaultAsync(sl => sl.Id == shoppingLocationId, ct);
-
-        var plugin = GetPluginOrThrow(location!.IntegrationType!);
+        var plugin = GetPluginOrThrow(location.IntegrationType);
 
         return await plugin.SearchProductsAsync(
-            location.OAuthAccessToken!,
-            location.ExternalLocationId!,
+            accessToken,
+            location.ExternalLocationId,
             request.Query,
             request.MaxResults,
             ct);
@@ -427,20 +559,17 @@ public class StoreIntegrationService : IStoreIntegrationService
             string.IsNullOrEmpty(location.ExternalLocationId))
             return null;
 
-        // Ensure token is valid
-        if (!await RefreshTokenIfNeededAsync(shoppingLocationId, ct))
+        // Get access token (auto-refreshes if needed)
+        var accessToken = await GetAccessTokenAsync(location.IntegrationType, ct);
+        if (accessToken == null)
             return null;
 
-        // Re-fetch to get updated token
-        location = await _dbContext.ShoppingLocations
-            .FirstOrDefaultAsync(sl => sl.Id == shoppingLocationId, ct);
-
-        var plugin = _pluginLoader.GetPlugin(location!.IntegrationType!);
+        var plugin = _pluginLoader.GetPlugin(location.IntegrationType);
         if (plugin == null) return null;
 
         var storeProduct = await plugin.GetProductAsync(
-            location.OAuthAccessToken!,
-            location.ExternalLocationId!,
+            accessToken,
+            location.ExternalLocationId,
             metadata.ExternalProductId,
             ct);
 

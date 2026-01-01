@@ -11,11 +11,9 @@ public class ShoppingLocationMappingProfile : Profile
         CreateMap<ShoppingLocation, ShoppingLocationDto>()
             .ForMember(dest => dest.ProductCount,
                 opt => opt.MapFrom(src => src.Products != null ? src.Products.Count : 0))
-            .ForMember(dest => dest.IsConnected,
-                opt => opt.MapFrom(src =>
-                    !string.IsNullOrEmpty(src.OAuthAccessToken) &&
-                    src.OAuthTokenExpiresAt.HasValue &&
-                    src.OAuthTokenExpiresAt.Value > DateTime.UtcNow));
+            // IsConnected is computed from TenantIntegrationTokens table (shared tokens per tenant/plugin)
+            // The service layer will populate this after mapping
+            .ForMember(dest => dest.IsConnected, opt => opt.Ignore());
 
         CreateMap<CreateShoppingLocationRequest, ShoppingLocation>()
             .ForMember(dest => dest.Id, opt => opt.Ignore())

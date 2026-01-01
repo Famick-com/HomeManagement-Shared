@@ -31,6 +31,12 @@ public interface IStoreIntegrationPlugin
     bool IsAvailable { get; }
 
     /// <summary>
+    /// Plugin capabilities - indicates which features are supported.
+    /// All operations are assumed to require OAuth authentication.
+    /// </summary>
+    StoreIntegrationCapabilities Capabilities { get; }
+
+    /// <summary>
     /// Initialize the plugin with its configuration section from plugins/config.json
     /// Each plugin defines its own configuration schema (typically clientId, clientSecret, etc.)
     /// </summary>
@@ -140,6 +146,74 @@ public interface IStoreIntegrationPlugin
         string? accessToken,
         string storeLocationId,
         string barcode,
+        CancellationToken ct = default);
+
+    #endregion
+
+    #region Shopping Cart Methods
+
+    /// <summary>
+    /// Get the user's current shopping cart (single cart per user).
+    /// Requires user authentication (access token).
+    /// Check Capabilities.CanReadShoppingCart before calling.
+    /// </summary>
+    /// <param name="accessToken">User's OAuth access token</param>
+    /// <param name="storeLocationId">External store location ID</param>
+    /// <param name="ct">Cancellation token</param>
+    /// <returns>Shopping cart result or null if not supported</returns>
+    Task<ShoppingCartResult?> GetShoppingCartAsync(
+        string accessToken,
+        string storeLocationId,
+        CancellationToken ct = default);
+
+    /// <summary>
+    /// Add items to the user's shopping cart.
+    /// Requires user authentication (access token).
+    /// Check Capabilities.HasShoppingCart before calling.
+    /// </summary>
+    /// <param name="accessToken">User's OAuth access token</param>
+    /// <param name="storeLocationId">External store location ID</param>
+    /// <param name="items">Items to add to the cart</param>
+    /// <param name="ct">Cancellation token</param>
+    /// <returns>Updated shopping cart result or null if not supported</returns>
+    Task<ShoppingCartResult?> AddToCartAsync(
+        string accessToken,
+        string storeLocationId,
+        List<CartItemRequest> items,
+        CancellationToken ct = default);
+
+    /// <summary>
+    /// Update the quantity of an item in the shopping cart.
+    /// Requires user authentication (access token).
+    /// Check Capabilities.HasShoppingCart before calling.
+    /// </summary>
+    /// <param name="accessToken">User's OAuth access token</param>
+    /// <param name="storeLocationId">External store location ID</param>
+    /// <param name="productId">Store's product ID to update</param>
+    /// <param name="quantity">New quantity (0 to remove)</param>
+    /// <param name="ct">Cancellation token</param>
+    /// <returns>Updated shopping cart result or null if not supported</returns>
+    Task<ShoppingCartResult?> UpdateCartItemAsync(
+        string accessToken,
+        string storeLocationId,
+        string productId,
+        int quantity,
+        CancellationToken ct = default);
+
+    /// <summary>
+    /// Remove an item from the shopping cart.
+    /// Requires user authentication (access token).
+    /// Check Capabilities.HasShoppingCart before calling.
+    /// </summary>
+    /// <param name="accessToken">User's OAuth access token</param>
+    /// <param name="storeLocationId">External store location ID</param>
+    /// <param name="productId">Store's product ID to remove</param>
+    /// <param name="ct">Cancellation token</param>
+    /// <returns>Updated shopping cart result or null if not supported</returns>
+    Task<ShoppingCartResult?> RemoveFromCartAsync(
+        string accessToken,
+        string storeLocationId,
+        string productId,
         CancellationToken ct = default);
 
     #endregion
