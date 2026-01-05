@@ -68,6 +68,11 @@ public class ProductStoreMetadata : BaseEntity, ITenantEntity
     /// </summary>
     public DateTime? AvailabilityCheckedAt { get; set; }
 
+    /// <summary>
+    /// URL to the product page on the store's website
+    /// </summary>
+    public string? ProductUrl { get; set; }
+
     // Navigation properties
     public Product Product { get; set; } = null!;
     public ShoppingLocation ShoppingLocation { get; set; } = null!;

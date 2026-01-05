@@ -490,6 +490,8 @@
     "barcode": "Barcode",
     "calories": "Calories",
     "scanError": "Failed to scan barcode. Please try again.",
+    "preferredStore": "Search at store",
+    "connectToSearch": "Connect {0} to include store results",
     "applyResult": "Apply",
     "resultApplied": "Product information applied successfully",
     "nutrition": "Nutrition Facts",

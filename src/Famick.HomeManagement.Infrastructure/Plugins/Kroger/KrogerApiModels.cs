@@ -373,4 +373,256 @@ public class KrogerCartItemUpdate
     public int Quantity { get; set; }
 }
 
+public class ProductModel
+{
+    [JsonPropertyName("productId")]
+    public string ProductId { get; set; } = default!;
+
+    [JsonPropertyName("productPageURI")]
+    public string ProductPageUri { get; set; } = default!;
+
+    [JsonPropertyName("aliasProductIds")]
+    public List<string> AliasProductIds { get; set; } = [];
+
+    [JsonPropertyName("aisleLocations")]
+    public List<AisleLocation> AisleLocations { get; set; } = [];
+
+    [JsonPropertyName("brand")]
+    public string Brand { get; set; } = default!;
+
+    [JsonPropertyName("categories")]
+    public List<string> Categories { get; set; } = [];
+
+    [JsonPropertyName("countryOrigin")]
+    public string CountryOrigin { get; set; } = default!;
+
+    [JsonPropertyName("description")]
+    public string Description { get; set; } = default!;
+
+    [JsonPropertyName("alcohol")]
+    public bool Alcohol { get; set; }
+
+    [JsonPropertyName("alcoholProof")]
+    public int AlcoholProof { get; set; }
+
+    [JsonPropertyName("ageRestriction")]
+    public bool AgeRestriction { get; set; }
+
+    [JsonPropertyName("snapEligible")]
+    public bool SnapEligible { get; set; }
+
+    [JsonPropertyName("manufacturerDeclarations")]
+    public List<string> ManufacturerDeclarations { get; set; } = [];
+
+    [JsonPropertyName("sweeteningMethods")]
+    public CodeName SweeteningMethods { get; set; } = default!;
+
+    [JsonPropertyName("allergens")]
+    public List<Allergen> Allergens { get; set; } = [];
+
+    [JsonPropertyName("allergensDescription")]
+    public string AllergensDescription { get; set; } = default!;
+
+    [JsonPropertyName("certifiedForPassover")]
+    public bool CertifiedForPassover { get; set; }
+
+    [JsonPropertyName("hypoallergenic")]
+    public bool Hypoallergenic { get; set; }
+
+    [JsonPropertyName("nonGmo")]
+    public bool NonGmo { get; set; }
+
+    [JsonPropertyName("nonGmoClaimName")]
+    public string NonGmoClaimName { get; set; } = default!;
+
+    [JsonPropertyName("organicClaimName")]
+    public string OrganicClaimName { get; set; } = default!;
+
+    [JsonPropertyName("receiptDescription")]
+    public string ReceiptDescription { get; set; } = default!;
+
+    [JsonPropertyName("warnings")]
+    public string Warnings { get; set; } = default!;
+
+    [JsonPropertyName("retstrictions")]
+    public Restrictions Restrictions { get; set; } = default!;
+
+    [JsonPropertyName("items")]
+    public List<Item> Items { get; set; } = [];
+
+    [JsonPropertyName("itemInformation")]
+    public ItemInformation ItemInformation { get; set; } = default!;
+
+    [JsonPropertyName("temperature")]
+    public Temperature Temperature { get; set; } = default!;
+
+    [JsonPropertyName("images")]
+    public List<Image> Images { get; set; } = [];
+
+    [JsonPropertyName("upc")]
+    public string Upc { get; set; } = default!;
+
+    [JsonPropertyName("ratingsAndReviews")]
+    public RatingsAndReviews RatingsAndReviews { get; set; } = default!;
+
+    [JsonPropertyName("nutritionInformation")]
+    public NutritionInformation NutritionInformation { get; set; } = default!;    
+}
+
+
+public class AisleLocation
+{
+    public string BayNumber { get; set; } = default!;
+    public string Description { get; set; } = default!;
+    public string Number { get; set; } = default!;
+    public string NumberOfFacings { get; set; } = default!;
+    public string SequenceNumber { get; set; } = default!;
+    public string Side { get; set; } = default!;
+    public string ShelfNumber { get; set; } = default!;
+    public string ShelfPositionInBay { get; set; } = default!;
+}
+
+public class CodeName
+{
+    public string Code { get; set; } = default!;
+    public string Name { get; set; } = default!;
+}
+
+public class Allergen
+{
+    public string LevelOfContainmentName { get; set; } = default!;
+    public string Name { get; set; } = default!;
+}
+
+public class Restrictions
+{
+    public int MaximumOrderQuantity { get; set; }
+    public int MinimumOrderQuantity { get; set; }
+    public List<string> PostalCode { get; set; } = [];
+    public bool Shippable { get; set; }
+    public List<string> StateCodes { get; set; } = [];
+}
+
+public class Item
+{
+    public string ItemId { get; set; } = default!;
+    public Inventory Inventory { get; set; } = default!;
+    public bool Favorite { get; set; }
+    public Fulfillment Fulfillment { get; set; } = default!;
+    public Price Price { get; set; } = default!;
+    public Price NationalPrice { get; set; } = default!;
+    public string Size { get; set; } = default!;
+    public string SoldBy { get; set; } = default!;
+}
+
+public class Inventory
+{
+    public string StockLevel { get; set; } = default!;
+}
+
+public class Fulfillment
+{
+    public bool Curbside { get; set; }
+    public bool Delivery { get; set; }
+    public bool Instore { get; set; }
+    public bool Shiptohome { get; set; }
+}
+
+public class Price
+{
+    public decimal Regular { get; set; }
+    public decimal Promo { get; set; }
+    public decimal RegularPerUnitEstimate { get; set; }
+    public decimal PromoPerUnitEstimate { get; set; }
+    public ZonedDate ExpirationDate { get; set; } = default!;
+    public ZonedDate EffectiveDate { get; set; } = default!;
+}
+
+public class ZonedDate
+{
+    public DateTime Value { get; set; }
+    public string Timezone { get; set; } = default!;
+}
+
+public class ItemInformation
+{
+    public string Depth { get; set; } = default!;
+    public string Height { get; set; } = default!;
+    public string Width { get; set; } = default!;
+    public string GrossWeight { get; set; } = default!;
+    public string NetWeight { get; set; } = default!;
+    public string AverageWeightPerUnit { get; set; } = default!;
+}
+
+public class Temperature
+{
+    public string Indicator { get; set; } = default!;
+    public bool HeatSensitive { get; set; }
+}
+
+public class Image
+{
+    public string Id { get; set; } = default!;
+    public string Perspective { get; set; } = default!;
+
+    [JsonPropertyName("default")]
+    public bool IsDefault { get; set; }
+
+    public List<ImageSize> Sizes { get; set; } = [];
+}
+
+public class ImageSize
+{
+    public string Id { get; set; } = default!;
+    public string Size { get; set; } = default!;
+    public string Url { get; set; } = default!;
+}
+
+public class RatingsAndReviews
+{
+    public double AverageOverallRating { get; set; }
+    public int TotalReviewCount { get; set; }
+}
+
+public class NutritionInformation
+{
+    public string IngredientStatement { get; set; } = default!;
+    public string DailyValueIntakeReference { get; set; } = default!;
+    public ServingSize ServingSize { get; set; } = default!;
+    public List<Nutrient> Nutrients { get; set; } = [];
+    public CodeName PreparationState { get; set; } = default!;
+    public ServingsPerPackage ServingsPerPackage { get; set; } = default!;
+    public string NutritionalRating { get; set; } = default!;
+}
+
+public class ServingSize
+{
+    public string Description { get; set; } = default!;
+    public int Quantity { get; set; }
+    public UnitOfMeasure UnitOfMeasure { get; set; } = default!;
+}
+
+public class Nutrient
+{
+    public string Code { get; set; } = default!;
+    public string Description { get; set; } = default!;
+    public string DisplayName { get; set; } = default!;
+    public int PercentDailyIntake { get; set; }
+    public int Quantity { get; set; }
+    public CodeName Precision { get; set; } = default!;
+    public UnitOfMeasure UnitOfMeasure { get; set; } = default!;
+}
+
+public class UnitOfMeasure
+{
+    public string Abbreviation { get; set; } = default!;
+    public string Code { get; set; } = default!;
+    public string Name { get; set; } = default!;
+}
+
+public class ServingsPerPackage
+{
+    public string Description { get; set; } = default!;
+    public int Value { get; set; }
+}
 #endregion

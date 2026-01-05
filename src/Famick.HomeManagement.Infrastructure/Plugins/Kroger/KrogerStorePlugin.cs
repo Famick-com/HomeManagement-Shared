@@ -6,13 +6,14 @@ using System.Text.RegularExpressions;
 using System.Web;
 using Famick.HomeManagement.Core.Interfaces.Plugins;
 using Microsoft.Extensions.Logging;
+using Serilog.Debugging;
 
 namespace Famick.HomeManagement.Infrastructure.Plugins.Kroger;
 
 /// <summary>
 /// Kroger store integration plugin for OAuth, store location, and product lookup
 /// </summary>
-public class KrogerStorePlugin : IStoreIntegrationPlugin
+public class KrogerStorePlugin : IStoreIntegrationPlugin, IProductLookupPlugin
 {
     private const string KrogerApiBaseUrl = "https://api.kroger.com/v1";
     private const string KrogerAuthUrl = "https://api.kroger.com/v1/connect/oauth2/authorize";
@@ -256,12 +257,12 @@ public class KrogerStorePlugin : IStoreIntegrationPlugin
         return await SearchLocationsAsync(token, queryParams, ct);
     }
 
-    private async Task<string> GetClientCredentialsTokenAsync(CancellationToken ct)
+    private async Task<string> GetClientCredentialsTokenAsync(CancellationToken ct, string? scope = null )
     {
         var content = new FormUrlEncodedContent(new Dictionary<string, string>
         {
             { "grant_type", "client_credentials" },
-            { "scope", _scope }
+            { "scope", scope ?? _scope }
         });
 
         var request = new HttpRequestMessage(HttpMethod.Post, KrogerTokenUrl)
@@ -342,8 +343,8 @@ public class KrogerStorePlugin : IStoreIntegrationPlugin
     #region Product Search
 
     public async Task<List<StoreProductResult>> SearchProductsAsync(
-        string accessToken,
-        string storeLocationId,
+        string? accessToken,
+        string? storeLocationId,
         string query,
         int maxResults = 20,
         CancellationToken ct = default)
@@ -355,9 +356,13 @@ public class KrogerStorePlugin : IStoreIntegrationPlugin
 
         var queryParams = new Dictionary<string, string>
         {
-            { "filter.limit", maxResults.ToString() },
-            { "filter.locationId", storeLocationId }
+            { "filter.limit", maxResults.ToString() }
         };
+
+        if (storeLocationId != null)
+        {
+            queryParams.Add("filter.locationId", storeLocationId);
+        }
 
         // If query looks like a barcode (all digits), normalize and use productId filter
         if (Regex.IsMatch(query, @"^\d+$"))
@@ -423,7 +428,7 @@ public class KrogerStorePlugin : IStoreIntegrationPlugin
     }
 
     private async Task<List<StoreProductResult>> SearchProductsInternalAsync(
-        string accessToken,
+        string? accessToken,
         Dictionary<string, string> queryParams,
         CancellationToken ct)
     {
@@ -431,6 +436,11 @@ public class KrogerStorePlugin : IStoreIntegrationPlugin
             $"{HttpUtility.UrlEncode(kvp.Key)}={HttpUtility.UrlEncode(kvp.Value)}"));
 
         var url = $"{KrogerApiBaseUrl}/products?{queryString}";
+
+        if (accessToken == null)
+        {
+            accessToken = await this.GetClientCredentialsTokenAsync(scope: "product.compact", ct:ct);
+        }
 
         var request = new HttpRequestMessage(HttpMethod.Get, url);
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
@@ -461,8 +471,12 @@ public class KrogerStorePlugin : IStoreIntegrationPlugin
             ExternalProductId = product.ProductId,
             Name = product.Description,
             Brand = product.Brand,
-            Barcode = product.Upc
+            Barcode = product.Upc,
+            Categories = product.Categories ?? new(),
+            Description = product.Description,
         };
+
+        
 
         // Extract image URL
         if (product.Images?.Count > 0)
@@ -504,6 +518,12 @@ public class KrogerStorePlugin : IStoreIntegrationPlugin
         if (product.Categories?.Count > 0)
         {
             result.Department = product.Categories[0];
+        }
+
+        // Generate product URL (Kroger product page)
+        if (!string.IsNullOrEmpty(product.ProductId))
+        {
+            result.ProductUrl = $"https://www.kroger.com/p/{product.ProductId}";
         }
 
         return result;
@@ -714,6 +734,55 @@ public class KrogerStorePlugin : IStoreIntegrationPlugin
         result.Subtotal = cartData.Subtotal;
 
         return result;
+    }
+
+    public async Task ProcessPipelineAsync(ProductLookupPipelineContext context, CancellationToken ct = default)
+    {
+        var products = await SearchProductsAsync(null, null, context.Query, context.MaxResults, ct);
+
+        foreach(var product in products)
+        {
+            var resultItem = context.Results.FirstOrDefault(r => r.Barcode == product.Barcode);
+            var isNewResult = resultItem == null;
+
+            if (isNewResult)
+            {
+                resultItem = new ProductLookupResult
+                {
+                    Barcode = product.Barcode,
+                    Name = product.Name,
+                };
+            }
+
+            // Enrich result with Kroger data (both new and existing results)
+            resultItem!.BrandName ??= product.Brand;
+            resultItem.Description ??= product.Description;
+
+            // Set image if not already set (first plugin to provide wins)
+            if (!string.IsNullOrEmpty(product.ImageUrl))
+            {
+                var krogerImage = new ResultImage { ImageUrl = product.ImageUrl, PluginId = DisplayName };
+                resultItem.ImageUrl ??= krogerImage;
+                resultItem.ThumbnailUrl ??= krogerImage;
+            }
+
+            foreach (var category in product.Categories)
+            {
+                if (!resultItem.Categories.Any(c => c.Equals(category, StringComparison.OrdinalIgnoreCase)))
+                {
+                    resultItem.Categories.Add(category);
+                }
+            }
+
+            // Add Kroger as a data source if not already present
+            resultItem.DataSources.TryAdd(DisplayName, product.ExternalProductId);
+
+            if (isNewResult)
+            {
+                context.Results.Add(resultItem);
+            }
+        }
+        
     }
 
     #endregion

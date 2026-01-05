@@ -69,8 +69,8 @@ public class ProductLookupPipelineContext
         if (!string.IsNullOrEmpty(externalId) && !string.IsNullOrEmpty(dataSource))
         {
             return Results.FirstOrDefault(r =>
-                r.ExternalId.Equals(externalId, StringComparison.OrdinalIgnoreCase) &&
-                r.DataSource.Equals(dataSource, StringComparison.OrdinalIgnoreCase));
+                r.DataSources.TryGetValue(dataSource, out var id) &&
+                id.Equals(externalId, StringComparison.OrdinalIgnoreCase));
         }
 
         return null;

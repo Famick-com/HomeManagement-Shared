@@ -888,19 +888,23 @@ else
     {
         try
         {
+            // Get primary data source info (first entry in the dictionary)
+            var primarySource = lookupResult.DataSources.FirstOrDefault();
+            var dataSource = primarySource.Key ?? string.Empty;
+            var externalId = primarySource.Value ?? string.Empty;
+
             // Create the request with nutrition data and images
             var request = new ApplyLookupResultRequest
             {
-                ExternalId = lookupResult.ExternalId,
-                DataSource = lookupResult.DataSource,
+                DataSources = lookupResult.DataSources,
                 Name = lookupResult.Name,
                 BrandName = lookupResult.BrandName,
                 BrandOwner = lookupResult.BrandOwner,
                 Barcode = lookupResult.Barcode,
                 ServingSizeDescription = lookupResult.ServingSizeDescription,
                 Ingredients = lookupResult.Ingredients,
-                ImageUrl = lookupResult.ImageUrl,
-                ThumbnailUrl = lookupResult.ThumbnailUrl,
+                ImageUrl = lookupResult.ImageUrl?.ImageUrl,
+                ThumbnailUrl = lookupResult.ThumbnailUrl?.ImageUrl,
                 UpdateName = false, // Already updated
                 AddBarcode = true,  // Let backend handle barcode
                 Nutrition = lookupResult.Nutrition != null ? new ProductNutritionDto
@@ -935,8 +939,8 @@ else
                     Phosphorus = lookupResult.Nutrition.Phosphorus,
                     Potassium = lookupResult.Nutrition.Potassium,
                     Zinc = lookupResult.Nutrition.Zinc,
-                    DataSource = lookupResult.DataSource,
-                    ExternalId = lookupResult.ExternalId,
+                    DataSource = dataSource,
+                    ExternalId = externalId,
                     BrandName = lookupResult.BrandName,
                     BrandOwner = lookupResult.BrandOwner,
                     Ingredients = lookupResult.Ingredients,

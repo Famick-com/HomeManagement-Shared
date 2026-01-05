@@ -54,10 +54,12 @@ public static class InfrastructureStartup
 
 
         // Register built-in plugins (order matters for pipeline - first registered runs first)
-        services.AddSingleton<Core.Interfaces.Plugins.IProductLookupPlugin,
+        services.AddSingleton<Core.Interfaces.Plugins.IPlugin,
             Plugins.Usda.UsdaFoodDataPlugin>();
-        services.AddSingleton<Core.Interfaces.Plugins.IProductLookupPlugin,
+        services.AddSingleton<Core.Interfaces.Plugins.IPlugin,
             Plugins.OpenFoodFacts.OpenFoodFactsPlugin>();
+        services.AddSingleton<Core.Interfaces.Plugins.IPlugin,
+            Plugins.Kroger.KrogerStorePlugin>();
 
         // Register plugin loader and lookup service
         services.AddSingleton<Core.Interfaces.Plugins.IPluginLoader,
@@ -66,10 +68,6 @@ public static class InfrastructureStartup
             ProductLookupService>();
 
         // Register store integration plugin system
-        services.AddSingleton<Core.Interfaces.Plugins.IStoreIntegrationLoader,
-            Plugins.StoreIntegrationLoader>();
-        services.AddSingleton<Core.Interfaces.Plugins.IStoreIntegrationPlugin,
-            Plugins.Kroger.KrogerStorePlugin>();
         services.AddScoped<IStoreIntegrationService, StoreIntegrationService>();
 
 
@@ -105,11 +103,7 @@ public static class InfrastructureStartup
         }
 
         // Load plugins on startup
-        var pluginLoader = app.Services.GetRequiredService<Famick.HomeManagement.Core.Interfaces.Plugins.IPluginLoader>();
+        var pluginLoader = app.Services.GetRequiredService<Core.Interfaces.Plugins.IPluginLoader>();
         await pluginLoader.LoadPluginsAsync();
-
-        // Load store integration plugins
-        var storeIntegrationLoader = app.Services.GetRequiredService<Famick.HomeManagement.Core.Interfaces.Plugins.IStoreIntegrationLoader>();
-        await storeIntegrationLoader.LoadPluginsAsync();
     }
 }

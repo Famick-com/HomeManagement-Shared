@@ -1,3 +1,4 @@
+using Famick.HomeManagement.Core.DTOs.ProductLookup;
 using Famick.HomeManagement.Core.Interfaces.Plugins;
 
 namespace Famick.HomeManagement.Core.Interfaces;
@@ -31,6 +32,7 @@ public interface IProductLookupService
     /// Get available plugins for display in the UI
     /// </summary>
     IReadOnlyList<PluginInfo> GetAvailablePlugins();
+
 }
 
 /// <summary>

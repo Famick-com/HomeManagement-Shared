@@ -20,4 +20,15 @@ public class ProductLookupRequest
     /// Optional: Specific plugin ID to search (if null, searches all enabled plugins)
     /// </summary>
     public string? PluginId { get; set; }
+
+    /// <summary>
+    /// Optional: Preferred shopping location ID for store integration searches.
+    /// If provided, searches will also include results from this store's integration.
+    /// </summary>
+    public Guid? PreferredShoppingLocationId { get; set; }
+
+    /// <summary>
+    /// Whether to include store integration results in unified search (default: true)
+    /// </summary>
+    public bool IncludeStoreResults { get; set; } = true;
 }

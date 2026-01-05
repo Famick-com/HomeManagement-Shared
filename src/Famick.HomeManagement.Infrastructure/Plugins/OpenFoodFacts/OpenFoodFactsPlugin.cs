@@ -2,6 +2,7 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using Famick.HomeManagement.Core.Interfaces.Plugins;
 using Microsoft.Extensions.Logging;
+using Npgsql.Replication;
 
 namespace Famick.HomeManagement.Infrastructure.Plugins.OpenFoodFacts;
 
@@ -184,21 +185,29 @@ public class OpenFoodFactsPlugin : IProductLookupPlugin
         }
     }
 
-    private static void EnrichWithImages(ProductLookupResult result, OpenFoodFactsProduct product)
+    private void EnrichWithImages(ProductLookupResult result, OpenFoodFactsProduct product)
     {
-        // Set image URL if missing
-        if (string.IsNullOrEmpty(result.ImageUrl))
+        // Set image URL if not already set (first plugin wins)
+        if (result.ImageUrl == null)
         {
-            result.ImageUrl = product.ImageFrontUrl ?? product.ImageUrl;
+            var imageUrl = product.ImageFrontUrl ?? product.ImageUrl;
+            if (!string.IsNullOrEmpty(imageUrl))
+            {
+                result.ImageUrl = new ResultImage { ImageUrl = imageUrl, PluginId = DisplayName };
+            }
         }
 
         // Set thumbnail URL if missing (prefer small or thumb versions)
-        if (string.IsNullOrEmpty(result.ThumbnailUrl))
+        if (result.ThumbnailUrl == null)
         {
-            result.ThumbnailUrl = product.ImageFrontSmallUrl
-                ?? product.ImageSmallUrl
+            var thumbUrl = product.ImageThumbUrl
                 ?? product.ImageFrontThumbUrl
-                ?? product.ImageThumbUrl;
+                ?? product.ImageFrontSmallUrl
+                ?? product.ImageSmallUrl;
+            if (!string.IsNullOrEmpty(thumbUrl))
+            {
+                result.ThumbnailUrl = new ResultImage { ImageUrl = thumbUrl, PluginId = DisplayName };
+            }
         }
 
         // Also enrich brand if missing
@@ -227,16 +236,19 @@ public class OpenFoodFactsPlugin : IProductLookupPlugin
     {
         var name = product.ProductNameEn ?? product.ProductName ?? "Unknown Product";
 
+        var thumbUrl = product.ImageFrontSmallUrl ?? product.ImageSmallUrl ?? product.ImageFrontThumbUrl;
+
+        var imageUrl = product.ImageFrontUrl ?? product.ImageUrl;
+
         var result = new ProductLookupResult
         {
-            ExternalId = product.Code ?? string.Empty,
-            DataSource = PluginId,
+            DataSources = { { DisplayName, product.Code ?? string.Empty } },
             Name = name,
             BrandName = product.Brands,
             Barcode = product.Code,
-            Category = GetFirstCategory(product.CategoriesTags),
-            ImageUrl = product.ImageFrontUrl ?? product.ImageUrl,
-            ThumbnailUrl = product.ImageFrontSmallUrl ?? product.ImageSmallUrl ?? product.ImageFrontThumbUrl,
+            Categories = product.CategoriesTags ?? new(),
+            ThumbnailUrl = !string.IsNullOrEmpty(thumbUrl) ? new ResultImage { ImageUrl = thumbUrl, PluginId = DisplayName } : null,
+            ImageUrl = !string.IsNullOrEmpty(imageUrl) ? new ResultImage { ImageUrl = imageUrl, PluginId = DisplayName } : null,
             Ingredients = product.IngredientsTextEn ?? product.IngredientsText,
             ServingSizeDescription = product.ServingSize,
             Nutrition = MapNutrition(product),
@@ -281,7 +293,7 @@ public class OpenFoodFactsPlugin : IProductLookupPlugin
             .Select(word => char.ToUpperInvariant(word[0]) + word.Substring(1)));
     }
 
-    private static ProductLookupNutrition? MapNutrition(OpenFoodFactsProduct product)
+    private ProductLookupNutrition? MapNutrition(OpenFoodFactsProduct product)
     {
         var nutriments = product.Nutriments;
         if (nutriments == null) return null;
@@ -289,6 +301,8 @@ public class OpenFoodFactsPlugin : IProductLookupPlugin
         // Prefer serving values, fall back to 100g values
         var nutrition = new ProductLookupNutrition
         {
+            Source = PluginId,
+            ExternalSourceId = product.Code,
             ServingSize = product.ServingQuantity,
             Calories = nutriments.EnergyKcalServing ?? nutriments.EnergyKcal100g,
             Protein = nutriments.ProteinsServing ?? nutriments.Proteins100g,

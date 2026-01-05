@@ -5,15 +5,7 @@ namespace Famick.HomeManagement.Core.DTOs.ProductLookup;
 /// </summary>
 public class ApplyLookupResultRequest
 {
-    /// <summary>
-    /// External ID from the lookup result
-    /// </summary>
-    public string ExternalId { get; set; } = string.Empty;
-
-    /// <summary>
-    /// Plugin ID that provided the result
-    /// </summary>
-    public string DataSource { get; set; } = string.Empty;
+    public Dictionary<string,string> DataSources { get; set; } = new();
 
     /// <summary>
     /// Product name from the lookup

@@ -1,10 +1,12 @@
 @using Famick.HomeManagement.Core.Interfaces
 @using Famick.HomeManagement.Core.Interfaces.Plugins
 @using Famick.HomeManagement.Core.DTOs.ProductLookup
+@using Famick.HomeManagement.Core.DTOs.ShoppingLocations
 @inject IApiClient ApiClient
 @inject IBarcodeScannerService BarcodeScanner
 @inject ISnackbar Snackbar
 @inject ILocalizer L
+@inject NavigationManager NavigationManager
 
 <MudDialog>
     <TitleContent>
@@ -37,6 +39,30 @@
                 }
             </MudStack>
 
+            @* Store selector (only show if there are stores with integrations) *@
+            @if (_shoppingLocations.Count > 0)
+            {
+                <MudSelect T="Guid?" @bind-Value="_selectedShoppingLocationId"
+                           Label="@L["productLookup.preferredStore"]"
+                           Variant="Variant.Outlined"
+                           Dense="true"
+                           AnchorOrigin="Origin.BottomCenter"
+                           Clearable="true">
+                    @foreach (var location in _shoppingLocations)
+                    {
+                        <MudSelectItem T="Guid?" Value="@location.Id">
+                            @location.Name
+                            @if (!string.IsNullOrEmpty(location.IntegrationType))
+                            {
+                                <MudText Typo="Typo.caption" Class="ml-2" Color="Color.Secondary">
+                                    (@location.IntegrationType)
+                                </MudText>
+                            }
+                        </MudSelectItem>
+                    }
+                </MudSelect>
+            }
+
             @* Search type indicator *@
             @if (!string.IsNullOrWhiteSpace(_searchQuery))
             {
@@ -45,6 +71,24 @@
                         ? L["productLookup.searchingByBarcode"]
                         : L["productLookup.searchingByName"])
                 </MudText>
+            }
+
+            @* Store connection status banners *@
+            @foreach (var status in _storeStatuses.Where(s => !s.IsConnected))
+            {
+                <MudAlert Severity="Severity.Info" Dense="true" Class="py-1">
+                    <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween">
+                        <MudText Typo="Typo.body2">
+                            @L["productLookup.connectToSearch", status.PluginDisplayName]
+                        </MudText>
+                        <MudButton Variant="Variant.Text"
+                                   Color="Color.Primary"
+                                   Size="Size.Small"
+                                   OnClick="() => ConnectStore(status)">
+                            @L["storeIntegration.connect"]
+                        </MudButton>
+                    </MudStack>
+                </MudAlert>
             }
 
             @* Loading indicator *@
@@ -60,10 +104,10 @@
                     @L["productLookup.resultsCount", _searchResults.Count]
                 </MudText>
 
-                <MudList T="ProductLookupResult" Dense="true" Class="overflow-auto" Style="max-height: 400px;">
+                <MudList T="ProductLookupResultDto" Dense="true" Class="overflow-auto" Style="max-height: 400px;">
                     @foreach (var result in _searchResults)
                     {
-                        <MudListItem T="ProductLookupResult"
+                        <MudListItem T="ProductLookupResultDto"
                                      OnClick="() => SelectResult(result)"
                                      Class="cursor-pointer hover-highlight">
                             <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Start">
@@ -86,8 +130,17 @@
 
                                 @* Product details *@
                                 <MudStack Spacing="0" Class="flex-grow-1">
-                                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                    @* Name with source badge *@
+                                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Class="flex-wrap">
                                         <MudText Typo="Typo.body1">@result.Name</MudText>
+                                        <MudChip T="string"
+                                                 Size="Size.Small"
+                                                 Color="@GetSourceColor(result)"
+                                                 Variant="Variant.Filled"
+                                                 Class="px-2 py-0"
+                                                 Style="height: 20px; font-size: 0.7rem;">
+                                            @result.PluginDisplayName
+                                        </MudChip>
                                         @if (!string.IsNullOrEmpty(result.Category))
                                         {
                                             <MudChip T="string" Size="Size.Small" Color="Color.Info" Variant="Variant.Outlined">
@@ -95,18 +148,62 @@
                                             </MudChip>
                                         }
                                     </MudStack>
-                                    @if (!string.IsNullOrEmpty(result.BrandName) || !string.IsNullOrEmpty(result.BrandOwner))
+
+                                    @* Brand *@
+                                    @if (!string.IsNullOrEmpty(result.Brand) || !string.IsNullOrEmpty(result.BrandOwner))
                                     {
                                         <MudText Typo="Typo.caption" Color="Color.Secondary">
-                                            @(result.BrandName ?? result.BrandOwner)
+                                            @(result.Brand ?? result.BrandOwner)
                                         </MudText>
                                     }
+
+                                    @* Store-specific info (price, aisle) *@
+                                    @if (result.SourceType == "StoreIntegration")
+                                    {
+                                        <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center" Class="mt-1">
+                                            @if (result.Price.HasValue)
+                                            {
+                                                <MudChip T="string"
+                                                         Size="Size.Small"
+                                                         Color="Color.Success"
+                                                         Variant="Variant.Filled"
+                                                         Class="px-2 py-0"
+                                                         Style="height: 20px;">
+                                                    @FormatPrice(result.Price, result.PriceUnit)
+                                                </MudChip>
+                                            }
+                                            @if (!string.IsNullOrEmpty(result.Aisle))
+                                            {
+                                                <MudText Typo="Typo.caption" Color="Color.Secondary">
+                                                    @L["storeIntegration.aisle"]: @result.Aisle
+                                                </MudText>
+                                            }
+                                            @if (result.InStock == true)
+                                            {
+                                                <MudIcon Icon="@Icons.Material.Filled.CheckCircle"
+                                                         Color="Color.Success"
+                                                         Size="Size.Small"
+                                                         Title="@L["storeIntegration.inStock"]" />
+                                            }
+                                            else if (result.InStock == false)
+                                            {
+                                                <MudIcon Icon="@Icons.Material.Filled.Cancel"
+                                                         Color="Color.Error"
+                                                         Size="Size.Small"
+                                                         Title="@L["storeIntegration.outOfStock"]" />
+                                            }
+                                        </MudStack>
+                                    }
+
+                                    @* Barcode *@
                                     @if (!string.IsNullOrEmpty(result.Barcode))
                                     {
                                         <MudText Typo="Typo.caption" Color="Color.Tertiary">
                                             @L["productLookup.barcode"]: @result.Barcode
                                         </MudText>
                                     }
+
+                                    @* Nutrition info for product plugins *@
                                     @if (result.Nutrition?.Calories.HasValue == true)
                                     {
                                         <MudText Typo="Typo.caption">
@@ -140,17 +237,53 @@
     [Parameter]
     public string? InitialQuery { get; set; }
 
+    /// <summary>
+    /// Preferred shopping location ID for store integration searches.
+    /// If provided, also searches the connected store for products.
+    /// </summary>
+    [Parameter]
+    public Guid? PreferredShoppingLocationId { get; set; }
+
     private string _searchQuery = string.Empty;
     private bool _isSearching;
     private bool _hasSearched;
-    private List<ProductLookupResult> _searchResults = new();
+    private List<ProductLookupResultDto> _searchResults = new();
+    private List<StoreConnectionStatus> _storeStatuses = new();
+    private List<ShoppingLocationDto> _shoppingLocations = new();
+    private Guid? _selectedShoppingLocationId;
 
     protected override async Task OnInitializedAsync()
     {
+        // Load shopping locations with store integrations
+        await LoadShoppingLocationsAsync();
+
+        // Set initial selection from parameter
+        _selectedShoppingLocationId = PreferredShoppingLocationId;
+
         if (!string.IsNullOrWhiteSpace(InitialQuery))
         {
             _searchQuery = InitialQuery;
             await SearchAsync();
+        }
+    }
+
+    private async Task LoadShoppingLocationsAsync()
+    {
+        try
+        {
+            var result = await ApiClient.GetAsync<List<ShoppingLocationDto>>("api/v1/shopping-locations");
+            if (result.IsSuccess && result.Data != null)
+            {
+                // Only show locations that have store integrations configured
+                _shoppingLocations = result.Data
+                    .Where(sl => !string.IsNullOrEmpty(sl.IntegrationType))
+                    .OrderBy(sl => sl.Name)
+                    .ToList();
+            }
+        }
+        catch
+        {
+            // Silently fail - store selection is optional
         }
     }
 
@@ -172,21 +305,25 @@
         _isSearching = true;
         _hasSearched = true;
         _searchResults.Clear();
+        _storeStatuses.Clear();
 
         try
         {
             var request = new ProductLookupRequest
             {
                 Query = _searchQuery.Trim(),
-                MaxResults = 20
+                MaxResults = 20,
+                PreferredShoppingLocationId = _selectedShoppingLocationId,
+                IncludeStoreResults = true
             };
 
-            var result = await ApiClient.PostAsync<ProductLookupRequest, List<ProductLookupResult>>(
+            var result = await ApiClient.PostAsync<ProductLookupRequest, ProductLookupResponse>(
                 "api/v1/products/lookup", request);
 
             if (result.IsSuccess && result.Data != null)
             {
-                _searchResults = result.Data;
+                _searchResults = result.Data.Results;
+                _storeStatuses = result.Data.StoreConnectionStatuses;
             }
             else
             {
@@ -221,7 +358,7 @@
         }
     }
 
-    private void SelectResult(ProductLookupResult result)
+    private void SelectResult(ProductLookupResultDto result)
     {
         MudDialog.Close(DialogResult.Ok(result));
     }
@@ -229,6 +366,36 @@
     private void Cancel()
     {
         MudDialog.Cancel();
+    }
+
+    private void ConnectStore(StoreConnectionStatus status)
+    {
+        // Navigate to store integration settings
+        MudDialog.Cancel();
+        if (status.ShoppingLocationId.HasValue)
+        {
+            NavigationManager.NavigateTo($"/settings/shopping-locations/{status.ShoppingLocationId}/integration");
+        }
+        else
+        {
+            NavigationManager.NavigateTo("/settings/integrations");
+        }
+    }
+
+    private static Color GetSourceColor(ProductLookupResultDto result)
+    {
+        return result.SourceType == "StoreIntegration" ? Color.Primary : Color.Secondary;
+    }
+
+    private string FormatPrice(decimal? price, string? unit)
+    {
+        if (!price.HasValue) return "";
+        var formatted = price.Value.ToString("C");
+        if (!string.IsNullOrEmpty(unit) && unit != "each")
+        {
+            formatted += $"/{unit}";
+        }
+        return formatted;
     }
 
     private static bool IsBarcode(string input)

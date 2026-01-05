@@ -15,13 +15,13 @@ namespace Famick.HomeManagement.Infrastructure.Services;
 public class StoreIntegrationService : IStoreIntegrationService
 {
     private readonly HomeManagementDbContext _dbContext;
-    private readonly IStoreIntegrationLoader _pluginLoader;
     private readonly ITenantProvider _tenantProvider;
     private readonly ILogger<StoreIntegrationService> _logger;
+    private readonly IPluginLoader _pluginLoader;
 
     public StoreIntegrationService(
         HomeManagementDbContext dbContext,
-        IStoreIntegrationLoader pluginLoader,
+        IPluginLoader pluginLoader,
         ITenantProvider tenantProvider,
         ILogger<StoreIntegrationService> logger)
     {
@@ -39,7 +39,7 @@ public class StoreIntegrationService : IStoreIntegrationService
 
         var plugins = new List<StoreIntegrationPluginInfo>();
 
-        foreach (var plugin in _pluginLoader.Plugins)
+        foreach (var plugin in _pluginLoader.Plugins.OfType<IStoreIntegrationPlugin>())
         {
             var info = new StoreIntegrationPluginInfo
             {
@@ -262,7 +262,7 @@ public class StoreIntegrationService : IStoreIntegrationService
             return false;
         }
 
-        var plugin = _pluginLoader.GetPlugin(pluginId);
+        var plugin = _pluginLoader.GetPlugin<IStoreIntegrationPlugin>(pluginId);
         if (plugin == null)
         {
             _logger.LogWarning("Plugin {PluginId} not found", pluginId);
@@ -467,6 +467,7 @@ public class StoreIntegrationService : IStoreIntegrationService
             existing.Department = request.Department;
             existing.InStock = request.InStock;
             existing.AvailabilityCheckedAt = DateTime.UtcNow;
+            existing.ProductUrl = request.ProductUrl;
         }
         else
         {
@@ -485,7 +486,8 @@ public class StoreIntegrationService : IStoreIntegrationService
                 Shelf = request.Shelf,
                 Department = request.Department,
                 InStock = request.InStock,
-                AvailabilityCheckedAt = DateTime.UtcNow
+                AvailabilityCheckedAt = DateTime.UtcNow,
+                ProductUrl = request.ProductUrl
             };
             _dbContext.ProductStoreMetadata.Add(existing);
         }
@@ -564,7 +566,7 @@ public class StoreIntegrationService : IStoreIntegrationService
         if (accessToken == null)
             return null;
 
-        var plugin = _pluginLoader.GetPlugin(location.IntegrationType);
+        var plugin = _pluginLoader.GetPlugin<IStoreIntegrationPlugin>(location.IntegrationType);
         if (plugin == null) return null;
 
         var storeProduct = await plugin.GetProductAsync(
@@ -621,7 +623,7 @@ public class StoreIntegrationService : IStoreIntegrationService
 
     private IStoreIntegrationPlugin GetPluginOrThrow(string pluginId)
     {
-        var plugin = _pluginLoader.GetPlugin(pluginId);
+        var plugin = _pluginLoader.GetPlugin<IStoreIntegrationPlugin>(pluginId);
         if (plugin == null)
             throw new InvalidOperationException($"Store integration plugin '{pluginId}' not found");
         if (!plugin.IsAvailable)
@@ -647,6 +649,7 @@ public class StoreIntegrationService : IStoreIntegrationService
             Department = metadata.Department,
             InStock = metadata.InStock,
             AvailabilityCheckedAt = metadata.AvailabilityCheckedAt,
+            ProductUrl = metadata.ProductUrl,
             CreatedAt = metadata.CreatedAt,
             UpdatedAt = metadata.UpdatedAt
         };

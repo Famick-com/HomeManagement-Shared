@@ -1,5 +1,3 @@
-using System.Text.Json;
-
 namespace Famick.HomeManagement.Core.Interfaces.Plugins;
 
 /// <summary>
@@ -7,42 +5,13 @@ namespace Famick.HomeManagement.Core.Interfaces.Plugins;
 /// (Kroger, Walmart, etc.) for OAuth authentication, store location lookup,
 /// and product price/availability information.
 /// </summary>
-public interface IStoreIntegrationPlugin
+public interface IStoreIntegrationPlugin : IPlugin
 {
-    /// <summary>
-    /// Unique identifier for this plugin (e.g., "kroger", "walmart")
-    /// Also used as the key in plugins/config.json storeIntegrations section
-    /// </summary>
-    string PluginId { get; }
-
-    /// <summary>
-    /// Human-readable display name (e.g., "Kroger")
-    /// </summary>
-    string DisplayName { get; }
-
-    /// <summary>
-    /// Plugin version string
-    /// </summary>
-    string Version { get; }
-
-    /// <summary>
-    /// Whether the plugin is currently available (initialized and configured)
-    /// </summary>
-    bool IsAvailable { get; }
-
     /// <summary>
     /// Plugin capabilities - indicates which features are supported.
     /// All operations are assumed to require OAuth authentication.
     /// </summary>
     StoreIntegrationCapabilities Capabilities { get; }
-
-    /// <summary>
-    /// Initialize the plugin with its configuration section from plugins/config.json
-    /// Each plugin defines its own configuration schema (typically clientId, clientSecret, etc.)
-    /// </summary>
-    /// <param name="pluginConfig">The plugin's configuration section as a JsonElement, or null if not configured</param>
-    /// <param name="ct">Cancellation token</param>
-    Task InitAsync(JsonElement? pluginConfig, CancellationToken ct = default);
 
     #region OAuth Methods
 

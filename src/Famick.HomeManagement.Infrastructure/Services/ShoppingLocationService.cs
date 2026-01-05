@@ -16,18 +16,19 @@ public class ShoppingLocationService : IShoppingLocationService
     private readonly HomeManagementDbContext _context;
     private readonly IMapper _mapper;
     private readonly ILogger<ShoppingLocationService> _logger;
-    private readonly IStoreIntegrationLoader _storeIntegrationLoader;
+
+    private readonly IPluginLoader _pluginLoader;
 
     public ShoppingLocationService(
         HomeManagementDbContext context,
         IMapper mapper,
-        ILogger<ShoppingLocationService> logger,
-        IStoreIntegrationLoader storeIntegrationLoader)
+        IPluginLoader pluginLoader,
+        ILogger<ShoppingLocationService> logger)
     {
         _context = context;
         _mapper = mapper;
         _logger = logger;
-        _storeIntegrationLoader = storeIntegrationLoader;
+        _pluginLoader = pluginLoader;
     }
 
     public async Task<ShoppingLocationDto> CreateAsync(
@@ -207,7 +208,8 @@ public class ShoppingLocationService : IShoppingLocationService
             return;
 
         // Build a set of plugins that don't require OAuth (always connected)
-        var noOAuthPlugins = _storeIntegrationLoader.Plugins
+        var noOAuthPlugins = _pluginLoader.Plugins
+            .OfType<IStoreIntegrationPlugin>()
             .Where(p => integrationTypes.Contains(p.PluginId) && !p.Capabilities.RequiresOAuth)
             .Select(p => p.PluginId)
             .ToHashSet();

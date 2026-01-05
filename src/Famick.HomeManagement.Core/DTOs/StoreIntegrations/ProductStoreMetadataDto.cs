@@ -64,6 +64,11 @@ public class ProductStoreMetadataDto
     /// </summary>
     public DateTime? AvailabilityCheckedAt { get; set; }
 
+    /// <summary>
+    /// URL to the product page on the store's website
+    /// </summary>
+    public string? ProductUrl { get; set; }
+
     public DateTime CreatedAt { get; set; }
     public DateTime? UpdatedAt { get; set; }
 }
