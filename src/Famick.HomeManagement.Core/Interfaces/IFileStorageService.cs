@@ -52,4 +52,41 @@ public interface IFileStorageService
         string imageUrl,
         string source,
         CancellationToken ct = default);
+
+    #region Equipment Documents
+
+    /// <summary>
+    /// Saves an equipment document to storage.
+    /// </summary>
+    /// <param name="equipmentId">The equipment ID for organizing storage.</param>
+    /// <param name="stream">The file stream to save.</param>
+    /// <param name="fileName">The original file name.</param>
+    /// <param name="ct">Cancellation token.</param>
+    /// <returns>The stored file name (unique).</returns>
+    Task<string> SaveEquipmentDocumentAsync(Guid equipmentId, Stream stream, string fileName, CancellationToken ct = default);
+
+    /// <summary>
+    /// Deletes an equipment document from storage.
+    /// </summary>
+    /// <param name="equipmentId">The equipment ID.</param>
+    /// <param name="fileName">The stored file name.</param>
+    /// <param name="ct">Cancellation token.</param>
+    Task DeleteEquipmentDocumentAsync(Guid equipmentId, string fileName, CancellationToken ct = default);
+
+    /// <summary>
+    /// Gets the URL for accessing an equipment document.
+    /// </summary>
+    /// <param name="equipmentId">The equipment ID.</param>
+    /// <param name="fileName">The stored file name.</param>
+    /// <returns>The URL to access the document.</returns>
+    string GetEquipmentDocumentUrl(Guid equipmentId, string fileName);
+
+    /// <summary>
+    /// Deletes all documents for an equipment item (used when deleting equipment).
+    /// </summary>
+    /// <param name="equipmentId">The equipment ID.</param>
+    /// <param name="ct">Cancellation token.</param>
+    Task DeleteAllEquipmentDocumentsAsync(Guid equipmentId, CancellationToken ct = default);
+
+    #endregion
 }

@@ -81,6 +81,10 @@ namespace Famick.HomeManagement.Infrastructure.Configuration
                 .HasColumnName("product_amount")
                 .HasColumnType("numeric(18,4)");
 
+            builder.Property(c => c.EquipmentId)
+                .HasColumnName("equipment_id")
+                .HasColumnType("uuid");
+
             builder.Property(c => c.CreatedAt)
                 .HasColumnName("created_at")
                 .HasColumnType("timestamp with time zone")
@@ -114,6 +118,12 @@ namespace Famick.HomeManagement.Infrastructure.Configuration
                 .HasForeignKey(c => c.NextExecutionAssignedToUserId)
                 .OnDelete(DeleteBehavior.SetNull)
                 .HasConstraintName("fk_chores_users");
+
+            builder.HasOne(c => c.Equipment)
+                .WithMany(e => e.Chores)
+                .HasForeignKey(c => c.EquipmentId)
+                .OnDelete(DeleteBehavior.SetNull)
+                .HasConstraintName("fk_chores_equipment");
 
             // Navigation properties
             builder.HasMany(c => c.LogEntries)

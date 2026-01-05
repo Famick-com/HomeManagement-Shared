@@ -193,4 +193,91 @@ public class LocalFileStorageService : IFileStorageService
         var random = Guid.NewGuid().ToString("N")[..8];
         return $"image_{timestamp}_{random}{extension}";
     }
+
+    #region Equipment Documents
+
+    public async Task<string> SaveEquipmentDocumentAsync(Guid equipmentId, Stream stream, string fileName, CancellationToken ct = default)
+    {
+        var directory = GetEquipmentDocumentDirectory(equipmentId);
+        Directory.CreateDirectory(directory);
+
+        var uniqueFileName = GenerateUniqueDocumentFileName(fileName);
+        var filePath = Path.Combine(directory, uniqueFileName);
+
+        try
+        {
+            await using var fileStream = File.Create(filePath);
+            await stream.CopyToAsync(fileStream, ct);
+
+            _logger.LogInformation("Saved equipment document {FileName} for equipment {EquipmentId}", uniqueFileName, equipmentId);
+            return uniqueFileName;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to save equipment document {FileName} for equipment {EquipmentId}", fileName, equipmentId);
+            throw;
+        }
+    }
+
+    public Task DeleteEquipmentDocumentAsync(Guid equipmentId, string fileName, CancellationToken ct = default)
+    {
+        var filePath = Path.Combine(GetEquipmentDocumentDirectory(equipmentId), fileName);
+
+        if (File.Exists(filePath))
+        {
+            try
+            {
+                File.Delete(filePath);
+                _logger.LogInformation("Deleted equipment document {FileName} for equipment {EquipmentId}", fileName, equipmentId);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to delete equipment document {FileName} for equipment {EquipmentId}", fileName, equipmentId);
+                throw;
+            }
+        }
+
+        return Task.CompletedTask;
+    }
+
+    public string GetEquipmentDocumentUrl(Guid equipmentId, string fileName)
+    {
+        return $"{_baseUrl}/uploads/equipment/{equipmentId}/{fileName}";
+    }
+
+    public Task DeleteAllEquipmentDocumentsAsync(Guid equipmentId, CancellationToken ct = default)
+    {
+        var directory = GetEquipmentDocumentDirectory(equipmentId);
+
+        if (Directory.Exists(directory))
+        {
+            try
+            {
+                Directory.Delete(directory, recursive: true);
+                _logger.LogInformation("Deleted all documents for equipment {EquipmentId}", equipmentId);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to delete document directory for equipment {EquipmentId}", equipmentId);
+                throw;
+            }
+        }
+
+        return Task.CompletedTask;
+    }
+
+    private string GetEquipmentDocumentDirectory(Guid equipmentId)
+    {
+        return Path.Combine(_basePath, "equipment", equipmentId.ToString());
+    }
+
+    private static string GenerateUniqueDocumentFileName(string originalFileName)
+    {
+        var extension = Path.GetExtension(originalFileName).ToLowerInvariant();
+        var timestamp = DateTime.UtcNow.ToString("yyyyMMdd_HHmmss");
+        var random = Guid.NewGuid().ToString("N")[..8];
+        return $"doc_{timestamp}_{random}{extension}";
+    }
+
+    #endregion
 }
