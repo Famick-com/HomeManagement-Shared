@@ -193,6 +193,21 @@ public class StoreProductResult
     /// Product size/weight description
     /// </summary>
     public string? Size { get; set; }
+
+    /// <summary>
+    /// URL to the product page on the store's website
+    /// </summary>
+    public string? ProductUrl { get; set; }
+
+    /// <summary>
+    /// Categories of the product
+    /// </summary>
+    public List<string> Categories {get;set;} = new();
+
+    /// <summary>
+    /// Description of the product
+    /// </summary>
+    public string? Description { get; set; }
 }
 
 /// <summary>

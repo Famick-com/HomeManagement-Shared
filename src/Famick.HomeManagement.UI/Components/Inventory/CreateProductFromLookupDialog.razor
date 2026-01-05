@@ -21,21 +21,61 @@
             <MudForm @ref="_form" @bind-IsValid="_formValid">
                 <MudStack Spacing="3">
                     @* Product image and basic info *@
-                    @if (!string.IsNullOrEmpty(LookupResult.ImageUrl))
+                    @{
+                        var thumbnailImage = LookupResult.ThumbnailUrl ?? LookupResult.ImageUrl;
+                    }
+                    @if (!string.IsNullOrEmpty(thumbnailImage))
                     {
                         <MudStack Row="true" Spacing="3" AlignItems="AlignItems.Start">
-                            <MudImage Src="@LookupResult.ImageUrl" Width="80" Height="80"
+                            <MudImage Src="@thumbnailImage" Width="80" Height="80"
                                       ObjectFit="ObjectFit.Cover" Class="rounded" />
                             <MudStack Spacing="1" Class="flex-grow-1">
-                                <MudText Typo="Typo.caption" Color="Color.Secondary">
-                                    @L["inventory.fromSource"]: @LookupResult.DataSource
-                                </MudText>
-                                @if (!string.IsNullOrEmpty(LookupResult.BrandName))
+                                <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center">
+                                    <MudText Typo="Typo.caption" Color="Color.Secondary">
+                                        @L["inventory.fromSource"]:
+                                    </MudText>
+                                    <MudChip T="string"
+                                             Size="Size.Small"
+                                             Color="@(Color.Secondary)"
+                                             Variant="Variant.Filled"
+                                             Class="px-2 py-0"
+                                             Style="height: 18px; font-size: 0.7rem;">
+                                        @LookupResult.PluginDisplayName
+                                    </MudChip>
+                                </MudStack>
+                                @if (!string.IsNullOrEmpty(LookupResult.Brand))
                                 {
-                                    <MudText Typo="Typo.caption">@LookupResult.BrandName</MudText>
+                                    <MudText Typo="Typo.caption">@LookupResult.Brand</MudText>
                                 }
                             </MudStack>
                         </MudStack>
+                    }
+
+                    @* Store-specific info banner *@
+                    @if (LookupResult.SourceType == "StoreIntegration")
+                    {
+                        <MudAlert Severity="Severity.Info" Dense="true" Class="py-1">
+                            <MudStack Row="true" Spacing="3" AlignItems="AlignItems.Center" Class="flex-wrap">
+                                @if (LookupResult.Price.HasValue)
+                                {
+                                    <MudText Typo="Typo.body2">
+                                        <strong>@FormatPrice(LookupResult.Price, LookupResult.PriceUnit)</strong>
+                                    </MudText>
+                                }
+                                @if (!string.IsNullOrEmpty(LookupResult.Aisle))
+                                {
+                                    <MudText Typo="Typo.body2">
+                                        @L["storeIntegration.aisle"]: @LookupResult.Aisle
+                                    </MudText>
+                                }
+                                @if (!string.IsNullOrEmpty(LookupResult.ShoppingLocationName))
+                                {
+                                    <MudText Typo="Typo.body2" Color="Color.Secondary">
+                                        @L["inventory.atStore", LookupResult.ShoppingLocationName]
+                                    </MudText>
+                                }
+                            </MudStack>
+                        </MudAlert>
                     }
 
                     @* Name *@
@@ -134,7 +174,7 @@
     private MudDialogInstance MudDialog { get; set; } = null!;
 
     [Parameter]
-    public ProductLookupResult LookupResult { get; set; } = null!;
+    public ProductLookupResultDto LookupResult { get; set; } = null!;
 
     [Parameter]
     public Guid? DefaultLocationId { get; set; }
@@ -160,8 +200,8 @@
         // Pre-fill from lookup result
         _name = LookupResult.Name;
         _barcode = LookupResult.Barcode;
-        _description = !string.IsNullOrEmpty(LookupResult.BrandName)
-            ? $"{LookupResult.BrandName}" + (!string.IsNullOrEmpty(LookupResult.Category) ? $" - {LookupResult.Category}" : "")
+        _description = !string.IsNullOrEmpty(LookupResult.Brand)
+            ? LookupResult.Brand + (!string.IsNullOrEmpty(LookupResult.Category) ? $" - {LookupResult.Category}" : "")
             : LookupResult.Category;
 
         // Set default location from inventory session
@@ -243,7 +283,7 @@
 
             if (result.IsSuccess && result.Data != null)
             {
-                // Apply lookup result (handles barcode, images, and nutrition)
+                // Apply lookup result (handles barcode, images, nutrition, and store linking)
                 await ApplyLookupResultAsync(result.Data.Id);
 
                 // Reload the product to get updated data (with images/barcodes)
@@ -270,13 +310,15 @@
     {
         try
         {
-            // Create the request with barcode, images, and nutrition data
-            var applyRequest = new ApplyLookupResultRequest
+            // Convert ProductLookupResultDto to ApplyLookupResultRequest
+            var request = new ApplyLookupResultRequest
             {
-                ExternalId = LookupResult.ExternalId,
-                DataSource = LookupResult.DataSource,
+                DataSources = new Dictionary<string, string>
+                {
+                    { LookupResult.PluginDisplayName, LookupResult.ExternalId }
+                },
                 Name = LookupResult.Name,
-                BrandName = LookupResult.BrandName,
+                BrandName = LookupResult.Brand,
                 BrandOwner = LookupResult.BrandOwner,
                 Barcode = LookupResult.Barcode,
                 ServingSizeDescription = LookupResult.ServingSizeDescription,
@@ -284,9 +326,10 @@
                 ImageUrl = LookupResult.ImageUrl,
                 ThumbnailUrl = LookupResult.ThumbnailUrl,
                 UpdateName = false, // Already set during product creation
-                AddBarcode = true,  // Let backend handle barcode
+                AddBarcode = true,
                 Nutrition = LookupResult.Nutrition != null ? new ProductNutritionDto
                 {
+                    DataSource = LookupResult.PluginDisplayName,
                     ServingSize = LookupResult.Nutrition.ServingSize,
                     ServingUnit = LookupResult.Nutrition.ServingUnit,
                     Calories = LookupResult.Nutrition.Calories,
@@ -316,24 +359,29 @@
                     Magnesium = LookupResult.Nutrition.Magnesium,
                     Phosphorus = LookupResult.Nutrition.Phosphorus,
                     Potassium = LookupResult.Nutrition.Potassium,
-                    Zinc = LookupResult.Nutrition.Zinc,
-                    DataSource = LookupResult.DataSource,
-                    ExternalId = LookupResult.ExternalId,
-                    BrandName = LookupResult.BrandName,
-                    BrandOwner = LookupResult.BrandOwner,
-                    Ingredients = LookupResult.Ingredients,
-                    ServingSizeDescription = LookupResult.ServingSizeDescription
+                    Zinc = LookupResult.Nutrition.Zinc
                 } : null
             };
 
-            await ApiClient.PostAsync<ApplyLookupResultRequest, ProductNutritionDto>(
+            await ApiClient.PostAsync<ApplyLookupResultRequest, object>(
                 $"api/v1/products/{productId}/apply-lookup",
-                applyRequest);
+                request);
         }
         catch (Exception ex)
         {
             // Log but don't fail - the product was created successfully
             Console.WriteLine($"Failed to apply lookup result: {ex.Message}");
         }
+    }
+
+    private string FormatPrice(decimal? price, string? unit)
+    {
+        if (!price.HasValue) return "";
+        var formatted = price.Value.ToString("C");
+        if (!string.IsNullOrEmpty(unit) && unit != "each")
+        {
+            formatted += $"/{unit}";
+        }
+        return formatted;
     }
 }

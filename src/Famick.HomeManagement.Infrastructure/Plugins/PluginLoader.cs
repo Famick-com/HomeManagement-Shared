@@ -15,15 +15,15 @@ public class PluginLoader : IPluginLoader
     private readonly ILogger<PluginLoader> _logger;
     private readonly PluginLoaderOptions _options;
     private readonly IServiceProvider _serviceProvider;
-    private readonly Dictionary<string, IProductLookupPlugin> _builtinPlugins;
-    private List<IProductLookupPlugin> _plugins = new();
+    private readonly Dictionary<string, IPlugin> _builtinPlugins;
+    private List<IPlugin> _plugins = new();
     private List<PluginConfigEntry> _configurations = new();
 
     public PluginLoader(
         ILogger<PluginLoader> logger,
         IOptions<PluginLoaderOptions> options,
         IServiceProvider serviceProvider,
-        IEnumerable<IProductLookupPlugin> builtinPlugins)
+        IEnumerable<IPlugin> builtinPlugins)
     {
         _logger = logger;
         _options = options.Value;
@@ -31,20 +31,26 @@ public class PluginLoader : IPluginLoader
         _builtinPlugins = builtinPlugins.ToDictionary(p => p.PluginId, p => p);
     }
 
-    public IReadOnlyList<IProductLookupPlugin> Plugins => _plugins.AsReadOnly();
+    public IReadOnlyList<IPlugin> Plugins => _plugins.AsReadOnly();
 
-    public IReadOnlyList<IProductLookupPlugin> GetAvailablePlugins()
+    IReadOnlyList<IPlugin> IPluginLoader.Plugins => Plugins;
+
+    public IReadOnlyList<T> GetAvailablePlugins<T>() where T : IPlugin
     {
         // Returns plugins in config.json order (order they were loaded)
         return _plugins
             .Where(p => p.IsAvailable)
+            .OfType<T>()
             .ToList()
             .AsReadOnly();
     }
 
-    public IProductLookupPlugin? GetPlugin(string pluginId)
+    public T? GetPlugin<T>(string pluginId) where T : IPlugin
     {
-        return _plugins.FirstOrDefault(p => p.PluginId == pluginId);
+        return _plugins
+            .Where(p => p.IsAvailable)
+            .OfType<T>()
+            .FirstOrDefault(p => p.PluginId == pluginId);
     }
 
     public IReadOnlyList<PluginConfigEntry> GetPluginConfigurations()
@@ -135,11 +141,11 @@ public class PluginLoader : IPluginLoader
         }
     }
 
-    private async Task<IProductLookupPlugin?> LoadPluginAsync(PluginConfigEntry entry, CancellationToken ct)
+    private async Task<IPlugin?> LoadPluginAsync(PluginConfigEntry entry, CancellationToken ct)
     {
         try
         {
-            IProductLookupPlugin? plugin;
+            IPlugin? plugin;
 
             if (entry.Builtin)
             {
@@ -174,7 +180,7 @@ public class PluginLoader : IPluginLoader
         }
     }
 
-    private IProductLookupPlugin? LoadExternalPlugin(PluginConfigEntry entry)
+    private IPlugin? LoadExternalPlugin(PluginConfigEntry entry)
     {
         var assemblyPath = Path.Combine(_options.PluginsPath, entry.Assembly!);
 
@@ -188,15 +194,15 @@ public class PluginLoader : IPluginLoader
         {
             var assembly = Assembly.LoadFrom(assemblyPath);
             var pluginType = assembly.GetTypes()
-                .FirstOrDefault(t => typeof(IProductLookupPlugin).IsAssignableFrom(t) && !t.IsInterface && !t.IsAbstract);
+                .FirstOrDefault(t => typeof(IPlugin).IsAssignableFrom(t) && !t.IsInterface && !t.IsAbstract);
 
             if (pluginType == null)
             {
-                _logger.LogWarning("No IProductLookupPlugin implementation found in {Path}", assemblyPath);
+                _logger.LogWarning("No IPlugin implementation found in {Path}", assemblyPath);
                 return null;
             }
 
-            var plugin = (IProductLookupPlugin?)Activator.CreateInstance(pluginType);
+            var plugin = (IPlugin?)Activator.CreateInstance(pluginType);
             if (plugin == null)
             {
                 _logger.LogWarning("Failed to create instance of plugin type {Type}", pluginType.FullName);
@@ -211,20 +217,5 @@ public class PluginLoader : IPluginLoader
             return null;
         }
     }
-}
 
-/// <summary>
-/// Configuration options for the plugin loader
-/// </summary>
-public class PluginLoaderOptions
-{
-    /// <summary>
-    /// Path to the plugins folder (default: "plugins")
-    /// </summary>
-    public string PluginsPath { get; set; } = "plugins";
-
-    /// <summary>
-    /// Whether to load plugins on application startup
-    /// </summary>
-    public bool LoadPluginsOnStartup { get; set; } = true;
 }

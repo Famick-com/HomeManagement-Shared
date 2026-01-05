@@ -89,8 +89,34 @@ public class UsdaFoodDataPlugin : IProductLookupPlugin
                 results = await SearchByNameInternalAsync(context.Query, context.MaxResults, ct);
             }
 
-            // Add results to pipeline (USDA is typically first, so no enrichment needed)
-            context.AddResults(results);
+            foreach(var result in results)
+            {
+                var existingResult = context.Results.FirstOrDefault(r => r.Barcode == result.Barcode);
+                if (existingResult == null)
+                {
+                    context.Results.Add(result);
+                    continue;
+                }
+
+                existingResult.BrandName ??= result.BrandName;
+                existingResult.BrandOwner ??= result.BrandOwner;
+                existingResult.DataSources.TryAdd(result.DataSources.First().Key, result.DataSources.First().Value);
+                existingResult.Description ??= result.Description;
+                existingResult.ImageUrl ??= result.ImageUrl;
+                existingResult.Ingredients ??= result.Ingredients;
+                existingResult.Name ??= result.Name;
+                existingResult.Nutrition ??= result.Nutrition;
+                existingResult.ServingSizeDescription ??= result.ServingSizeDescription;
+                existingResult.ThumbnailUrl ??= result.ThumbnailUrl;
+
+                var existing = new HashSet<string>(
+                    existingResult.Categories,
+                    StringComparer.OrdinalIgnoreCase);
+
+                existingResult.Categories.AddRange(
+                    result.Categories.Where(existing.Add)
+                );
+            }
 
             _logger.LogDebug("USDA plugin added {Count} results to pipeline", results.Count);
         }
@@ -157,17 +183,20 @@ public class UsdaFoodDataPlugin : IProductLookupPlugin
     {
         var result = new ProductLookupResult
         {
-            ExternalId = food.FdcId.ToString(),
-            DataSource = PluginId,
+            DataSources = {{ DisplayName, food.FdcId.ToString() }},
             Name = food.Description,
             BrandName = food.BrandName,
             BrandOwner = food.BrandOwner,
             Barcode = food.GtinUpc,
-            Category = food.FoodCategory,
             ServingSizeDescription = food.HouseholdServingFullText,
             Ingredients = food.Ingredients,
             Nutrition = MapNutrition(food)
         };
+
+        if (food.FoodCategory != null)
+        {
+            result.Categories.Add(food.FoodCategory);
+        }
 
         return result;
     }
@@ -181,6 +210,7 @@ public class UsdaFoodDataPlugin : IProductLookupPlugin
 
         var nutrition = new ProductLookupNutrition
         {
+            Source = PluginId,
             ServingSize = food.ServingSize,
             ServingUnit = food.ServingSizeUnit
         };

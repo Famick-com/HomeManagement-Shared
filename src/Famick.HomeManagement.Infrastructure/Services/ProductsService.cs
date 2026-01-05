@@ -263,6 +263,15 @@ public class ProductsService : IProductsService
                 $"Cannot delete product '{product.Name}' because it is used in recipes");
         }
 
+        // Delete associated stock log records
+        var stockLogs = await _context.StockLog
+            .Where(sl => sl.ProductId == id)
+            .ToListAsync(cancellationToken);
+        if (stockLogs.Count > 0)
+        {
+            _context.StockLog.RemoveRange(stockLogs);
+        }
+
         _context.Products.Remove(product);
         await _context.SaveChangesAsync(cancellationToken);
     }

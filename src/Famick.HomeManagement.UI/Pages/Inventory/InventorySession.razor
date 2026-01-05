@@ -139,9 +139,12 @@
                     <MudCard Elevation="1" Class="mb-2 cursor-pointer" @onclick="() => SelectLookupResult(result)">
                         <MudCardContent Class="pa-3">
                             <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Start">
-                                @if (!string.IsNullOrEmpty(result.ThumbnailUrl))
+                                @{
+                                    var displayImage = result.ThumbnailUrl ?? result.ImageUrl;
+                                }
+                                @if (!string.IsNullOrEmpty(displayImage))
                                 {
-                                    <MudImage Src="@result.ThumbnailUrl" Width="48" Height="48"
+                                    <MudImage Src="@displayImage" Width="48" Height="48"
                                               ObjectFit="ObjectFit.Cover" Class="rounded" />
                                 }
                                 else
@@ -149,11 +152,31 @@
                                     <MudIcon Icon="@Icons.Material.Outlined.Image" Size="Size.Large"
                                              Style="width:48px;height:48px;opacity:0.3;" />
                                 }
-                                <MudStack Spacing="0">
-                                    <MudText Typo="Typo.body1">@result.Name</MudText>
-                                    @if (!string.IsNullOrEmpty(result.BrandName))
+                                <MudStack Spacing="0" Class="flex-grow-1">
+                                    <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center" Class="flex-wrap">
+                                        <MudText Typo="Typo.body1">@result.Name</MudText>
+                                        <MudChip T="string"
+                                                 Size="Size.Small"
+                                                 Color="@(result.SourceType == "StoreIntegration" ? Color.Primary : Color.Secondary)"
+                                                 Variant="Variant.Filled"
+                                                 Class="px-2 py-0"
+                                                 Style="height: 18px; font-size: 0.65rem;">
+                                            @result.PluginDisplayName
+                                        </MudChip>
+                                    </MudStack>
+                                    @if (!string.IsNullOrEmpty(result.Brand))
                                     {
-                                        <MudText Typo="Typo.caption" Color="Color.Secondary">@result.BrandName</MudText>
+                                        <MudText Typo="Typo.caption" Color="Color.Secondary">@result.Brand</MudText>
+                                    }
+                                    @if (result.SourceType == "StoreIntegration" && result.Price.HasValue)
+                                    {
+                                        <MudText Typo="Typo.caption" Color="Color.Success">
+                                            <strong>@result.Price.Value.ToString("C")</strong>
+                                            @if (!string.IsNullOrEmpty(result.Aisle))
+                                            {
+                                                <span class="ml-2">@L["storeIntegration.aisle"]: @result.Aisle</span>
+                                            }
+                                        </MudText>
                                     }
                                     @if (!string.IsNullOrEmpty(result.Barcode))
                                     {
@@ -190,7 +213,7 @@
 
     private ProductDto? _foundProduct;
     private List<StockEntryDto> _stockEntries = new();
-    private List<ProductLookupResult> _lookupResults = new();
+    private List<ProductLookupResultDto> _lookupResults = new();
 
     private void OnLocationChanged(LocationDto? location)
     {
@@ -315,14 +338,20 @@
                 return;
             }
 
-            // Step 2: Not found locally - use product lookup plugins
-            var lookupRequest = new ProductLookupRequest { Query = query, MaxResults = 10 };
-            var lookupResult = await ApiClient.PostAsync<ProductLookupRequest, List<ProductLookupResult>>(
+            // Step 2: Not found locally - use product lookup plugins (with store integrations)
+            var lookupRequest = new ProductLookupRequest
+            {
+                Query = query,
+                MaxResults = 10,
+                IncludeStoreResults = true
+                // Note: PreferredShoppingLocationId could be set here if the user has a preferred store
+            };
+            var lookupResult = await ApiClient.PostAsync<ProductLookupRequest, ProductLookupResponse>(
                 "api/v1/products/lookup", lookupRequest);
 
-            if (lookupResult.IsSuccess && lookupResult.Data?.Count > 0)
+            if (lookupResult.IsSuccess && lookupResult.Data?.Results?.Count > 0)
             {
-                _lookupResults = lookupResult.Data;
+                _lookupResults = lookupResult.Data.Results;
             }
         }
         catch (Exception ex)
@@ -348,7 +377,7 @@
         }
     }
 
-    private async Task SelectLookupResult(ProductLookupResult result)
+    private async Task SelectLookupResult(ProductLookupResultDto result)
     {
         // Show dialog to create product from lookup result
         var parameters = new DialogParameters<CreateProductFromLookupDialog>

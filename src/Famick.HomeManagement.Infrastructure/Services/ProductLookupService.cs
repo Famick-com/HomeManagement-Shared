@@ -1,4 +1,6 @@
 using System.Text.RegularExpressions;
+using Famick.HomeManagement.Core.DTOs.ProductLookup;
+using Famick.HomeManagement.Core.DTOs.StoreIntegrations;
 using Famick.HomeManagement.Core.Interfaces;
 using Famick.HomeManagement.Core.Interfaces.Plugins;
 using Famick.HomeManagement.Domain.Entities;
@@ -69,12 +71,13 @@ public class ProductLookupService : IProductLookupService
         var context = new ProductLookupPipelineContext(cleanedQuery, searchType, maxResults);
 
         // Execute plugins in config.json order (GetAvailablePlugins preserves load order)
-        foreach (var plugin in _pluginLoader.GetAvailablePlugins())
+        foreach (var plugin in _pluginLoader.GetAvailablePlugins<IProductLookupPlugin>())
         {
             try
             {
+                _logger.LogInformation("Starting plugin {PluginId}", plugin.PluginId);
                 await plugin.ProcessPipelineAsync(context, ct);
-                _logger.LogDebug("Plugin {PluginId} processed pipeline. Result count: {Count}",
+                _logger.LogInformation("Completed plugin {PluginId}. Result count: {Count}",
                     plugin.PluginId, context.Results.Count);
             }
             catch (Exception ex)
@@ -113,8 +116,6 @@ public class ProductLookupService : IProductLookupService
             ProductId = productId
         };
 
-        nutrition.ExternalId = result.ExternalId;
-        nutrition.DataSource = result.DataSource;
         nutrition.BrandOwner = result.BrandOwner;
         nutrition.BrandName = result.BrandName;
         nutrition.Ingredients = result.Ingredients;
@@ -159,23 +160,23 @@ public class ProductLookupService : IProductLookupService
                     TenantId = tenantId,
                     ProductId = productId,
                     Barcode = result.Barcode,
-                    Note = $"From {result.DataSource}"
+                    Note = $"From {string.Join(", ", result.DataSources.Select(i => i.Key))}"
                 });
             }
         }
 
         // Add external image if available and not already present
-        if (!string.IsNullOrEmpty(result.ImageUrl))
+        if (result.ImageUrl != null)
         {
             // Check if we already have an image from this source
             var existingImage = product.Images
-                .FirstOrDefault(i => i.ExternalSource == result.DataSource);
+                .FirstOrDefault(i => i.ExternalSource == result.ImageUrl.PluginId);
 
             if (existingImage != null)
             {
                 // Update existing external image
-                existingImage.ExternalUrl = result.ImageUrl;
-                existingImage.ExternalThumbnailUrl = result.ThumbnailUrl;
+                existingImage.ExternalUrl = result.ImageUrl.ImageUrl;
+                existingImage.ExternalThumbnailUrl = result.ThumbnailUrl?.ImageUrl;
             }
             else
             {
@@ -187,11 +188,11 @@ public class ProductLookupService : IProductLookupService
                     Id = Guid.NewGuid(),
                     TenantId = tenantId,
                     ProductId = productId,
-                    ExternalUrl = result.ImageUrl,
-                    ExternalThumbnailUrl = result.ThumbnailUrl,
-                    ExternalSource = result.DataSource,
+                    ExternalUrl = result.ImageUrl.ImageUrl,
+                    ExternalThumbnailUrl = result.ThumbnailUrl?.ImageUrl,
+                    ExternalSource = result.ImageUrl.PluginId,
                     FileName = string.Empty, // No local file
-                    OriginalFileName = $"External image from {result.DataSource}",
+                    OriginalFileName = $"External image from {result.ImageUrl.PluginId}",
                     ContentType = "image/jpeg", // Assume JPEG for external images
                     FileSize = 0,
                     SortOrder = product.Images.Count,
@@ -206,6 +207,7 @@ public class ProductLookupService : IProductLookupService
     public IReadOnlyList<PluginInfo> GetAvailablePlugins()
     {
         return _pluginLoader.Plugins
+            .OfType<IProductLookupPlugin>()
             .Select(p => new PluginInfo
             {
                 PluginId = p.PluginId,

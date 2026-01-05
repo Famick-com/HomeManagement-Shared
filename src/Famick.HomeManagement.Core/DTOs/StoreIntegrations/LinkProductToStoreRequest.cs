@@ -39,4 +39,9 @@ public class LinkProductToStoreRequest
     /// Whether the product is in stock
     /// </summary>
     public bool? InStock { get; set; }
+
+    /// <summary>
+    /// URL to the product page on the store's website
+    /// </summary>
+    public string? ProductUrl { get; set; }
 }
