@@ -1,0 +1,275 @@
+@page "/equipment"
+@attribute [Authorize]
+@inject IApiClient ApiClient
+@inject NavigationManager Navigation
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+@inject ILocalizer L
+@using Famick.HomeManagement.Core.DTOs.Equipment
+@using Famick.HomeManagement.UI.Components.Equipment
+
+<MudText Typo="Typo.h4" Class="mb-4">@L["equipment.title"]</MudText>
+
+<MudPaper Elevation="1" Class="pa-4">
+    @* Desktop toolbar *@
+    <MudHidden Breakpoint="Breakpoint.SmAndDown">
+        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="3" Class="mb-4">
+            <MudTextField @bind-Value="_searchText"
+                          Placeholder="@L["common.search"]"
+                          Variant="Variant.Outlined"
+                          Margin="Margin.Dense"
+                          Adornment="Adornment.Start"
+                          AdornmentIcon="@Icons.Material.Filled.Search"
+                          Immediate="true"
+                          DebounceInterval="300"
+                          OnDebounceIntervalElapsed="OnSearchChanged"
+                          Style="max-width: 300px;" />
+
+            <MudSelect T="Guid?" @bind-Value="_categoryFilter"
+                       Label="@L["equipment.category"]"
+                       Variant="Variant.Outlined"
+                       Margin="Margin.Dense"
+                       Clearable="true"
+                       Style="max-width: 200px;">
+                @foreach (var category in _categories)
+                {
+                    <MudSelectItem T="Guid?" Value="@category.Id">@category.Name</MudSelectItem>
+                }
+            </MudSelect>
+
+            <MudSpacer />
+
+            <MudButton Variant="Variant.Text"
+                       Color="Color.Default"
+                       StartIcon="@Icons.Material.Filled.Category"
+                       OnClick="OpenCategoryDialog">
+                @L["equipment.manageCategories"]
+            </MudButton>
+
+            <MudButton Variant="Variant.Filled"
+                       Color="Color.Primary"
+                       StartIcon="@Icons.Material.Filled.Add"
+                       OnClick="NavigateToNewEquipment">
+                @L["equipment.add"]
+            </MudButton>
+        </MudStack>
+    </MudHidden>
+
+    @* Mobile toolbar *@
+    <MudHidden Breakpoint="Breakpoint.MdAndUp">
+        <MudStack Spacing="2" Class="mb-3">
+            <MudStack Row="true" Spacing="2">
+                <MudTextField @bind-Value="_searchText"
+                              Placeholder="@L["common.search"]"
+                              Variant="Variant.Outlined"
+                              Margin="Margin.Dense"
+                              Adornment="Adornment.Start"
+                              AdornmentIcon="@Icons.Material.Filled.Search"
+                              Immediate="true"
+                              DebounceInterval="300"
+                              OnDebounceIntervalElapsed="OnSearchChanged"
+                              FullWidth="true" />
+                <MudIconButton Icon="@Icons.Material.Filled.Add"
+                               Color="Color.Primary"
+                               Variant="Variant.Filled"
+                               OnClick="NavigateToNewEquipment" />
+            </MudStack>
+            <MudSelect T="Guid?" @bind-Value="_categoryFilter"
+                       Label="@L["equipment.category"]"
+                       Variant="Variant.Outlined"
+                       Margin="Margin.Dense"
+                       Clearable="true"
+                       FullWidth="true">
+                @foreach (var category in _categories)
+                {
+                    <MudSelectItem T="Guid?" Value="@category.Id">@category.Name</MudSelectItem>
+                }
+            </MudSelect>
+        </MudStack>
+    </MudHidden>
+
+    @if (_isLoading)
+    {
+        <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+    }
+    else if (_filteredEquipment.Count == 0)
+    {
+        <MudAlert Severity="Severity.Info">@L["equipment.noEquipment"]</MudAlert>
+    }
+    else
+    {
+        @* Desktop: Full DataGrid *@
+        <MudHidden Breakpoint="Breakpoint.SmAndDown">
+            <MudDataGrid T="EquipmentSummaryDto"
+                         Items="@_filteredEquipment"
+                         SortMode="SortMode.Single"
+                         Filterable="false"
+                         Hideable="false"
+                         RowClick="OnRowClick"
+                         Dense="true"
+                         Hover="true"
+                         Class="cursor-pointer">
+                <Columns>
+                    <PropertyColumn Property="x => x.Name" Title="@L["equipment.name"]" />
+                    <PropertyColumn Property="x => x.Location" Title="@L["equipment.location"]" />
+                    <PropertyColumn Property="x => x.CategoryName" Title="@L["equipment.category"]" />
+                    <TemplateColumn Title="@L["equipment.warranty"]">
+                        <CellTemplate>
+                            @if (context.Item.WarrantyExpirationDate.HasValue)
+                            {
+                                @if (context.Item.IsWarrantyExpired)
+                                {
+                                    <MudChip T="string" Size="Size.Small" Color="Color.Error">@L["equipment.expired"]</MudChip>
+                                }
+                                else if (context.Item.IsWarrantyExpiringSoon)
+                                {
+                                    <MudChip T="string" Size="Size.Small" Color="Color.Warning">@context.Item.WarrantyExpirationDate.Value.ToString("d")</MudChip>
+                                }
+                                else
+                                {
+                                    <MudText>@context.Item.WarrantyExpirationDate.Value.ToString("d")</MudText>
+                                }
+                            }
+                            else
+                            {
+                                <MudText Color="Color.Secondary">—</MudText>
+                            }
+                        </CellTemplate>
+                    </TemplateColumn>
+                    <TemplateColumn Title="@L["equipment.childEquipment"]">
+                        <CellTemplate>
+                            @if (context.Item.ChildCount > 0)
+                            {
+                                <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined">@context.Item.ChildCount</MudChip>
+                            }
+                        </CellTemplate>
+                    </TemplateColumn>
+                </Columns>
+            </MudDataGrid>
+        </MudHidden>
+
+        @* Mobile: Card list *@
+        <MudHidden Breakpoint="Breakpoint.MdAndUp">
+            <MudStack Spacing="2">
+                @foreach (var item in _filteredEquipment)
+                {
+                    <MudCard Elevation="1" Class="cursor-pointer" @onclick="() => NavigateToEquipment(item.Id)">
+                        <MudCardContent>
+                            <MudStack>
+                                <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+                                    <MudText Typo="Typo.subtitle1">@item.Name</MudText>
+                                    @if (item.WarrantyExpirationDate.HasValue)
+                                    {
+                                        @if (item.IsWarrantyExpired)
+                                        {
+                                            <MudChip T="string" Size="Size.Small" Color="Color.Error">@L["equipment.expired"]</MudChip>
+                                        }
+                                        else if (item.IsWarrantyExpiringSoon)
+                                        {
+                                            <MudChip T="string" Size="Size.Small" Color="Color.Warning">@item.WarrantyExpirationDate.Value.ToString("d")</MudChip>
+                                        }
+                                    }
+                                </MudStack>
+                                <MudStack Row="true" Spacing="3">
+                                    @if (!string.IsNullOrEmpty(item.Location))
+                                    {
+                                        <MudText Typo="Typo.body2" Color="Color.Secondary">
+                                            <MudIcon Icon="@Icons.Material.Filled.LocationOn" Size="Size.Small" Class="mr-1" />@item.Location
+                                        </MudText>
+                                    }
+                                    @if (!string.IsNullOrEmpty(item.CategoryName))
+                                    {
+                                        <MudText Typo="Typo.body2" Color="Color.Secondary">
+                                            <MudIcon Icon="@Icons.Material.Filled.Category" Size="Size.Small" Class="mr-1" />@item.CategoryName
+                                        </MudText>
+                                    }
+                                </MudStack>
+                            </MudStack>
+                        </MudCardContent>
+                    </MudCard>
+                }
+            </MudStack>
+        </MudHidden>
+    }
+</MudPaper>
+
+@* Category Management Dialog *@
+<EquipmentCategoryDialog @bind-Visible="_categoryDialogVisible" />
+
+@code {
+    private bool _isLoading = true;
+    private string _searchText = string.Empty;
+    private Guid? _categoryFilter;
+    private List<EquipmentSummaryDto> _equipment = new();
+    private List<EquipmentCategoryDto> _categories = new();
+    private bool _categoryDialogVisible = false;
+
+    private List<EquipmentSummaryDto> _filteredEquipment => _equipment
+        .Where(e => string.IsNullOrWhiteSpace(_searchText) ||
+                    e.Name.Contains(_searchText, StringComparison.OrdinalIgnoreCase) ||
+                    (e.Location?.Contains(_searchText, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                    (e.CategoryName?.Contains(_searchText, StringComparison.OrdinalIgnoreCase) ?? false))
+        .Where(e => !_categoryFilter.HasValue || e.CategoryName != null)
+        .ToList();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadDataAsync();
+    }
+
+    private async Task LoadDataAsync()
+    {
+        _isLoading = true;
+        try
+        {
+            var equipmentTask = ApiClient.GetAsync<List<EquipmentSummaryDto>>("api/v1/equipment?IncludeAllLevels=true");
+            var categoriesTask = ApiClient.GetAsync<List<EquipmentCategoryDto>>("api/v1/equipment/categories");
+
+            await Task.WhenAll(equipmentTask, categoriesTask);
+
+            if (equipmentTask.Result.IsSuccess && equipmentTask.Result.Data != null)
+            {
+                _equipment = equipmentTask.Result.Data;
+            }
+
+            if (categoriesTask.Result.IsSuccess && categoriesTask.Result.Data != null)
+            {
+                _categories = categoriesTask.Result.Data;
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error loading data: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private void OnSearchChanged(string value)
+    {
+        _searchText = value;
+        StateHasChanged();
+    }
+
+    private void NavigateToNewEquipment()
+    {
+        Navigation.NavigateTo("/equipment/new");
+    }
+
+    private void NavigateToEquipment(Guid id)
+    {
+        Navigation.NavigateTo($"/equipment/{id}");
+    }
+
+    private void OnRowClick(DataGridRowClickEventArgs<EquipmentSummaryDto> args)
+    {
+        NavigateToEquipment(args.Item.Id);
+    }
+
+    private void OpenCategoryDialog()
+    {
+        _categoryDialogVisible = true;
+    }
+}

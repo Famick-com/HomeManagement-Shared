@@ -1,0 +1,611 @@
+@page "/equipment/new"
+@page "/equipment/{Id:guid}"
+@attribute [Authorize]
+@inject IApiClient ApiClient
+@inject NavigationManager Navigation
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+@inject ILocalizer L
+@inject IJSRuntime JS
+@using Famick.HomeManagement.Core.DTOs.Equipment
+@using Microsoft.AspNetCore.Components.Forms
+
+<MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-4">
+    <MudIconButton Icon="@Icons.Material.Filled.ArrowBack"
+                   OnClick="NavigateBack" />
+    <MudText Typo="Typo.h4">
+        @(IsNew ? L["equipment.add"] : _equipment?.Name ?? L["equipment.edit"])
+    </MudText>
+</MudStack>
+
+@if (_isLoading)
+{
+    <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+}
+else
+{
+    <MudGrid Spacing="3">
+        @* Left column: Equipment Info *@
+        <MudItem xs="12" md="6">
+            <MudPaper Elevation="1" Class="pa-4">
+                <MudText Typo="Typo.h6" Class="mb-3">@L["common.details"]</MudText>
+                <MudForm @ref="_form">
+                    <MudStack Spacing="3">
+                        <MudTextField @bind-Value="_model.Name"
+                                      Label="@L["equipment.name"]"
+                                      Required="true"
+                                      RequiredError="@L["validation.required"]"
+                                      Variant="Variant.Outlined" />
+
+                        <MudTextField @bind-Value="_model.Description"
+                                      Label="@L["equipment.description"]"
+                                      Variant="Variant.Outlined"
+                                      Lines="2" />
+
+                        <MudTextField @bind-Value="_model.Location"
+                                      Label="@L["equipment.location"]"
+                                      HelperText="@L["equipment.locationHelp"]"
+                                      Variant="Variant.Outlined" />
+
+                        <MudGrid>
+                            <MudItem xs="12" md="6">
+                                <MudTextField @bind-Value="_model.ModelNumber"
+                                              Label="@L["equipment.modelNumber"]"
+                                              Variant="Variant.Outlined" />
+                            </MudItem>
+                            <MudItem xs="12" md="6">
+                                <MudTextField @bind-Value="_model.SerialNumber"
+                                              Label="@L["equipment.serialNumber"]"
+                                              Variant="Variant.Outlined" />
+                            </MudItem>
+                        </MudGrid>
+
+                        <MudGrid>
+                            <MudItem xs="12" md="6">
+                                <MudDatePicker @bind-Date="_purchaseDate"
+                                               Label="@L["equipment.purchaseDate"]"
+                                               Variant="Variant.Outlined" />
+                            </MudItem>
+                            <MudItem xs="12" md="6">
+                                <MudTextField @bind-Value="_model.PurchaseLocation"
+                                              Label="@L["equipment.purchaseLocation"]"
+                                              Variant="Variant.Outlined" />
+                            </MudItem>
+                        </MudGrid>
+
+                        <MudGrid>
+                            <MudItem xs="12" md="6">
+                                <MudDatePicker @bind-Date="_warrantyExpirationDate"
+                                               Label="@L["equipment.warrantyExpiration"]"
+                                               Variant="Variant.Outlined" />
+                            </MudItem>
+                            <MudItem xs="12" md="6">
+                                <MudTextField @bind-Value="_model.WarrantyContactInfo"
+                                              Label="@L["equipment.warrantyContact"]"
+                                              Variant="Variant.Outlined" />
+                            </MudItem>
+                        </MudGrid>
+
+                        <MudSelect T="Guid?" @bind-Value="_model.CategoryId"
+                                   Label="@L["equipment.category"]"
+                                   Variant="Variant.Outlined"
+                                   Clearable="true">
+                            @foreach (var category in _categories)
+                            {
+                                <MudSelectItem T="Guid?" Value="@category.Id">@category.Name</MudSelectItem>
+                            }
+                        </MudSelect>
+
+                        <MudSelect T="Guid?" @bind-Value="_model.ParentEquipmentId"
+                                   Label="@L["equipment.parent"]"
+                                   HelperText="@L["equipment.parentHelp"]"
+                                   Variant="Variant.Outlined"
+                                   Clearable="true">
+                            @foreach (var item in _parentOptions)
+                            {
+                                <MudSelectItem T="Guid?" Value="@item.Id">@item.Name</MudSelectItem>
+                            }
+                        </MudSelect>
+
+                        <MudTextField @bind-Value="_model.Notes"
+                                      Label="@L["equipment.notes"]"
+                                      Variant="Variant.Outlined"
+                                      Lines="3" />
+
+                        <MudStack Row="true" Justify="Justify.FlexEnd" Spacing="2">
+                            @if (!IsNew)
+                            {
+                                <MudButton Variant="Variant.Outlined"
+                                           Color="Color.Error"
+                                           OnClick="DeleteEquipment">
+                                    @L["common.delete"]
+                                </MudButton>
+                            }
+                            <MudButton Variant="Variant.Filled"
+                                       Color="Color.Primary"
+                                       OnClick="SaveEquipment"
+                                       Disabled="@_isSaving">
+                                @if (_isSaving)
+                                {
+                                    <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                                }
+                                @L["common.save"]
+                            </MudButton>
+                        </MudStack>
+                    </MudStack>
+                </MudForm>
+            </MudPaper>
+
+            @* Child Equipment Section - Only for existing equipment *@
+            @if (!IsNew && _equipment?.ChildEquipment?.Any() == true)
+            {
+                <MudPaper Elevation="1" Class="pa-4 mt-3">
+                    <MudText Typo="Typo.h6" Class="mb-3">@L["equipment.childEquipment"]</MudText>
+                    <MudList T="EquipmentSummaryDto" Dense="true">
+                        @foreach (var child in _equipment.ChildEquipment)
+                        {
+                            <MudListItem T="EquipmentSummaryDto" OnClick="() => NavigateToEquipment(child.Id)">
+                                <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Style="width: 100%;">
+                                    <MudText>@child.Name</MudText>
+                                    @if (!string.IsNullOrEmpty(child.Location))
+                                    {
+                                        <MudText Typo="Typo.caption" Color="Color.Secondary">@child.Location</MudText>
+                                    }
+                                </MudStack>
+                            </MudListItem>
+                        }
+                    </MudList>
+                </MudPaper>
+            }
+        </MudItem>
+
+        @* Right column: Documents *@
+        <MudItem xs="12" md="6">
+            <MudPaper Elevation="1" Class="pa-4">
+                <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="mb-3">
+                    <MudText Typo="Typo.h6">@L["equipment.documents.title"]</MudText>
+                    @if (!IsNew)
+                    {
+                        <MudFileUpload T="IBrowserFile"
+                                       Accept=".pdf,.jpg,.jpeg,.png,.gif,.webp,.doc,.docx,.xls,.xlsx,.txt"
+                                       FilesChanged="UploadDocument"
+                                       MaximumFileCount="1">
+                            <ActivatorContent>
+                                <MudButton Variant="Variant.Outlined"
+                                           Color="Color.Primary"
+                                           StartIcon="@Icons.Material.Filled.Upload"
+                                           Size="Size.Small"
+                                           Disabled="@_isUploading">
+                                    @if (_isUploading)
+                                    {
+                                        <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                                    }
+                                    @L["equipment.documents.upload"]
+                                </MudButton>
+                            </ActivatorContent>
+                        </MudFileUpload>
+                    }
+                </MudStack>
+
+                @if (IsNew)
+                {
+                    <MudAlert Severity="Severity.Info">
+                        Save the equipment first to upload documents.
+                    </MudAlert>
+                }
+                else if (_documents.Count == 0)
+                {
+                    <MudAlert Severity="Severity.Info">@L["equipment.documents.noDocuments"]</MudAlert>
+                }
+                else
+                {
+                    <MudStack Spacing="2">
+                        <MudSelect T="EquipmentDocumentDto"
+                                   Value="_previewDocument"
+                                   ValueChanged="OnDocumentSelected"
+                                   Label="Select a document to preview"
+                                   Variant="Variant.Outlined"
+                                   AnchorOrigin="Origin.BottomCenter"
+                                   ToStringFunc="@(doc => doc?.DisplayName ?? doc?.OriginalFileName ?? "")">
+                            @foreach (var doc in _documents)
+                            {
+                                <MudSelectItem T="EquipmentDocumentDto" Value="@doc">
+                                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                        <MudIcon Icon="@GetDocumentIcon(doc.ContentType)" Size="Size.Small" />
+                                        <span>@(doc.DisplayName ?? doc.OriginalFileName)</span>
+                                        @if (!string.IsNullOrEmpty(doc.TagName))
+                                        {
+                                            <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined">@doc.TagName</MudChip>
+                                        }
+                                        <MudText Typo="Typo.caption" Color="Color.Secondary">@FormatFileSize(doc.FileSize)</MudText>
+                                    </MudStack>
+                                </MudSelectItem>
+                            }
+                        </MudSelect>
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">
+                            @_documents.Count document(s) attached
+                        </MudText>
+                    </MudStack>
+                }
+
+                @* Document Preview Panel *@
+                @if (_previewDocument != null)
+                {
+                    <MudDivider Class="my-3" />
+                    <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="mb-2">
+                        <MudText Typo="Typo.subtitle1">@(_previewDocument.DisplayName ?? _previewDocument.OriginalFileName)</MudText>
+                        <MudStack Row="true" Spacing="1">
+                            <MudTooltip Text="Download">
+                                <MudIconButton Icon="@Icons.Material.Filled.Download"
+                                               Color="Color.Primary"
+                                               Size="Size.Small"
+                                               OnClick="() => DownloadDocument(_previewDocument)" />
+                            </MudTooltip>
+                            <MudTooltip Text="Delete">
+                                <MudIconButton Icon="@Icons.Material.Filled.Delete"
+                                               Color="Color.Error"
+                                               Size="Size.Small"
+                                               OnClick="() => DeleteDocument(_previewDocument)" />
+                            </MudTooltip>
+                        </MudStack>
+                    </MudStack>
+
+                    @if (IsImageType(_previewDocument.ContentType))
+                    {
+                        <MudImage Src="@_previewDocument.Url"
+                                  Alt="@_previewDocument.OriginalFileName"
+                                  Style="max-width: 100%; max-height: 500px; object-fit: contain;"
+                                  Elevation="0" />
+                    }
+                    else if (_previewDocument.ContentType == "application/pdf")
+                    {
+                        <iframe src="@_previewDocument.Url"
+                                style="width: 100%; height: 500px; border: 1px solid var(--mud-palette-lines-default);">
+                        </iframe>
+                    }
+                    else
+                    {
+                        <MudStack AlignItems="AlignItems.Center" Class="pa-4">
+                            <MudIcon Icon="@GetDocumentIcon(_previewDocument.ContentType)"
+                                     Size="Size.Large"
+                                     Color="Color.Secondary" />
+                            <MudText Typo="Typo.body2" Color="Color.Secondary">
+                                Preview not available for this file type
+                            </MudText>
+                            <MudButton Variant="Variant.Filled"
+                                       Color="Color.Primary"
+                                       StartIcon="@Icons.Material.Filled.Download"
+                                       OnClick="() => DownloadDocument(_previewDocument)">
+                                Download
+                            </MudButton>
+                        </MudStack>
+                    }
+                }
+            </MudPaper>
+        </MudItem>
+    </MudGrid>
+}
+
+@code {
+    [Parameter] public Guid? Id { get; set; }
+
+    private bool IsNew => Id == null;
+
+    private MudForm _form = null!;
+    private bool _isLoading = true;
+    private bool _isSaving = false;
+    private bool _isUploading = false;
+
+    private EquipmentDto? _equipment;
+    private CreateEquipmentRequest _model = new();
+    private DateTime? _purchaseDate;
+    private DateTime? _warrantyExpirationDate;
+    private List<EquipmentCategoryDto> _categories = new();
+    private List<EquipmentSummaryDto> _parentOptions = new();
+    private List<EquipmentDocumentDto> _documents = new();
+    private List<EquipmentDocumentTagDto> _tags = new();
+    private EquipmentDocumentDto? _previewDocument;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadDataAsync();
+    }
+
+    private async Task LoadDataAsync()
+    {
+        _isLoading = true;
+        try
+        {
+            // Load categories and parent options in parallel
+            var categoriesTask = ApiClient.GetAsync<List<EquipmentCategoryDto>>("api/v1/equipment/categories");
+            var parentsTask = ApiClient.GetAsync<List<EquipmentSummaryDto>>("api/v1/equipment?IncludeAllLevels=true");
+            var tagsTask = ApiClient.GetAsync<List<EquipmentDocumentTagDto>>("api/v1/equipment/document-tags");
+
+            await Task.WhenAll(categoriesTask, parentsTask, tagsTask);
+
+            if (categoriesTask.Result.IsSuccess && categoriesTask.Result.Data != null)
+            {
+                _categories = categoriesTask.Result.Data;
+            }
+
+            if (parentsTask.Result.IsSuccess && parentsTask.Result.Data != null)
+            {
+                // Filter out current item when editing to prevent circular references
+                _parentOptions = Id.HasValue
+                    ? parentsTask.Result.Data.Where(e => e.Id != Id.Value).ToList()
+                    : parentsTask.Result.Data;
+            }
+
+            if (tagsTask.Result.IsSuccess && tagsTask.Result.Data != null)
+            {
+                _tags = tagsTask.Result.Data;
+            }
+
+            // Load equipment if editing
+            if (!IsNew)
+            {
+                var result = await ApiClient.GetAsync<EquipmentDto>($"api/v1/equipment/{Id}");
+                if (result.IsSuccess && result.Data != null)
+                {
+                    _equipment = result.Data;
+                    _model = new CreateEquipmentRequest
+                    {
+                        Name = _equipment.Name,
+                        Description = _equipment.Description,
+                        Location = _equipment.Location,
+                        ModelNumber = _equipment.ModelNumber,
+                        SerialNumber = _equipment.SerialNumber,
+                        PurchaseDate = _equipment.PurchaseDate,
+                        PurchaseLocation = _equipment.PurchaseLocation,
+                        WarrantyExpirationDate = _equipment.WarrantyExpirationDate,
+                        WarrantyContactInfo = _equipment.WarrantyContactInfo,
+                        Notes = _equipment.Notes,
+                        CategoryId = _equipment.CategoryId,
+                        ParentEquipmentId = _equipment.ParentEquipmentId
+                    };
+                    _purchaseDate = _equipment.PurchaseDate;
+                    _warrantyExpirationDate = _equipment.WarrantyExpirationDate;
+                    _documents = _equipment.Documents ?? new();
+                }
+                else
+                {
+                    Snackbar.Add("Equipment not found", Severity.Error);
+                    Navigation.NavigateTo("/equipment");
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error loading data: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private async Task SaveEquipment()
+    {
+        await _form.Validate();
+        if (!_form.IsValid)
+            return;
+
+        _isSaving = true;
+        try
+        {
+            _model.PurchaseDate = _purchaseDate;
+            _model.WarrantyExpirationDate = _warrantyExpirationDate;
+
+            if (IsNew)
+            {
+                var result = await ApiClient.PostAsync<CreateEquipmentRequest, EquipmentDto>("api/v1/equipment", _model);
+                if (result.IsSuccess && result.Data != null)
+                {
+                    Snackbar.Add(L["equipment.created"], Severity.Success);
+                    Navigation.NavigateTo($"/equipment/{result.Data.Id}");
+                }
+                else
+                {
+                    Snackbar.Add(result.ErrorMessage ?? L["common.error"], Severity.Error);
+                }
+            }
+            else
+            {
+                var updateRequest = new UpdateEquipmentRequest
+                {
+                    Name = _model.Name,
+                    Description = _model.Description,
+                    Location = _model.Location,
+                    ModelNumber = _model.ModelNumber,
+                    SerialNumber = _model.SerialNumber,
+                    PurchaseDate = _model.PurchaseDate,
+                    PurchaseLocation = _model.PurchaseLocation,
+                    WarrantyExpirationDate = _model.WarrantyExpirationDate,
+                    WarrantyContactInfo = _model.WarrantyContactInfo,
+                    Notes = _model.Notes,
+                    CategoryId = _model.CategoryId,
+                    ParentEquipmentId = _model.ParentEquipmentId
+                };
+
+                var result = await ApiClient.PutAsync<UpdateEquipmentRequest, EquipmentDto>($"api/v1/equipment/{Id}", updateRequest);
+                if (result.IsSuccess)
+                {
+                    Snackbar.Add(L["equipment.updated"], Severity.Success);
+                }
+                else
+                {
+                    Snackbar.Add(result.ErrorMessage ?? L["common.error"], Severity.Error);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error saving: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isSaving = false;
+        }
+    }
+
+    private async Task DeleteEquipment()
+    {
+        var confirmed = await DialogService.ShowMessageBox(
+            L["confirmations.deleteTitle"],
+            L["equipment.confirmDelete"],
+            yesText: L["common.delete"],
+            cancelText: L["common.cancel"]);
+
+        if (confirmed != true) return;
+
+        try
+        {
+            var result = await ApiClient.DeleteAsync($"api/v1/equipment/{Id}");
+            if (result.IsSuccess)
+            {
+                Snackbar.Add(L["equipment.deleted"], Severity.Success);
+                Navigation.NavigateTo("/equipment");
+            }
+            else
+            {
+                Snackbar.Add(result.ErrorMessage ?? L["common.error"], Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error deleting: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task UploadDocument(IBrowserFile file)
+    {
+        if (file == null || Id == null) return;
+
+        _isUploading = true;
+        try
+        {
+            using var content = new MultipartFormDataContent();
+            using var stream = file.OpenReadStream(maxAllowedSize: 20 * 1024 * 1024);
+            using var memoryStream = new MemoryStream();
+            await stream.CopyToAsync(memoryStream);
+            memoryStream.Position = 0;
+
+            var fileContent = new StreamContent(memoryStream);
+            fileContent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(file.ContentType);
+            content.Add(fileContent, "file", file.Name);
+
+            var result = await ApiClient.PostMultipartAsync<EquipmentDocumentDto>($"api/v1/equipment/{Id}/documents", content);
+            if (result.IsSuccess && result.Data != null)
+            {
+                Snackbar.Add(L["equipment.documents.uploaded"], Severity.Success);
+                _documents.Add(result.Data);
+            }
+            else
+            {
+                Snackbar.Add(result.ErrorMessage ?? L["common.error"], Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error uploading: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isUploading = false;
+        }
+    }
+
+    private void PreviewDocument(EquipmentDocumentDto doc)
+    {
+        _previewDocument = doc;
+    }
+
+    private void OnDocumentSelected(EquipmentDocumentDto doc)
+    {
+        _previewDocument = doc;
+    }
+
+    private async Task DownloadDocument(EquipmentDocumentDto doc)
+    {
+        await JS.InvokeVoidAsync("open", doc.Url, "_blank");
+    }
+
+    private void ClosePreview()
+    {
+        _previewDocument = null;
+    }
+
+    private async Task DeleteDocument(EquipmentDocumentDto doc)
+    {
+        var confirmed = await DialogService.ShowMessageBox(
+            L["confirmations.deleteTitle"],
+            L["equipment.documents.confirmDelete"],
+            yesText: L["common.delete"],
+            cancelText: L["common.cancel"]);
+
+        if (confirmed != true) return;
+
+        try
+        {
+            var result = await ApiClient.DeleteAsync($"api/v1/equipment/documents/{doc.Id}");
+            if (result.IsSuccess)
+            {
+                Snackbar.Add(L["equipment.documents.deleted"], Severity.Success);
+                _documents.Remove(doc);
+                if (_previewDocument?.Id == doc.Id)
+                {
+                    _previewDocument = null;
+                }
+            }
+            else
+            {
+                Snackbar.Add(result.ErrorMessage ?? L["common.error"], Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error deleting: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private void NavigateBack()
+    {
+        Navigation.NavigateTo("/equipment");
+    }
+
+    private void NavigateToEquipment(Guid id)
+    {
+        Navigation.NavigateTo($"/equipment/{id}");
+    }
+
+    private static string GetDocumentIcon(string contentType)
+    {
+        return contentType switch
+        {
+            "application/pdf" => Icons.Material.Filled.PictureAsPdf,
+            "image/jpeg" or "image/png" or "image/gif" or "image/webp" => Icons.Material.Filled.Image,
+            "application/msword" or "application/vnd.openxmlformats-officedocument.wordprocessingml.document" => Icons.Material.Filled.Description,
+            "application/vnd.ms-excel" or "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" => Icons.Material.Filled.TableChart,
+            "text/plain" => Icons.Material.Filled.TextSnippet,
+            _ => Icons.Material.Filled.InsertDriveFile
+        };
+    }
+
+    private static bool IsImageType(string contentType)
+    {
+        return contentType.StartsWith("image/");
+    }
+
+    private static string FormatFileSize(long bytes)
+    {
+        string[] sizes = { "B", "KB", "MB", "GB" };
+        int order = 0;
+        double size = bytes;
+        while (size >= 1024 && order < sizes.Length - 1)
+        {
+            order++;
+            size /= 1024;
+        }
+        return $"{size:0.##} {sizes[order]}";
+    }
+}

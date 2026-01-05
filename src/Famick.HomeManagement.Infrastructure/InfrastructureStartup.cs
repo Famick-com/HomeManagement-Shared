@@ -45,6 +45,7 @@ public static class InfrastructureStartup
         services.AddScoped<IProductsService, ProductsService>();
         services.AddScoped<IStockService, StockService>();
         services.AddScoped<IHomeService, HomeService>();
+        services.AddScoped<IEquipmentService, EquipmentService>();
 
         // Configure plugin system
         services.Configure<Plugins.PluginLoaderOptions>(options =>
@@ -101,6 +102,10 @@ public static class InfrastructureStartup
             {
                 await seeder.SeedDefaultDataAsync(tenantProvider.TenantId.Value);
             }
+
+            // Seed default equipment document tags
+            var equipmentService = scope.ServiceProvider.GetRequiredService<IEquipmentService>();
+            await equipmentService.SeedDefaultTagsAsync();
         }
 
         // Load plugins on startup

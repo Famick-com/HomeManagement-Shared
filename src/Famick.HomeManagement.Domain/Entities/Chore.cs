@@ -73,6 +73,11 @@ namespace Famick.HomeManagement.Domain.Entities
         /// </summary>
         public decimal? ProductAmount { get; set; }
 
+        /// <summary>
+        /// Optional equipment this chore is associated with (for maintenance tasks)
+        /// </summary>
+        public Guid? EquipmentId { get; set; }
+
         // Navigation properties
         /// <summary>
         /// Product to consume on execution (if specified)
@@ -83,6 +88,11 @@ namespace Famick.HomeManagement.Domain.Entities
         /// User assigned to next execution (if specified)
         /// </summary>
         public virtual User? NextExecutionAssignedToUser { get; set; }
+
+        /// <summary>
+        /// Equipment associated with this chore (for maintenance tasks)
+        /// </summary>
+        public virtual Equipment? Equipment { get; set; }
 
         /// <summary>
         /// Execution log entries for this chore

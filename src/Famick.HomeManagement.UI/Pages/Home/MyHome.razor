@@ -1,11 +1,14 @@
 @page "/my-home"
 @attribute [Authorize]
 @inject IApiClient ApiClient
+@inject NavigationManager Navigation
 @inject ISnackbar Snackbar
 @inject ILocalizer L
 @using Famick.HomeManagement.Core.DTOs.Home
+@using Famick.HomeManagement.Core.DTOs.Equipment
 @using Famick.HomeManagement.Domain.Enums
 @using Famick.HomeManagement.UI.Components.Home
+@using Famick.HomeManagement.UI.Components.Equipment
 
 <MudText Typo="Typo.h4" Class="mb-4">@L["home.title"]</MudText>
 
@@ -436,6 +439,87 @@ else if (_home != null)
                         </MudStack>
                     }
                 </MudExpansionPanel>
+
+                @* Equipment *@
+                <MudExpansionPanel Text="@L["equipment.title"]">
+                    <MudStack Spacing="2">
+                        <MudStack Row="true" Justify="Justify.FlexEnd" Spacing="2">
+                            <MudButton Variant="Variant.Text"
+                                       Color="Color.Default"
+                                       StartIcon="@Icons.Material.Filled.Category"
+                                       OnClick="OpenCategoryDialog"
+                                       Size="Size.Small">
+                                @L["equipment.manageCategories"]
+                            </MudButton>
+                            <MudButton Variant="Variant.Outlined"
+                                       Color="Color.Primary"
+                                       StartIcon="@Icons.Material.Filled.Add"
+                                       OnClick="OpenAddEquipmentDialog"
+                                       Size="Size.Small">
+                                @L["equipment.add"]
+                            </MudButton>
+                        </MudStack>
+
+                        @if (_isLoadingEquipment)
+                        {
+                            <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+                        }
+                        else if (_equipment.Count == 0)
+                        {
+                            <MudAlert Severity="Severity.Info">@L["equipment.noEquipment"]</MudAlert>
+                        }
+                        else
+                        {
+                            <MudDataGrid T="EquipmentSummaryDto"
+                                         Items="@_equipment"
+                                         Dense="true"
+                                         Hover="true">
+                                <Columns>
+                                    <PropertyColumn Property="x => x.Name" Title="@L["equipment.name"]" />
+                                    <PropertyColumn Property="x => x.Location" Title="@L["equipment.location"]" />
+                                    <PropertyColumn Property="x => x.CategoryName" Title="@L["equipment.category"]" />
+                                    <TemplateColumn Title="@L["equipment.warranty"]">
+                                        <CellTemplate>
+                                            @if (context.Item.WarrantyExpirationDate.HasValue)
+                                            {
+                                                @if (context.Item.IsWarrantyExpired)
+                                                {
+                                                    <MudChip T="string" Size="Size.Small" Color="Color.Error">@L["equipment.expired"]</MudChip>
+                                                }
+                                                else if (context.Item.IsWarrantyExpiringSoon)
+                                                {
+                                                    <MudChip T="string" Size="Size.Small" Color="Color.Warning">@context.Item.WarrantyExpirationDate.Value.ToString("d")</MudChip>
+                                                }
+                                                else
+                                                {
+                                                    <MudText>@context.Item.WarrantyExpirationDate.Value.ToString("d")</MudText>
+                                                }
+                                            }
+                                            else
+                                            {
+                                                <MudText Color="Color.Secondary">—</MudText>
+                                            }
+                                        </CellTemplate>
+                                    </TemplateColumn>
+                                    <TemplateColumn Title="@L["common.actions"]" Sortable="false">
+                                        <CellTemplate>
+                                            <MudStack Row="true" Spacing="1">
+                                                <MudIconButton Icon="@Icons.Material.Filled.Edit"
+                                                               Size="Size.Small"
+                                                               Color="Color.Primary"
+                                                               OnClick="@(() => NavigateToEquipment(context.Item.Id))" />
+                                                <MudIconButton Icon="@Icons.Material.Filled.Delete"
+                                                               Size="Size.Small"
+                                                               Color="Color.Error"
+                                                               OnClick="@(() => DeleteEquipment(context.Item))" />
+                                            </MudStack>
+                                        </CellTemplate>
+                                    </TemplateColumn>
+                                </Columns>
+                            </MudDataGrid>
+                        }
+                    </MudStack>
+                </MudExpansionPanel>
             </MudExpansionPanels>
         </MudPaper>
     </MudStack>
@@ -445,6 +529,9 @@ else if (_home != null)
 <HomeUtilityDialog @bind-Visible="_utilityDialogVisible"
                    Utility="_editingUtility"
                    OnSave="HandleUtilitySave" />
+
+@* Equipment Category Dialog *@
+<EquipmentCategoryDialog @bind-Visible="_categoryDialogVisible" />
 
 @code {
     private bool _isLoading = true;
@@ -458,6 +545,11 @@ else if (_home != null)
     // Utility dialog state
     private bool _utilityDialogVisible = false;
     private HomeUtilityDto? _editingUtility;
+
+    // Equipment state
+    private bool _isLoadingEquipment = false;
+    private List<EquipmentSummaryDto> _equipment = new();
+    private bool _categoryDialogVisible = false;
 
     protected override async Task OnInitializedAsync()
     {
@@ -483,6 +575,9 @@ else if (_home != null)
                     _home = homeResult.Data;
                     CopyHomeToEditModel();
                 }
+
+                // Load equipment
+                await LoadEquipmentAsync();
             }
         }
         catch (Exception ex)
@@ -625,4 +720,58 @@ else if (_home != null)
     {
         public bool IsSetupComplete { get; set; }
     }
+
+    #region Equipment Methods
+
+    private async Task LoadEquipmentAsync()
+    {
+        _isLoadingEquipment = true;
+        try
+        {
+            var result = await ApiClient.GetAsync<List<EquipmentSummaryDto>>("api/v1/equipment?IncludeAllLevels=true");
+            if (result.IsSuccess && result.Data != null)
+            {
+                _equipment = result.Data;
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error loading equipment: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isLoadingEquipment = false;
+        }
+    }
+
+    private void OpenCategoryDialog()
+    {
+        _categoryDialogVisible = true;
+    }
+
+    private void OpenAddEquipmentDialog()
+    {
+        Navigation.NavigateTo("/equipment/new");
+    }
+
+    private void NavigateToEquipment(Guid id)
+    {
+        Navigation.NavigateTo($"/equipment/{id}");
+    }
+
+    private async Task DeleteEquipment(EquipmentSummaryDto equipment)
+    {
+        var result = await ApiClient.DeleteAsync($"api/v1/equipment/{equipment.Id}");
+        if (result.IsSuccess)
+        {
+            Snackbar.Add(L["equipment.deleted"], Severity.Success);
+            await LoadEquipmentAsync();
+        }
+        else
+        {
+            Snackbar.Add(result.ErrorMessage ?? L["common.error"], Severity.Error);
+        }
+    }
+
+    #endregion
 }

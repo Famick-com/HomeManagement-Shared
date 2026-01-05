@@ -75,6 +75,12 @@ public class HomeManagementDbContext : DbContext
     public DbSet<Home> Homes => Set<Home>();
     public DbSet<HomeUtility> HomeUtilities => Set<HomeUtility>();
 
+    // Equipment
+    public DbSet<Equipment> Equipment => Set<Equipment>();
+    public DbSet<EquipmentCategory> EquipmentCategories => Set<EquipmentCategory>();
+    public DbSet<EquipmentDocument> EquipmentDocuments => Set<EquipmentDocument>();
+    public DbSet<EquipmentDocumentTag> EquipmentDocumentTags => Set<EquipmentDocumentTag>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -185,16 +191,18 @@ public class HomeManagementDbContext : DbContext
     private void UpdateEntityTimestamps()
     {
         var entries = ChangeTracker.Entries<IEntity>();
+        var now = DateTime.UtcNow;
 
         foreach (var entry in entries)
         {
             if (entry.State == EntityState.Added)
             {
-                entry.Entity.CreatedAt = DateTime.UtcNow;
+                entry.Entity.CreatedAt = now;
+                entry.Entity.UpdatedAt = now;
             }
             else if (entry.State == EntityState.Modified)
             {
-                entry.Entity.UpdatedAt = DateTime.UtcNow;
+                entry.Entity.UpdatedAt = now;
             }
         }
     }

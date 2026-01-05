@@ -1,0 +1,23 @@
+namespace Famick.HomeManagement.Core.DTOs.Equipment;
+
+/// <summary>
+/// Hierarchical equipment tree node for tree view display
+/// </summary>
+public class EquipmentTreeDto
+{
+    public Guid Id { get; set; }
+    public string Name { get; set; } = string.Empty;
+    public string? Location { get; set; }
+    public string? CategoryName { get; set; }
+    public DateTime? WarrantyExpirationDate { get; set; }
+
+    /// <summary>
+    /// Whether the warranty has expired
+    /// </summary>
+    public bool IsWarrantyExpired => WarrantyExpirationDate.HasValue && WarrantyExpirationDate.Value < DateTime.UtcNow;
+
+    /// <summary>
+    /// Child equipment in the hierarchy
+    /// </summary>
+    public List<EquipmentTreeDto> Children { get; set; } = new();
+}
