@@ -363,6 +363,7 @@
         _hasSearched = true;
         _searchResults.Clear();
         _storeStatuses.Clear();
+        StateHasChanged(); // Force re-render to show loading indicator
 
         try
         {
