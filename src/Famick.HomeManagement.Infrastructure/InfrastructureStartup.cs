@@ -44,6 +44,7 @@ public static class InfrastructureStartup
         services.AddScoped<IChoreService, ChoreService>();
         services.AddScoped<IProductsService, ProductsService>();
         services.AddScoped<IStockService, StockService>();
+        services.AddScoped<IHomeService, HomeService>();
 
         // Configure plugin system
         services.Configure<Plugins.PluginLoaderOptions>(options =>
