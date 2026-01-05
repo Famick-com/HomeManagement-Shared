@@ -46,7 +46,11 @@ public class ProductLookupService : IProductLookupService
         return BarcodePattern.IsMatch(cleaned);
     }
 
-    public async Task<List<ProductLookupResult>> SearchAsync(string query, int maxResults = 20, CancellationToken ct = default)
+    public async Task<List<ProductLookupResult>> SearchAsync(
+        string query,
+        int maxResults = 20,
+        ProductSearchMode searchMode = ProductSearchMode.AllSources,
+        CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(query))
         {
@@ -70,8 +74,22 @@ public class ProductLookupService : IProductLookupService
         // Create pipeline context
         var context = new ProductLookupPipelineContext(cleanedQuery, searchType, maxResults);
 
+        // Get all available product lookup plugins
+        var allPlugins = _pluginLoader.GetAvailablePlugins<IProductLookupPlugin>();
+
+        // Filter plugins based on search mode
+        IEnumerable<IProductLookupPlugin> pluginsToRun = searchMode switch
+        {
+            ProductSearchMode.StoreIntegrationsOnly =>
+                allPlugins.Where(p => p is IStoreIntegrationPlugin),
+            _ => allPlugins
+        };
+
+        _logger.LogInformation("Searching with mode {SearchMode}, {PluginCount} plugins selected",
+            searchMode, pluginsToRun.Count());
+
         // Execute plugins in config.json order (GetAvailablePlugins preserves load order)
-        foreach (var plugin in _pluginLoader.GetAvailablePlugins<IProductLookupPlugin>())
+        foreach (var plugin in pluginsToRun)
         {
             try
             {

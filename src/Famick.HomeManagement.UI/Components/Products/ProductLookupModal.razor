@@ -2,6 +2,7 @@
 @using Famick.HomeManagement.Core.Interfaces.Plugins
 @using Famick.HomeManagement.Core.DTOs.ProductLookup
 @using Famick.HomeManagement.Core.DTOs.ShoppingLocations
+@using Famick.HomeManagement.Core.DTOs.StoreIntegrations
 @inject IApiClient ApiClient
 @inject IBarcodeScannerService BarcodeScanner
 @inject ISnackbar Snackbar
@@ -38,6 +39,31 @@
                     </MudTooltip>
                 }
             </MudStack>
+
+            @* Search mode toggle (only show if connected store integrations exist) *@
+            @if (_hasConnectedStoreIntegrations)
+            {
+                <MudToggleGroup T="ProductSearchMode"
+                                @bind-Value="_searchMode"
+                                Color="Color.Primary"
+                                Size="Size.Small"
+                                Rounded="true"
+                                CheckMark="true"
+                                Class="mb-1">
+                    <MudToggleItem Value="ProductSearchMode.StoreIntegrationsOnly">
+                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                            <MudIcon Icon="@Icons.Material.Filled.Store" Size="Size.Small" />
+                            <MudText Typo="Typo.body2">@L["productLookup.myStores"]</MudText>
+                        </MudStack>
+                    </MudToggleItem>
+                    <MudToggleItem Value="ProductSearchMode.AllSources">
+                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                            <MudIcon Icon="@Icons.Material.Filled.Search" Size="Size.Small" />
+                            <MudText Typo="Typo.body2">@L["productLookup.allSources"]</MudText>
+                        </MudStack>
+                    </MudToggleItem>
+                </MudToggleGroup>
+            }
 
             @* Store selector (only show if there are stores with integrations) *@
             @if (_shoppingLocations.Count > 0)
@@ -251,11 +277,16 @@
     private List<StoreConnectionStatus> _storeStatuses = new();
     private List<ShoppingLocationDto> _shoppingLocations = new();
     private Guid? _selectedShoppingLocationId;
+    private bool _hasConnectedStoreIntegrations;
+    private ProductSearchMode _searchMode = ProductSearchMode.AllSources;
 
     protected override async Task OnInitializedAsync()
     {
         // Load shopping locations with store integrations
         await LoadShoppingLocationsAsync();
+
+        // Check for connected store integrations
+        await CheckConnectedStoreIntegrationsAsync();
 
         // Set initial selection from parameter
         _selectedShoppingLocationId = PreferredShoppingLocationId;
@@ -264,6 +295,32 @@
         {
             _searchQuery = InitialQuery;
             await SearchAsync();
+        }
+    }
+
+    private async Task CheckConnectedStoreIntegrationsAsync()
+    {
+        try
+        {
+            var result = await ApiClient.GetAsync<List<StoreIntegrationPluginInfo>>(
+                "api/v1/storeintegrations/plugins");
+
+            if (result.IsSuccess && result.Data != null)
+            {
+                // Check if any store integration is connected and doesn't require re-auth
+                _hasConnectedStoreIntegrations = result.Data.Any(p => p.IsConnected && !p.RequiresReauth);
+
+                // Default to store-only search if connected stores exist
+                if (_hasConnectedStoreIntegrations)
+                {
+                    _searchMode = ProductSearchMode.StoreIntegrationsOnly;
+                }
+            }
+        }
+        catch
+        {
+            // Silently fail - default to all sources
+            _hasConnectedStoreIntegrations = false;
         }
     }
 
@@ -314,7 +371,8 @@
                 Query = _searchQuery.Trim(),
                 MaxResults = 20,
                 PreferredShoppingLocationId = _selectedShoppingLocationId,
-                IncludeStoreResults = true
+                IncludeStoreResults = true,
+                SearchMode = _searchMode
             };
 
             var result = await ApiClient.PostAsync<ProductLookupRequest, ProductLookupResponse>(

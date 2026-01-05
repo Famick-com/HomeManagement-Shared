@@ -483,6 +483,8 @@
     "title": "Search Product Database",
     "searchPlaceholder": "Enter product name or barcode",
     "scanBarcode": "Scan Barcode",
+    "myStores": "My Stores",
+    "allSources": "All Sources",
     "searchingByBarcode": "Searching by barcode...",
     "searchingByName": "Searching by product name...",
     "resultsCount": "{0} results found",
