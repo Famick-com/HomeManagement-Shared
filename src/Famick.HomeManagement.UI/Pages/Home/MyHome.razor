@@ -1,0 +1,628 @@
+@page "/my-home"
+@attribute [Authorize]
+@inject IApiClient ApiClient
+@inject ISnackbar Snackbar
+@inject ILocalizer L
+@using Famick.HomeManagement.Core.DTOs.Home
+@using Famick.HomeManagement.Domain.Enums
+@using Famick.HomeManagement.UI.Components.Home
+
+<MudText Typo="Typo.h4" Class="mb-4">@L["home.title"]</MudText>
+
+@if (_isLoading)
+{
+    <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+}
+else if (!_isSetupComplete)
+{
+    <HomeSetupWizard OnSetupComplete="HandleSetupComplete" />
+}
+else if (_home != null)
+{
+    <MudStack Spacing="3">
+        <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.FlexEnd">
+            @if (_isEditing)
+            {
+                <MudButton Variant="Variant.Outlined"
+                           Color="Color.Default"
+                           StartIcon="@Icons.Material.Filled.Cancel"
+                           OnClick="CancelEdit">
+                    @L["common.cancel"]
+                </MudButton>
+                <MudButton Variant="Variant.Filled"
+                           Color="Color.Primary"
+                           StartIcon="@Icons.Material.Filled.Save"
+                           OnClick="SaveChanges"
+                           Disabled="@_isSaving">
+                    @if (_isSaving)
+                    {
+                        <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                    }
+                    @L["common.save"]
+                </MudButton>
+            }
+            else
+            {
+                <MudButton Variant="Variant.Filled"
+                           Color="Color.Primary"
+                           StartIcon="@Icons.Material.Filled.Edit"
+                           OnClick="StartEdit">
+                    @L["common.edit"]
+                </MudButton>
+            }
+        </MudStack>
+
+        <MudPaper Elevation="1" Class="pa-4">
+            <MudExpansionPanels MultiExpansion="true">
+                @* Property Basics *@
+                <MudExpansionPanel Text="@L["home.propertyBasics"]" Expanded="true">
+                    @if (_isEditing)
+                    {
+                        <MudGrid>
+                            <MudItem xs="12" md="8">
+                                <MudTextField @bind-Value="_editModel.Address"
+                                              Label="@L["home.address"]"
+                                              Variant="Variant.Outlined"
+                                              Required="true" />
+                            </MudItem>
+                            <MudItem xs="12" md="4">
+                                <MudTextField @bind-Value="_editModel.Unit"
+                                              Label="@L["home.unit"]"
+                                              Variant="Variant.Outlined" />
+                            </MudItem>
+                            <MudItem xs="6" md="3">
+                                <MudNumericField T="int?" @bind-Value="_editModel.YearBuilt"
+                                                 Label="@L["home.yearBuilt"]"
+                                                 Variant="Variant.Outlined" />
+                            </MudItem>
+                            <MudItem xs="6" md="3">
+                                <MudNumericField T="int?" @bind-Value="_editModel.SquareFootage"
+                                                 Label="@L["home.squareFootage"]"
+                                                 Variant="Variant.Outlined" />
+                            </MudItem>
+                            <MudItem xs="6" md="3">
+                                <MudNumericField T="int?" @bind-Value="_editModel.Bedrooms"
+                                                 Label="@L["home.bedrooms"]"
+                                                 Variant="Variant.Outlined" />
+                            </MudItem>
+                            <MudItem xs="6" md="3">
+                                <MudNumericField T="decimal?" @bind-Value="_editModel.Bathrooms"
+                                                 Label="@L["home.bathrooms"]"
+                                                 Variant="Variant.Outlined"
+                                                 Step="0.5M" />
+                            </MudItem>
+                            <MudItem xs="12" md="4">
+                                <MudTextField @bind-Value="_editModel.HoaName"
+                                              Label="@L["home.hoaName"]"
+                                              Variant="Variant.Outlined" />
+                            </MudItem>
+                            <MudItem xs="12" md="4">
+                                <MudTextField @bind-Value="_editModel.HoaContactInfo"
+                                              Label="@L["home.hoaContact"]"
+                                              Variant="Variant.Outlined" />
+                            </MudItem>
+                            <MudItem xs="12" md="4">
+                                <MudTextField @bind-Value="_editModel.HoaRulesLink"
+                                              Label="@L["home.hoaRulesLink"]"
+                                              Variant="Variant.Outlined" />
+                            </MudItem>
+                        </MudGrid>
+                    }
+                    else
+                    {
+                        <MudStack Spacing="2">
+                            <MudText Typo="Typo.h6">@_home.Address@(string.IsNullOrEmpty(_home.Unit) ? "" : $", {_home.Unit}")</MudText>
+                            <MudGrid>
+                                <MudItem xs="6" md="3">
+                                    <MudText Typo="Typo.caption" Color="Color.Secondary">@L["home.yearBuilt"]</MudText>
+                                    <MudText>@(_home.YearBuilt?.ToString() ?? "—")</MudText>
+                                </MudItem>
+                                <MudItem xs="6" md="3">
+                                    <MudText Typo="Typo.caption" Color="Color.Secondary">@L["home.squareFootage"]</MudText>
+                                    <MudText>@(_home.SquareFootage?.ToString("N0") ?? "—") @(_home.SquareFootage.HasValue ? "sq ft" : "")</MudText>
+                                </MudItem>
+                                <MudItem xs="6" md="3">
+                                    <MudText Typo="Typo.caption" Color="Color.Secondary">@L["home.bedrooms"]</MudText>
+                                    <MudText>@(_home.Bedrooms?.ToString() ?? "—")</MudText>
+                                </MudItem>
+                                <MudItem xs="6" md="3">
+                                    <MudText Typo="Typo.caption" Color="Color.Secondary">@L["home.bathrooms"]</MudText>
+                                    <MudText>@(_home.Bathrooms?.ToString("0.#") ?? "—")</MudText>
+                                </MudItem>
+                            </MudGrid>
+                            @if (!string.IsNullOrEmpty(_home.HoaName))
+                            {
+                                <MudDivider Class="my-2" />
+                                <MudText Typo="Typo.subtitle2" Color="Color.Secondary">HOA</MudText>
+                                <MudGrid>
+                                    <MudItem xs="12" md="4">
+                                        <MudText Typo="Typo.caption" Color="Color.Secondary">@L["home.hoaName"]</MudText>
+                                        <MudText>@_home.HoaName</MudText>
+                                    </MudItem>
+                                    @if (!string.IsNullOrEmpty(_home.HoaContactInfo))
+                                    {
+                                        <MudItem xs="12" md="4">
+                                            <MudText Typo="Typo.caption" Color="Color.Secondary">@L["home.hoaContact"]</MudText>
+                                            <MudText>@_home.HoaContactInfo</MudText>
+                                        </MudItem>
+                                    }
+                                    @if (!string.IsNullOrEmpty(_home.HoaRulesLink))
+                                    {
+                                        <MudItem xs="12" md="4">
+                                            <MudText Typo="Typo.caption" Color="Color.Secondary">@L["home.hoaRulesLink"]</MudText>
+                                            <MudLink Href="@_home.HoaRulesLink" Target="_blank">@L["common.viewLink"]</MudLink>
+                                        </MudItem>
+                                    }
+                                </MudGrid>
+                            }
+                        </MudStack>
+                    }
+                </MudExpansionPanel>
+
+                @* Utilities & Services *@
+                <MudExpansionPanel Text="@L["home.utilities"]">
+                    <MudStack Spacing="2">
+                        <MudStack Row="true" Justify="Justify.FlexEnd">
+                            <MudButton Variant="Variant.Outlined"
+                                       Color="Color.Primary"
+                                       StartIcon="@Icons.Material.Filled.Add"
+                                       OnClick="OpenAddUtilityDialog"
+                                       Size="Size.Small">
+                                @L["home.addUtility"]
+                            </MudButton>
+                        </MudStack>
+
+                        @if (_home.Utilities.Count == 0)
+                        {
+                            <MudAlert Severity="Severity.Info">@L["home.noUtilities"]</MudAlert>
+                        }
+                        else
+                        {
+                            <MudDataGrid T="HomeUtilityDto"
+                                         Items="@_home.Utilities"
+                                         Dense="true"
+                                         Hover="true">
+                                <Columns>
+                                    <PropertyColumn Property="x => x.UtilityTypeName" Title="@L["home.utilityType"]" />
+                                    <PropertyColumn Property="x => x.CompanyName" Title="@L["home.company"]" />
+                                    <PropertyColumn Property="x => x.AccountNumber" Title="@L["home.accountNumber"]" />
+                                    <PropertyColumn Property="x => x.PhoneNumber" Title="@L["home.phone"]" />
+                                    <TemplateColumn Title="@L["common.actions"]" Sortable="false">
+                                        <CellTemplate>
+                                            <MudStack Row="true" Spacing="1">
+                                                <MudIconButton Icon="@Icons.Material.Filled.Edit"
+                                                               Size="Size.Small"
+                                                               Color="Color.Primary"
+                                                               OnClick="@(() => OpenEditUtilityDialog(context.Item))" />
+                                                <MudIconButton Icon="@Icons.Material.Filled.Delete"
+                                                               Size="Size.Small"
+                                                               Color="Color.Error"
+                                                               OnClick="@(() => DeleteUtility(context.Item))" />
+                                            </MudStack>
+                                        </CellTemplate>
+                                    </TemplateColumn>
+                                </Columns>
+                            </MudDataGrid>
+                        }
+                    </MudStack>
+                </MudExpansionPanel>
+
+                @* HVAC *@
+                <MudExpansionPanel Text="@L["home.hvac"]">
+                    @if (_isEditing)
+                    {
+                        <MudGrid>
+                            <MudItem xs="12" md="6">
+                                <MudTextField @bind-Value="_editModel.AcFilterSizes"
+                                              Label="@L["home.acFilterSizes"]"
+                                              HelperText="@L["home.acFilterSizesHelp"]"
+                                              Variant="Variant.Outlined" />
+                            </MudItem>
+                            <MudItem xs="12" md="6">
+                                <MudNumericField T="int?" @bind-Value="_editModel.AcFilterReplacementIntervalDays"
+                                                 Label="@L["home.acFilterInterval"]"
+                                                 HelperText="@L["home.acFilterIntervalHelp"]"
+                                                 Variant="Variant.Outlined" />
+                            </MudItem>
+                        </MudGrid>
+                    }
+                    else
+                    {
+                        <MudGrid>
+                            <MudItem xs="12" md="6">
+                                <MudText Typo="Typo.caption" Color="Color.Secondary">@L["home.acFilterSizes"]</MudText>
+                                <MudText>@(string.IsNullOrEmpty(_home.AcFilterSizes) ? "—" : _home.AcFilterSizes)</MudText>
+                            </MudItem>
+                            <MudItem xs="12" md="6">
+                                <MudText Typo="Typo.caption" Color="Color.Secondary">@L["home.acFilterInterval"]</MudText>
+                                <MudText>@(_home.AcFilterReplacementIntervalDays.HasValue ? $"{_home.AcFilterReplacementIntervalDays} days" : "—")</MudText>
+                            </MudItem>
+                        </MudGrid>
+                    }
+                </MudExpansionPanel>
+
+                @* Maintenance & Consumables *@
+                <MudExpansionPanel Text="@L["home.maintenance"]">
+                    @if (_isEditing)
+                    {
+                        <MudGrid>
+                            <MudItem xs="12" md="4">
+                                <MudTextField @bind-Value="_editModel.FridgeWaterFilterType"
+                                              Label="@L["home.fridgeFilter"]"
+                                              Variant="Variant.Outlined" />
+                            </MudItem>
+                            <MudItem xs="12" md="4">
+                                <MudTextField @bind-Value="_editModel.UnderSinkFilterType"
+                                              Label="@L["home.underSinkFilter"]"
+                                              Variant="Variant.Outlined" />
+                            </MudItem>
+                            <MudItem xs="12" md="4">
+                                <MudTextField @bind-Value="_editModel.WholeHouseFilterType"
+                                              Label="@L["home.wholeHouseFilter"]"
+                                              Variant="Variant.Outlined" />
+                            </MudItem>
+                            <MudItem xs="12" md="4">
+                                <MudTextField @bind-Value="_editModel.SmokeCoDetectorBatteryType"
+                                              Label="@L["home.batteryType"]"
+                                              Variant="Variant.Outlined" />
+                            </MudItem>
+                            <MudItem xs="12" md="4">
+                                <MudTextField @bind-Value="_editModel.HvacServiceSchedule"
+                                              Label="@L["home.hvacSchedule"]"
+                                              Variant="Variant.Outlined" />
+                            </MudItem>
+                            <MudItem xs="12" md="4">
+                                <MudTextField @bind-Value="_editModel.PestControlSchedule"
+                                              Label="@L["home.pestControlSchedule"]"
+                                              Variant="Variant.Outlined" />
+                            </MudItem>
+                        </MudGrid>
+                    }
+                    else
+                    {
+                        <MudGrid>
+                            <MudItem xs="12" md="4">
+                                <MudText Typo="Typo.caption" Color="Color.Secondary">@L["home.fridgeFilter"]</MudText>
+                                <MudText>@(string.IsNullOrEmpty(_home.FridgeWaterFilterType) ? "—" : _home.FridgeWaterFilterType)</MudText>
+                            </MudItem>
+                            <MudItem xs="12" md="4">
+                                <MudText Typo="Typo.caption" Color="Color.Secondary">@L["home.underSinkFilter"]</MudText>
+                                <MudText>@(string.IsNullOrEmpty(_home.UnderSinkFilterType) ? "—" : _home.UnderSinkFilterType)</MudText>
+                            </MudItem>
+                            <MudItem xs="12" md="4">
+                                <MudText Typo="Typo.caption" Color="Color.Secondary">@L["home.wholeHouseFilter"]</MudText>
+                                <MudText>@(string.IsNullOrEmpty(_home.WholeHouseFilterType) ? "—" : _home.WholeHouseFilterType)</MudText>
+                            </MudItem>
+                            <MudItem xs="12" md="4">
+                                <MudText Typo="Typo.caption" Color="Color.Secondary">@L["home.batteryType"]</MudText>
+                                <MudText>@(string.IsNullOrEmpty(_home.SmokeCoDetectorBatteryType) ? "—" : _home.SmokeCoDetectorBatteryType)</MudText>
+                            </MudItem>
+                            <MudItem xs="12" md="4">
+                                <MudText Typo="Typo.caption" Color="Color.Secondary">@L["home.hvacSchedule"]</MudText>
+                                <MudText>@(string.IsNullOrEmpty(_home.HvacServiceSchedule) ? "—" : _home.HvacServiceSchedule)</MudText>
+                            </MudItem>
+                            <MudItem xs="12" md="4">
+                                <MudText Typo="Typo.caption" Color="Color.Secondary">@L["home.pestControlSchedule"]</MudText>
+                                <MudText>@(string.IsNullOrEmpty(_home.PestControlSchedule) ? "—" : _home.PestControlSchedule)</MudText>
+                            </MudItem>
+                        </MudGrid>
+                    }
+                </MudExpansionPanel>
+
+                @* Insurance & Financial *@
+                <MudExpansionPanel Text="@L["home.insurance"]">
+                    @if (_isEditing)
+                    {
+                        <MudGrid>
+                            <MudItem xs="12" md="4">
+                                <MudSelect T="InsuranceType?" @bind-Value="_editModel.InsuranceType"
+                                           Label="@L["home.insuranceType"]"
+                                           Variant="Variant.Outlined">
+                                    <MudSelectItem T="InsuranceType?" Value="@((InsuranceType?)null)">—</MudSelectItem>
+                                    <MudSelectItem T="InsuranceType?" Value="@(InsuranceType.Homeowners)">@L["home.insuranceHomeowners"]</MudSelectItem>
+                                    <MudSelectItem T="InsuranceType?" Value="@(InsuranceType.Renters)">@L["home.insuranceRenters"]</MudSelectItem>
+                                </MudSelect>
+                            </MudItem>
+                            <MudItem xs="12" md="4">
+                                <MudTextField @bind-Value="_editModel.InsurancePolicyNumber"
+                                              Label="@L["home.policyNumber"]"
+                                              Variant="Variant.Outlined" />
+                            </MudItem>
+                            <MudItem xs="12" md="4">
+                                <MudTextField @bind-Value="_editModel.InsuranceAgentName"
+                                              Label="@L["home.agentName"]"
+                                              Variant="Variant.Outlined" />
+                            </MudItem>
+                            <MudItem xs="12" md="4">
+                                <MudTextField @bind-Value="_editModel.InsuranceAgentPhone"
+                                              Label="@L["home.agentPhone"]"
+                                              Variant="Variant.Outlined"
+                                              Mask="@(new PatternMask("(000) 000-0000"))" />
+                            </MudItem>
+                            <MudItem xs="12" md="4">
+                                <MudTextField @bind-Value="_editModel.InsuranceAgentEmail"
+                                              Label="@L["home.agentEmail"]"
+                                              Variant="Variant.Outlined" />
+                            </MudItem>
+                            <MudItem xs="12">
+                                <MudTextField @bind-Value="_editModel.MortgageInfo"
+                                              Label="@L["home.mortgageInfo"]"
+                                              Variant="Variant.Outlined"
+                                              Lines="2" />
+                            </MudItem>
+                            <MudItem xs="12" md="4">
+                                <MudTextField @bind-Value="_editModel.PropertyTaxAccountNumber"
+                                              Label="@L["home.propertyTaxAccount"]"
+                                              Variant="Variant.Outlined" />
+                            </MudItem>
+                            <MudItem xs="12" md="4">
+                                <MudNumericField T="decimal?" @bind-Value="_editModel.AppraisalValue"
+                                                 Label="@L["home.appraisalValue"]"
+                                                 Variant="Variant.Outlined"
+                                                 Format="C0" />
+                            </MudItem>
+                            <MudItem xs="12" md="4">
+                                <MudDatePicker @bind-Date="_appraisalDate"
+                                               Label="@L["home.appraisalDate"]"
+                                               Variant="Variant.Outlined" />
+                            </MudItem>
+                            <MudItem xs="12">
+                                <MudTextField @bind-Value="_editModel.EscrowDetails"
+                                              Label="@L["home.escrowDetails"]"
+                                              Variant="Variant.Outlined"
+                                              Lines="2" />
+                            </MudItem>
+                        </MudGrid>
+                    }
+                    else
+                    {
+                        <MudStack Spacing="3">
+                            @* Insurance Section *@
+                            <MudText Typo="Typo.subtitle2" Color="Color.Secondary">Insurance</MudText>
+                            <MudGrid>
+                                <MudItem xs="12" md="4">
+                                    <MudText Typo="Typo.caption" Color="Color.Secondary">@L["home.insuranceType"]</MudText>
+                                    <MudText>@GetInsuranceTypeName()</MudText>
+                                </MudItem>
+                                <MudItem xs="12" md="4">
+                                    <MudText Typo="Typo.caption" Color="Color.Secondary">@L["home.policyNumber"]</MudText>
+                                    <MudText>@(string.IsNullOrEmpty(_home.InsurancePolicyNumber) ? "—" : _home.InsurancePolicyNumber)</MudText>
+                                </MudItem>
+                                <MudItem xs="12" md="4">
+                                    <MudText Typo="Typo.caption" Color="Color.Secondary">@L["home.agentName"]</MudText>
+                                    <MudText>@(string.IsNullOrEmpty(_home.InsuranceAgentName) ? "—" : _home.InsuranceAgentName)</MudText>
+                                </MudItem>
+                                <MudItem xs="12" md="4">
+                                    <MudText Typo="Typo.caption" Color="Color.Secondary">@L["home.agentPhone"]</MudText>
+                                    <MudText>@(string.IsNullOrEmpty(_home.InsuranceAgentPhone) ? "—" : _home.InsuranceAgentPhone)</MudText>
+                                </MudItem>
+                                <MudItem xs="12" md="4">
+                                    <MudText Typo="Typo.caption" Color="Color.Secondary">@L["home.agentEmail"]</MudText>
+                                    <MudText>@(string.IsNullOrEmpty(_home.InsuranceAgentEmail) ? "—" : _home.InsuranceAgentEmail)</MudText>
+                                </MudItem>
+                            </MudGrid>
+
+                            @* Financial Section *@
+                            <MudDivider Class="my-2" />
+                            <MudText Typo="Typo.subtitle2" Color="Color.Secondary">Financial</MudText>
+                            <MudGrid>
+                                <MudItem xs="12" md="4">
+                                    <MudText Typo="Typo.caption" Color="Color.Secondary">@L["home.propertyTaxAccount"]</MudText>
+                                    <MudText>@(string.IsNullOrEmpty(_home.PropertyTaxAccountNumber) ? "—" : _home.PropertyTaxAccountNumber)</MudText>
+                                </MudItem>
+                                <MudItem xs="12" md="4">
+                                    <MudText Typo="Typo.caption" Color="Color.Secondary">@L["home.appraisalValue"]</MudText>
+                                    <MudText>@(_home.AppraisalValue.HasValue ? _home.AppraisalValue.Value.ToString("C0") : "—")</MudText>
+                                </MudItem>
+                                <MudItem xs="12" md="4">
+                                    <MudText Typo="Typo.caption" Color="Color.Secondary">@L["home.appraisalDate"]</MudText>
+                                    <MudText>@(_home.AppraisalDate.HasValue ? _home.AppraisalDate.Value.ToString("d") : "—")</MudText>
+                                </MudItem>
+                                @if (!string.IsNullOrEmpty(_home.MortgageInfo))
+                                {
+                                    <MudItem xs="12">
+                                        <MudText Typo="Typo.caption" Color="Color.Secondary">@L["home.mortgageInfo"]</MudText>
+                                        <MudText Style="white-space: pre-wrap;">@_home.MortgageInfo</MudText>
+                                    </MudItem>
+                                }
+                                @if (!string.IsNullOrEmpty(_home.EscrowDetails))
+                                {
+                                    <MudItem xs="12">
+                                        <MudText Typo="Typo.caption" Color="Color.Secondary">@L["home.escrowDetails"]</MudText>
+                                        <MudText Style="white-space: pre-wrap;">@_home.EscrowDetails</MudText>
+                                    </MudItem>
+                                }
+                            </MudGrid>
+                        </MudStack>
+                    }
+                </MudExpansionPanel>
+            </MudExpansionPanels>
+        </MudPaper>
+    </MudStack>
+}
+
+@* Utility Dialog *@
+<HomeUtilityDialog @bind-Visible="_utilityDialogVisible"
+                   Utility="_editingUtility"
+                   OnSave="HandleUtilitySave" />
+
+@code {
+    private bool _isLoading = true;
+    private bool _isSetupComplete = false;
+    private bool _isEditing = false;
+    private bool _isSaving = false;
+    private HomeDto? _home;
+    private UpdateHomeRequest _editModel = new();
+    private DateTime? _appraisalDate;
+
+    // Utility dialog state
+    private bool _utilityDialogVisible = false;
+    private HomeUtilityDto? _editingUtility;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadHomeAsync();
+    }
+
+    private async Task LoadHomeAsync()
+    {
+        _isLoading = true;
+        try
+        {
+            var statusResult = await ApiClient.GetAsync<SetupStatusDto>("api/v1/home/setup-status");
+            if (statusResult.IsSuccess && statusResult.Data != null)
+            {
+                _isSetupComplete = statusResult.Data.IsSetupComplete;
+            }
+
+            if (_isSetupComplete)
+            {
+                var homeResult = await ApiClient.GetAsync<HomeDto>("api/v1/home");
+                if (homeResult.IsSuccess && homeResult.Data != null)
+                {
+                    _home = homeResult.Data;
+                    CopyHomeToEditModel();
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error loading home: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private void CopyHomeToEditModel()
+    {
+        if (_home == null) return;
+
+        _editModel = new UpdateHomeRequest
+        {
+            Address = _home.Address,
+            Unit = _home.Unit,
+            YearBuilt = _home.YearBuilt,
+            SquareFootage = _home.SquareFootage,
+            Bedrooms = _home.Bedrooms,
+            Bathrooms = _home.Bathrooms,
+            HoaName = _home.HoaName,
+            HoaContactInfo = _home.HoaContactInfo,
+            HoaRulesLink = _home.HoaRulesLink,
+            AcFilterSizes = _home.AcFilterSizes,
+            AcFilterReplacementIntervalDays = _home.AcFilterReplacementIntervalDays,
+            FridgeWaterFilterType = _home.FridgeWaterFilterType,
+            UnderSinkFilterType = _home.UnderSinkFilterType,
+            WholeHouseFilterType = _home.WholeHouseFilterType,
+            SmokeCoDetectorBatteryType = _home.SmokeCoDetectorBatteryType,
+            HvacServiceSchedule = _home.HvacServiceSchedule,
+            PestControlSchedule = _home.PestControlSchedule,
+            InsuranceType = _home.InsuranceType,
+            InsurancePolicyNumber = _home.InsurancePolicyNumber,
+            InsuranceAgentName = _home.InsuranceAgentName,
+            InsuranceAgentPhone = _home.InsuranceAgentPhone,
+            InsuranceAgentEmail = _home.InsuranceAgentEmail,
+            MortgageInfo = _home.MortgageInfo,
+            PropertyTaxAccountNumber = _home.PropertyTaxAccountNumber,
+            EscrowDetails = _home.EscrowDetails,
+            AppraisalValue = _home.AppraisalValue,
+            AppraisalDate = _home.AppraisalDate
+        };
+        _appraisalDate = _home.AppraisalDate;
+    }
+
+    private async Task HandleSetupComplete()
+    {
+        _isSetupComplete = true;
+        await LoadHomeAsync();
+    }
+
+    private void StartEdit()
+    {
+        CopyHomeToEditModel();
+        _isEditing = true;
+    }
+
+    private void CancelEdit()
+    {
+        CopyHomeToEditModel();
+        _isEditing = false;
+    }
+
+    private async Task SaveChanges()
+    {
+        _isSaving = true;
+        try
+        {
+            _editModel.AppraisalDate = _appraisalDate;
+            var result = await ApiClient.PutAsync<UpdateHomeRequest, HomeDto>("api/v1/home", _editModel);
+            if (result.IsSuccess && result.Data != null)
+            {
+                _home = result.Data;
+                _isEditing = false;
+                Snackbar.Add(L["home.saved"], Severity.Success);
+            }
+            else
+            {
+                Snackbar.Add(result.ErrorMessage ?? L["common.error"], Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error saving: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isSaving = false;
+        }
+    }
+
+    private void OpenAddUtilityDialog()
+    {
+        _editingUtility = null;
+        _utilityDialogVisible = true;
+    }
+
+    private void OpenEditUtilityDialog(HomeUtilityDto utility)
+    {
+        _editingUtility = utility;
+        _utilityDialogVisible = true;
+    }
+
+    private async Task HandleUtilitySave()
+    {
+        _utilityDialogVisible = false;
+        await LoadHomeAsync();
+    }
+
+    private async Task DeleteUtility(HomeUtilityDto utility)
+    {
+        var result = await ApiClient.DeleteAsync($"api/v1/home/utilities/{utility.Id}");
+        if (result.IsSuccess)
+        {
+            Snackbar.Add(L["home.utilityDeleted"], Severity.Success);
+            await LoadHomeAsync();
+        }
+        else
+        {
+            Snackbar.Add(result.ErrorMessage ?? L["common.error"], Severity.Error);
+        }
+    }
+
+    private string GetInsuranceTypeName()
+    {
+        return _home?.InsuranceType switch
+        {
+            InsuranceType.Homeowners => L["home.insuranceHomeowners"],
+            InsuranceType.Renters => L["home.insuranceRenters"],
+            _ => "—"
+        };
+    }
+
+    // Helper class for setup status
+    private class SetupStatusDto
+    {
+        public bool IsSetupComplete { get; set; }
+    }
+}

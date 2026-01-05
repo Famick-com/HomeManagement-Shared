@@ -1,0 +1,207 @@
+@inject IApiClient ApiClient
+@inject ISnackbar Snackbar
+@inject ILocalizer L
+@using Famick.HomeManagement.Core.DTOs.Home
+
+<MudPaper Elevation="2" Class="pa-6">
+    <MudText Typo="Typo.h5" Class="mb-4">@L["home.setupWizard.title"]</MudText>
+    <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-6">@L["home.setupWizard.description"]</MudText>
+
+    <MudStepper @bind-ActiveIndex="_currentStep">
+        @* Step 1: Property Basics *@
+        <MudStep Title="@L["home.setupWizard.step1"]">
+            <MudForm @ref="_form1" @bind-IsValid="_step1Valid">
+                <MudStack Spacing="3">
+                    <MudTextField @bind-Value="_request.Address"
+                                  Label="@L["home.address"]"
+                                  Variant="Variant.Outlined"
+                                  Required="true"
+                                  RequiredError="@L["validation.required", L["home.address"]]" />
+
+                    <MudTextField @bind-Value="_request.Unit"
+                                  Label="@L["home.unit"]"
+                                  Variant="Variant.Outlined" />
+
+                    <MudGrid>
+                        <MudItem xs="6" md="3">
+                            <MudNumericField T="int?" @bind-Value="_request.YearBuilt"
+                                             Label="@L["home.yearBuilt"]"
+                                             Variant="Variant.Outlined" />
+                        </MudItem>
+                        <MudItem xs="6" md="3">
+                            <MudNumericField T="int?" @bind-Value="_request.SquareFootage"
+                                             Label="@L["home.squareFootage"]"
+                                             Variant="Variant.Outlined" />
+                        </MudItem>
+                        <MudItem xs="6" md="3">
+                            <MudNumericField T="int?" @bind-Value="_request.Bedrooms"
+                                             Label="@L["home.bedrooms"]"
+                                             Variant="Variant.Outlined" />
+                        </MudItem>
+                        <MudItem xs="6" md="3">
+                            <MudNumericField T="decimal?" @bind-Value="_request.Bathrooms"
+                                             Label="@L["home.bathrooms"]"
+                                             Variant="Variant.Outlined"
+                                             Step="0.5M" />
+                        </MudItem>
+                    </MudGrid>
+
+                    <MudDivider Class="my-2" />
+                    <MudText Typo="Typo.subtitle2">@L["home.hoaOptional"]</MudText>
+
+                    <MudGrid>
+                        <MudItem xs="12" md="4">
+                            <MudTextField @bind-Value="_request.HoaName"
+                                          Label="@L["home.hoaName"]"
+                                          Variant="Variant.Outlined" />
+                        </MudItem>
+                        <MudItem xs="12" md="4">
+                            <MudTextField @bind-Value="_request.HoaContactInfo"
+                                          Label="@L["home.hoaContact"]"
+                                          Variant="Variant.Outlined" />
+                        </MudItem>
+                        <MudItem xs="12" md="4">
+                            <MudTextField @bind-Value="_request.HoaRulesLink"
+                                          Label="@L["home.hoaRulesLink"]"
+                                          Variant="Variant.Outlined" />
+                        </MudItem>
+                    </MudGrid>
+                </MudStack>
+            </MudForm>
+        </MudStep>
+
+        @* Step 2: HVAC *@
+        <MudStep Title="@L["home.setupWizard.step2"]">
+            <MudForm @ref="_form2" @bind-IsValid="_step2Valid">
+                <MudStack Spacing="3">
+                    <MudAlert Severity="Severity.Info" Class="mb-2">
+                        @L["home.setupWizard.hvacInfo"]
+                    </MudAlert>
+
+                    <MudTextField @bind-Value="_request.AcFilterSizes"
+                                  Label="@L["home.acFilterSizes"]"
+                                  HelperText="@L["home.acFilterSizesHelp"]"
+                                  Variant="Variant.Outlined"
+                                  Placeholder="20x25x1, 16x20x1" />
+                </MudStack>
+            </MudForm>
+        </MudStep>
+
+        @* Step 3: Safety *@
+        <MudStep Title="@L["home.setupWizard.step3"]">
+            <MudForm @ref="_form3" @bind-IsValid="_step3Valid">
+                <MudStack Spacing="3">
+                    <MudAlert Severity="Severity.Info" Class="mb-2">
+                        @L["home.setupWizard.safetyInfo"]
+                    </MudAlert>
+
+                    <MudTextField @bind-Value="_request.SmokeCoDetectorBatteryType"
+                                  Label="@L["home.batteryType"]"
+                                  HelperText="@L["home.batteryTypeHelp"]"
+                                  Variant="Variant.Outlined"
+                                  Placeholder="9V, AA, 10-year sealed" />
+                </MudStack>
+            </MudForm>
+        </MudStep>
+    </MudStepper>
+
+    <MudStack Row="true" Justify="Justify.SpaceBetween" Class="mt-6">
+        <MudButton Variant="Variant.Outlined"
+                   OnClick="PreviousStep"
+                   Disabled="@(_currentStep == 0)">
+            @L["common.back"]
+        </MudButton>
+
+        @if (_currentStep < 2)
+        {
+            <MudButton Variant="Variant.Filled"
+                       Color="Color.Primary"
+                       OnClick="NextStep"
+                       Disabled="@(!IsCurrentStepValid())">
+                @L["common.next"]
+            </MudButton>
+        }
+        else
+        {
+            <MudButton Variant="Variant.Filled"
+                       Color="Color.Primary"
+                       OnClick="CompleteSetup"
+                       Disabled="@(_isSaving || !IsCurrentStepValid())">
+                @if (_isSaving)
+                {
+                    <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                }
+                @L["home.setupWizard.complete"]
+            </MudButton>
+        }
+    </MudStack>
+</MudPaper>
+
+@code {
+    [Parameter]
+    public EventCallback OnSetupComplete { get; set; }
+
+    private int _currentStep = 0;
+    private bool _isSaving = false;
+    private HomeSetupRequest _request = new();
+
+    private MudForm? _form1;
+    private MudForm? _form2;
+    private MudForm? _form3;
+    private bool _step1Valid = false;
+    private bool _step2Valid = true;
+    private bool _step3Valid = true;
+
+    private bool IsCurrentStepValid()
+    {
+        return _currentStep switch
+        {
+            0 => _step1Valid,
+            1 => _step2Valid,
+            2 => _step3Valid,
+            _ => false
+        };
+    }
+
+    private void NextStep()
+    {
+        if (_currentStep < 2)
+        {
+            _currentStep++;
+        }
+    }
+
+    private void PreviousStep()
+    {
+        if (_currentStep > 0)
+        {
+            _currentStep--;
+        }
+    }
+
+    private async Task CompleteSetup()
+    {
+        _isSaving = true;
+        try
+        {
+            var result = await ApiClient.PostAsync<HomeSetupRequest, HomeDto>("api/v1/home/setup", _request);
+            if (result.IsSuccess)
+            {
+                Snackbar.Add(L["home.setupWizard.success"], Severity.Success);
+                await OnSetupComplete.InvokeAsync();
+            }
+            else
+            {
+                Snackbar.Add(result.ErrorMessage ?? L["common.error"], Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isSaving = false;
+        }
+    }
+}

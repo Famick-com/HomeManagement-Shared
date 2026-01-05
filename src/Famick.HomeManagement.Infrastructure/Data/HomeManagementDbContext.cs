@@ -71,6 +71,10 @@ public class HomeManagementDbContext : DbContext
     public DbSet<Chore> Chores => Set<Chore>();
     public DbSet<ChoreLog> ChoresLog => Set<ChoreLog>();
 
+    // My Home
+    public DbSet<Home> Homes => Set<Home>();
+    public DbSet<HomeUtility> HomeUtilities => Set<HomeUtility>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
