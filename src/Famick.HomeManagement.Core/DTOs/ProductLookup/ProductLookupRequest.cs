@@ -1,6 +1,22 @@
 namespace Famick.HomeManagement.Core.DTOs.ProductLookup;
 
 /// <summary>
+/// Controls which plugin types to search
+/// </summary>
+public enum ProductSearchMode
+{
+    /// <summary>
+    /// Search all enabled plugins (USDA, Open Food Facts, store integrations, etc.)
+    /// </summary>
+    AllSources = 0,
+
+    /// <summary>
+    /// Only search plugins that implement IStoreIntegrationPlugin (connected stores)
+    /// </summary>
+    StoreIntegrationsOnly = 1
+}
+
+/// <summary>
 /// Request for product lookup search
 /// </summary>
 public class ProductLookupRequest
@@ -31,4 +47,10 @@ public class ProductLookupRequest
     /// Whether to include store integration results in unified search (default: true)
     /// </summary>
     public bool IncludeStoreResults { get; set; } = true;
+
+    /// <summary>
+    /// Search mode - controls which plugin types to search.
+    /// Default is AllSources for backward compatibility.
+    /// </summary>
+    public ProductSearchMode SearchMode { get; set; } = ProductSearchMode.AllSources;
 }
