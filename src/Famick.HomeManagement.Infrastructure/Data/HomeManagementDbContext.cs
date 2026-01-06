@@ -40,6 +40,7 @@ public class HomeManagementDbContext : DbContext
     public DbSet<UserPermission> UserPermissions => Set<UserPermission>();
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
     public DbSet<PasswordResetToken> PasswordResetTokens => Set<PasswordResetToken>();
+    public DbSet<UserRole> UserRoles => Set<UserRole>();
 
     // Household management entities
     public DbSet<Location> Locations => Set<Location>();

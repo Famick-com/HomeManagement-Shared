@@ -193,4 +193,68 @@ public class SmtpEmailService : IEmailService
             If you did not make this change, please contact support immediately.
             """;
     }
+
+    /// <inheritdoc />
+    public async Task SendWelcomeEmailAsync(
+        string toEmail,
+        string userName,
+        string temporaryPassword,
+        CancellationToken cancellationToken = default)
+    {
+        var subject = "Welcome to Famick Home Management";
+        var htmlBody = GenerateWelcomeEmailHtml(userName, toEmail, temporaryPassword);
+        var textBody = GenerateWelcomeEmailText(userName, toEmail, temporaryPassword);
+
+        await SendEmailAsync(toEmail, subject, htmlBody, textBody, cancellationToken);
+    }
+
+    private static string GenerateWelcomeEmailHtml(string userName, string email, string temporaryPassword)
+    {
+        return $$"""
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <meta charset="utf-8">
+                <style>
+                    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+                    .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+                    .credentials { background-color: #f5f5f5; padding: 15px; border-radius: 4px; margin: 20px 0; }
+                    .credentials p { margin: 5px 0; }
+                    .warning { color: #d32f2f; font-weight: bold; }
+                </style>
+            </head>
+            <body>
+                <div class="container">
+                    <h2>Welcome to Famick Home Management</h2>
+                    <p>Hi {{userName}},</p>
+                    <p>An account has been created for you. Here are your login credentials:</p>
+                    <div class="credentials">
+                        <p><strong>Email:</strong> {{email}}</p>
+                        <p><strong>Temporary Password:</strong> {{temporaryPassword}}</p>
+                    </div>
+                    <p class="warning">Please change your password after your first login.</p>
+                    <p>If you did not expect this email, please contact your administrator.</p>
+                </div>
+            </body>
+            </html>
+            """;
+    }
+
+    private static string GenerateWelcomeEmailText(string userName, string email, string temporaryPassword)
+    {
+        return $"""
+            Welcome to Famick Home Management
+
+            Hi {userName},
+
+            An account has been created for you. Here are your login credentials:
+
+            Email: {email}
+            Temporary Password: {temporaryPassword}
+
+            Please change your password after your first login.
+
+            If you did not expect this email, please contact your administrator.
+            """;
+    }
 }

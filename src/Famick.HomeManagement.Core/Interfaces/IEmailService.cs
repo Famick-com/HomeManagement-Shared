@@ -28,4 +28,17 @@ public interface IEmailService
         string toEmail,
         string userName,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Sends a welcome email to a newly created user with their login credentials
+    /// </summary>
+    /// <param name="toEmail">The recipient's email address</param>
+    /// <param name="userName">The user's display name</param>
+    /// <param name="temporaryPassword">The temporary password for initial login</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    Task SendWelcomeEmailAsync(
+        string toEmail,
+        string userName,
+        string temporaryPassword,
+        CancellationToken cancellationToken = default);
 }

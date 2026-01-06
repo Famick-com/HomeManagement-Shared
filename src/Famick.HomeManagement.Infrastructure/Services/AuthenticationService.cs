@@ -5,7 +5,7 @@ using Famick.HomeManagement.Core.DTOs.Authentication;
 using Famick.HomeManagement.Core.Exceptions;
 using Famick.HomeManagement.Core.Interfaces;
 using Famick.HomeManagement.Domain.Entities;
-// using Famick.HomeManagement.Domain.Enums; // Cloud-specific namespace - commented out
+using Famick.HomeManagement.Domain.Enums;
 using Famick.HomeManagement.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -120,6 +120,7 @@ public class AuthenticationService : IAuthenticationService
             // Note: .Include(u => u.Tenant) removed - cloud-specific navigation property
             .Include(u => u.UserPermissions)
                 .ThenInclude(up => up.Permission)
+            .Include(u => u.UserRoles)
             .FirstOrDefaultAsync(u => u.Email == request.Email.ToLower(), cancellationToken);
 
         if (user == null)
@@ -150,8 +151,13 @@ public class AuthenticationService : IAuthenticationService
             .Select(up => up.Permission.Name)
             .ToList();
 
+        // Get user roles
+        var roles = user.UserRoles
+            .Select(ur => ur.Role)
+            .ToList();
+
         // Generate access token
-        var accessToken = _tokenService.GenerateAccessToken(user, permissions);
+        var accessToken = _tokenService.GenerateAccessToken(user, permissions, roles);
         var accessTokenExpiration = _tokenService.GetTokenExpiration();
 
         // Generate refresh token
@@ -217,6 +223,7 @@ public class AuthenticationService : IAuthenticationService
                 // Note: .ThenInclude(u => u.Tenant) removed - cloud-specific
             .Include(rt => rt.User.UserPermissions)
                 .ThenInclude(up => up.Permission)
+            .Include(rt => rt.User.UserRoles)
             .FirstOrDefaultAsync(rt => rt.TokenHash == tokenHash, cancellationToken);
 
         if (refreshToken == null || !refreshToken.IsActive)
@@ -238,8 +245,13 @@ public class AuthenticationService : IAuthenticationService
             .Select(up => up.Permission.Name)
             .ToList();
 
+        // Get user roles
+        var roles = refreshToken.User.UserRoles
+            .Select(ur => ur.Role)
+            .ToList();
+
         // Generate new access token
-        var newAccessToken = _tokenService.GenerateAccessToken(refreshToken.User, permissions);
+        var newAccessToken = _tokenService.GenerateAccessToken(refreshToken.User, permissions, roles);
         var newAccessTokenExpiration = _tokenService.GetTokenExpiration();
 
         // Generate new refresh token (rotation)

@@ -45,7 +45,14 @@
     "inactive": "Inactive",
     "all": "All",
     "unknown": "Unknown",
-    "viewLink": "View"
+    "viewLink": "View",
+    "email": "Email",
+    "firstName": "First Name",
+    "lastName": "Last Name",
+    "password": "Password",
+    "never": "Never",
+    "generate": "Generate",
+    "copied": "Copied to clipboard"
   },
 
   "auth": {
@@ -245,6 +252,47 @@
       "missingOAuthParams": "Missing authorization parameters",
       "invalidState": "Invalid authorization state",
       "locationNotFound": "Store not found"
+    },
+    "users": {
+      "title": "User Management",
+      "add": "Add User",
+      "edit": "Edit User",
+      "email": "Email",
+      "firstName": "First Name",
+      "lastName": "Last Name",
+      "rolesLabel": "Roles",
+      "isActive": "Active",
+      "noUsers": "No users found",
+      "saved": "User saved successfully",
+      "deleted": "User deleted successfully",
+      "confirmDelete": "Are you sure you want to delete {0}? This action cannot be undone.",
+      "cannotDeleteSelf": "You cannot delete yourself",
+      "emailRequired": "Email is required",
+      "firstNameRequired": "First name is required",
+      "lastNameRequired": "Last name is required",
+      "atLeastOneRole": "At least one role is required",
+      "password": "Password",
+      "passwordHelp": "Leave blank to auto-generate a password",
+      "passwordHelperText": "Leave blank to auto-generate a password",
+      "sendWelcomeEmail": "Send welcome email",
+      "resetPassword": "Reset Password",
+      "resetPasswordFor": "Reset password for {0}",
+      "newPassword": "New Password",
+      "newPasswordHelp": "Leave blank to auto-generate a new password",
+      "passwordReset": "Password reset successfully",
+      "passwordWasReset": "Password has been reset successfully",
+      "copyPassword": "Copy Password",
+      "copyPasswordWarning": "Make sure to copy this password now. You won't be able to see it again!",
+      "passwordCopied": "Password copied to clipboard",
+      "generatedPassword": "Generated Password",
+      "userCreated": "User Created",
+      "welcomeEmailSent": "Welcome email has been sent",
+      "lastLogin": "Last Login",
+      "roles": {
+        "admin": "Admin",
+        "editor": "Editor",
+        "viewer": "Viewer"
+      }
     }
   },
 
@@ -767,5 +815,11 @@
       "securitySystem": "Security System",
       "hoaDues": "HOA Dues Portal"
     }
+  },
+
+  "roles": {
+    "admin": "Admin",
+    "editor": "Editor",
+    "viewer": "Viewer"
   }
 }

@@ -4,6 +4,7 @@ using System.Security.Cryptography;
 using System.Text;
 using Famick.HomeManagement.Core.Interfaces;
 using Famick.HomeManagement.Domain.Entities;
+using Famick.HomeManagement.Domain.Enums;
 using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
 
@@ -38,7 +39,7 @@ public class TokenService : ITokenService
     }
 
     /// <inheritdoc />
-    public string GenerateAccessToken(User user, IEnumerable<string> permissions)
+    public string GenerateAccessToken(User user, IEnumerable<string> permissions, IEnumerable<Role>? roles = null)
     {
         if (user == null)
         {
@@ -58,6 +59,12 @@ public class TokenService : ITokenService
         foreach (var permission in permissions ?? Enumerable.Empty<string>())
         {
             claims.Add(new Claim("permission", permission));
+        }
+
+        // Add roles as separate claims
+        foreach (var role in roles ?? Enumerable.Empty<Role>())
+        {
+            claims.Add(new Claim(ClaimTypes.Role, role.ToString()));
         }
 
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_secretKey));

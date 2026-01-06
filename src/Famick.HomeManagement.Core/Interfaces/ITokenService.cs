@@ -1,4 +1,5 @@
 using Famick.HomeManagement.Domain.Entities;
+using Famick.HomeManagement.Domain.Enums;
 
 namespace Famick.HomeManagement.Core.Interfaces;
 
@@ -8,12 +9,13 @@ namespace Famick.HomeManagement.Core.Interfaces;
 public interface ITokenService
 {
     /// <summary>
-    /// Generates a JWT access token for the specified user with permissions
+    /// Generates a JWT access token for the specified user with permissions and roles
     /// </summary>
     /// <param name="user">The user to generate the token for</param>
     /// <param name="permissions">The user's permissions to include in the token claims</param>
+    /// <param name="roles">The user's roles to include in the token claims</param>
     /// <returns>The signed JWT token string</returns>
-    string GenerateAccessToken(User user, IEnumerable<string> permissions);
+    string GenerateAccessToken(User user, IEnumerable<string> permissions, IEnumerable<Role>? roles = null);
 
     /// <summary>
     /// Generates a cryptographically secure random refresh token
