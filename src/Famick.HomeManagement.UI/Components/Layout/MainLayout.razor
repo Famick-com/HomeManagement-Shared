@@ -1,12 +1,15 @@
 @inherits LayoutComponentBase
 @implements IDisposable
 @using Famick.HomeManagement.UI.Theme
+@using Famick.HomeManagement.UI.Services
 @using Famick.HomeManagement.Core.Services
 @inject ILocalizer L
 @inject NavigationManager Navigation
 @inject IJSRuntime JS
 @inject IVersionService VersionService
+@inject IUserPermissions UserPermissions
 
+<CascadingValue Value="@_canEdit" Name="CanEdit">
 <LocalizationInitializer>
     <MudThemeProvider Theme="FamickTheme.Theme" IsDarkMode="_isDarkMode" />
     <MudPopoverProvider />
@@ -71,19 +74,24 @@
         </MudHidden>
     </MudLayout>
 </LocalizationInitializer>
+</CascadingValue>
 
 @code {
     private bool _drawerOpen = true;
     private bool _isDarkMode = false;
     private bool _canGoBack = false;
+    private bool _canEdit = false;
 
     // Pages that are considered "root" pages (no back button)
     private static readonly string[] RootPages = { "/", "/products", "/stock", "/locations", "/quantity-units", "/settings", "/login" };
 
-    protected override void OnInitialized()
+    protected override async Task OnInitializedAsync()
     {
         Navigation.LocationChanged += OnLocationChanged;
         UpdateCanGoBack();
+
+        // Check user edit permissions (Admin/Editor can edit, Viewer is read-only)
+        _canEdit = await UserPermissions.CanEditAsync();
     }
 
     private void OnLocationChanged(object? sender, LocationChangedEventArgs e)

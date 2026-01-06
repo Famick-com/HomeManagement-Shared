@@ -89,11 +89,14 @@
                     <MudAlert Severity="Severity.Info">
                         @L["inventory.noStock"]
                     </MudAlert>
-                    <MudButton Variant="Variant.Filled" Color="Color.Primary"
-                               StartIcon="@Icons.Material.Filled.Add"
-                               OnClick="ShowAddStockDialog" FullWidth="true">
-                        @L["inventory.addStock"]
-                    </MudButton>
+                    <MudTooltip Text="@(CanEdit ? null : L["common.viewerNoPermission"])" Disabled="@CanEdit">
+                        <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                                   StartIcon="@Icons.Material.Filled.Add"
+                                   OnClick="ShowAddStockDialog" FullWidth="true"
+                                   Disabled="@(!CanEdit)">
+                            @L["inventory.addStock"]
+                        </MudButton>
+                    </MudTooltip>
                     <MudButton Variant="Variant.Outlined" Color="Color.Default"
                                StartIcon="@Icons.Material.Filled.NavigateNext"
                                OnClick="PrepareNextItem" FullWidth="true" Class="mt-2">
@@ -115,11 +118,14 @@
                                         OnConsumeClick="ShowConsumeDialog" />
                     }
 
-                    <MudButton Variant="Variant.Outlined" Color="Color.Primary"
-                               StartIcon="@Icons.Material.Filled.Add"
-                               OnClick="ShowAddStockDialog" FullWidth="true" Class="mt-2">
-                        @L["inventory.addMore"]
-                    </MudButton>
+                    <MudTooltip Text="@(CanEdit ? null : L["common.viewerNoPermission"])" Disabled="@CanEdit">
+                        <MudButton Variant="Variant.Outlined" Color="Color.Primary"
+                                   StartIcon="@Icons.Material.Filled.Add"
+                                   OnClick="ShowAddStockDialog" FullWidth="true" Class="mt-2"
+                                   Disabled="@(!CanEdit)">
+                            @L["inventory.addMore"]
+                        </MudButton>
+                    </MudTooltip>
                     <MudButton Variant="Variant.Outlined" Color="Color.Default"
                                StartIcon="@Icons.Material.Filled.NavigateNext"
                                OnClick="PrepareNextItem" FullWidth="true" Class="mt-2">
@@ -194,17 +200,23 @@
                 <MudAlert Severity="Severity.Warning">
                     @L["inventory.productNotFound"]
                 </MudAlert>
-                <MudButton Variant="Variant.Filled" Color="Color.Primary"
-                           StartIcon="@Icons.Material.Filled.Add"
-                           OnClick="NavigateToCreateProduct" FullWidth="true">
-                    @L["inventory.createProduct"]
-                </MudButton>
+                <MudTooltip Text="@(CanEdit ? null : L["common.viewerNoPermission"])" Disabled="@CanEdit">
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                               StartIcon="@Icons.Material.Filled.Add"
+                               OnClick="NavigateToCreateProduct" FullWidth="true"
+                               Disabled="@(!CanEdit)">
+                        @L["inventory.createProduct"]
+                    </MudButton>
+                </MudTooltip>
             }
         }
     </MudStack>
 </MudContainer>
 
 @code {
+    [CascadingParameter(Name = "CanEdit")]
+    private bool CanEdit { get; set; }
+
     private Guid? _selectedLocationId;
     private LocationDto? _selectedLocation;
     private string _searchQuery = string.Empty;

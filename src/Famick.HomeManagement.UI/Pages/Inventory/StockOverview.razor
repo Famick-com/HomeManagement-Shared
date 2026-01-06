@@ -88,22 +88,23 @@
             <TemplateColumn T="StockOverviewItemDto" Title="" Sortable="false" CellStyle="width: 140px;">
                 <CellTemplate>
                     <MudStack Row="true" Spacing="1">
-                        <MudTooltip Text="@L["stock.consumeOne"]">
+                        <MudTooltip Text="@(CanEdit ? L["stock.consumeOne"] : L["common.viewerNoPermission"])">
                             <MudIconButton Icon="@Icons.Material.Filled.RemoveCircle" Size="Size.Small"
                                            Color="Color.Error"
                                            OnClick="@(() => QuickConsume(context.Item, 1))"
-                                           Disabled="@(context.Item.TotalAmount < 1)" />
+                                           Disabled="@(!CanEdit || context.Item.TotalAmount < 1)" />
                         </MudTooltip>
-                        <MudTooltip Text="@L["stock.consumeAll"]">
+                        <MudTooltip Text="@(CanEdit ? L["stock.consumeAll"] : L["common.viewerNoPermission"])">
                             <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small"
                                            Color="Color.Error"
                                            OnClick="@(() => QuickConsumeAll(context.Item))"
-                                           Disabled="@(context.Item.TotalAmount <= 0)" />
+                                           Disabled="@(!CanEdit || context.Item.TotalAmount <= 0)" />
                         </MudTooltip>
-                        <MudTooltip Text="@L["stock.addOne"]">
+                        <MudTooltip Text="@(CanEdit ? L["stock.addOne"] : L["common.viewerNoPermission"])">
                             <MudIconButton Icon="@Icons.Material.Filled.AddCircle" Size="Size.Small"
                                            Color="Color.Success"
-                                           OnClick="@(() => QuickAdd(context.Item))" />
+                                           OnClick="@(() => QuickAdd(context.Item))"
+                                           Disabled="@(!CanEdit)" />
                         </MudTooltip>
                     </MudStack>
                 </CellTemplate>
@@ -161,6 +162,9 @@ else if (!_isLoading)
 }
 
 @code {
+    [CascadingParameter(Name = "CanEdit")]
+    private bool CanEdit { get; set; }
+
     private StockStatisticsDto? _statistics;
     private List<StockOverviewItemDto> _items = new();
     private bool _isLoading = true;

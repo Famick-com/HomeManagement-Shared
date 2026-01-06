@@ -37,12 +37,15 @@
 
             <MudSpacer />
 
-            <MudButton Variant="Variant.Filled"
-                       Color="Color.Primary"
-                       StartIcon="@Icons.Material.Filled.Add"
-                       OnClick="NavigateToNewProduct">
-                @L["products.addProduct"]
-            </MudButton>
+            <MudTooltip Text="@(CanEdit ? null : L["common.viewerNoPermission"])" Disabled="@CanEdit">
+                <MudButton Variant="Variant.Filled"
+                           Color="Color.Primary"
+                           StartIcon="@Icons.Material.Filled.Add"
+                           OnClick="NavigateToNewProduct"
+                           Disabled="@(!CanEdit)">
+                    @L["products.addProduct"]
+                </MudButton>
+            </MudTooltip>
         </MudStack>
     </MudHidden>
 
@@ -60,10 +63,13 @@
                               DebounceInterval="300"
                               OnDebounceIntervalElapsed="OnSearchChanged"
                               FullWidth="true" />
-                <MudIconButton Icon="@Icons.Material.Filled.Add"
-                               Color="Color.Primary"
-                               Variant="Variant.Filled"
-                               OnClick="NavigateToNewProduct" />
+                <MudTooltip Text="@(CanEdit ? null : L["common.viewerNoPermission"])" Disabled="@CanEdit">
+                    <MudIconButton Icon="@Icons.Material.Filled.Add"
+                                   Color="Color.Primary"
+                                   Variant="Variant.Filled"
+                                   OnClick="NavigateToNewProduct"
+                                   Disabled="@(!CanEdit)" />
+                </MudTooltip>
             </MudStack>
             <MudSelect T="string" @bind-Value="_statusFilter"
                        Label="@L["products.filterByStatus"]"
@@ -246,6 +252,9 @@
 </MudPaper>
 
 @code {
+    [CascadingParameter(Name = "CanEdit")]
+    private bool CanEdit { get; set; }
+
     private List<ProductDto> _products = new();
     private bool _isLoading = true;
     private string _searchText = string.Empty;

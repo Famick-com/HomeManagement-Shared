@@ -13,12 +13,15 @@
 
 <MudPaper Elevation="1" Class="pa-4">
     <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.FlexEnd" Class="mb-4">
-        <MudButton Variant="Variant.Filled"
-                   Color="Color.Primary"
-                   StartIcon="@Icons.Material.Filled.Add"
-                   OnClick="OpenAddDialog">
-            @L["settings.stores.add"]
-        </MudButton>
+        <MudTooltip Text="@(CanEdit ? null : L["common.viewerNoPermission"])" Disabled="@CanEdit">
+            <MudButton Variant="Variant.Filled"
+                       Color="Color.Primary"
+                       StartIcon="@Icons.Material.Filled.Add"
+                       OnClick="OpenAddDialog"
+                       Disabled="@(!CanEdit)">
+                @L["settings.stores.add"]
+            </MudButton>
+        </MudTooltip>
     </MudStack>
 
     @if (_isLoading)
@@ -71,14 +74,20 @@
                 <TemplateColumn Title="@L["common.actions"]" Sortable="false">
                     <CellTemplate>
                         <MudStack Row="true" Spacing="1">
-                            <MudIconButton Icon="@Icons.Material.Filled.Edit"
-                                           Size="Size.Small"
-                                           Color="Color.Primary"
-                                           OnClick="@(() => OpenEditDialog(context.Item))" />
-                            <MudIconButton Icon="@Icons.Material.Filled.Delete"
-                                           Size="Size.Small"
-                                           Color="Color.Error"
-                                           OnClick="@(() => HandleDelete(context.Item))" />
+                            <MudTooltip Text="@(CanEdit ? null : L["common.viewerNoPermission"])">
+                                <MudIconButton Icon="@Icons.Material.Filled.Edit"
+                                               Size="Size.Small"
+                                               Color="Color.Primary"
+                                               OnClick="@(() => OpenEditDialog(context.Item))"
+                                               Disabled="@(!CanEdit)" />
+                            </MudTooltip>
+                            <MudTooltip Text="@(CanEdit ? null : L["common.viewerNoPermission"])">
+                                <MudIconButton Icon="@Icons.Material.Filled.Delete"
+                                               Size="Size.Small"
+                                               Color="Color.Error"
+                                               OnClick="@(() => HandleDelete(context.Item))"
+                                               Disabled="@(!CanEdit)" />
+                            </MudTooltip>
                         </MudStack>
                     </CellTemplate>
                 </TemplateColumn>
@@ -383,6 +392,9 @@
 </MudDialog>
 
 @code {
+    [CascadingParameter(Name = "CanEdit")]
+    private bool CanEdit { get; set; }
+
     private enum CreationMode { Manual, Integration }
 
     private List<ShoppingLocationDto> _stores = new();
