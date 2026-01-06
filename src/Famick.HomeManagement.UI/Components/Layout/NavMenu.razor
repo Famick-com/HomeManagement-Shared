@@ -22,6 +22,11 @@
     <MudNavLink Href="/equipment" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Build">@L["nav.equipment"]</MudNavLink>
 
     <MudText Typo="Typo.subtitle2" Class="px-4 mt-4 mb-2">@L["nav.system"]</MudText>
+    <AuthorizeView Policy="RequireAdmin">
+        <Authorized>
+            <MudNavLink Href="/settings/users" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.People">@L["nav.users"]</MudNavLink>
+        </Authorized>
+    </AuthorizeView>
     <MudNavLink Href="/settings/locations" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.LocationOn">@L["nav.locations"]</MudNavLink>
     <MudNavLink Href="/settings/quantity-units" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Straighten">@L["nav.quantityUnits"]</MudNavLink>
     <MudNavLink Href="/settings/store-integrations" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Link">@L["nav.storeIntegrations"]</MudNavLink>

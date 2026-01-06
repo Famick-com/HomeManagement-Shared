@@ -19,4 +19,5 @@ public class User : BaseEntity, ITenantEntity
     // Navigation properties
     // Note: Tenant navigation property is cloud-specific and defined in homemanagement-cloud
     public ICollection<UserPermission> UserPermissions { get; set; } = new List<UserPermission>();
+    public ICollection<UserRole> UserRoles { get; set; } = new List<UserRole>();
 }
