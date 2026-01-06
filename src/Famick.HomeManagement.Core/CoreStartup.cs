@@ -1,3 +1,4 @@
+using Famick.HomeManagement.Core.Configuration;
 using Famick.HomeManagement.Core.Interfaces;
 using Famick.HomeManagement.Core.Services;
 using Microsoft.Extensions.Configuration;
@@ -15,6 +16,9 @@ public static class CoreStartup
 
         // Register version service
         services.AddSingleton<IVersionService, VersionService>();
+
+        // Configure email settings
+        services.Configure<EmailSettings>(configuration.GetSection(EmailSettings.SectionName));
 
         return services;
     }

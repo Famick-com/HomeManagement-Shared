@@ -72,7 +72,14 @@
                              Label="@L["auth.rememberMe"]"
                              Color="Color.Primary"
                              Disabled="@_isLoading"
-                             Class="mb-4" />
+                             Class="mb-2" />
+
+                <MudLink Href="/forgot-password"
+                         Typo="Typo.body2"
+                         Color="Color.Primary"
+                         Class="d-block text-right mb-4">
+                    @L["auth.forgotPasswordLink"]
+                </MudLink>
 
                 @if (!string.IsNullOrEmpty(_errorMessage))
                 {

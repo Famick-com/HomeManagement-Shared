@@ -167,6 +167,81 @@ public class HttpApiClient : IApiClient
         }
     }
 
+    public async Task<ApiResult<ForgotPasswordResponse>> ForgotPasswordAsync(ForgotPasswordRequest request)
+    {
+        try
+        {
+            var response = await _httpClient.PostAsJsonAsync("api/auth/forgot-password", request, JsonOptions);
+
+            if (response.IsSuccessStatusCode)
+            {
+                var forgotResponse = await response.Content.ReadFromJsonAsync<ForgotPasswordResponse>(JsonOptions);
+                if (forgotResponse != null)
+                {
+                    return ApiResult<ForgotPasswordResponse>.Success(forgotResponse);
+                }
+            }
+
+            var error = await ReadErrorMessage(response);
+            return ApiResult<ForgotPasswordResponse>.Failure(error, (int)response.StatusCode);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Forgot password request failed");
+            return ApiResult<ForgotPasswordResponse>.Failure("Request failed. Please try again.");
+        }
+    }
+
+    public async Task<ApiResult<ValidateResetTokenResponse>> ValidateResetTokenAsync(string token)
+    {
+        try
+        {
+            var response = await _httpClient.GetAsync($"api/auth/validate-reset-token?token={Uri.EscapeDataString(token)}");
+
+            if (response.IsSuccessStatusCode)
+            {
+                var validateResponse = await response.Content.ReadFromJsonAsync<ValidateResetTokenResponse>(JsonOptions);
+                if (validateResponse != null)
+                {
+                    return ApiResult<ValidateResetTokenResponse>.Success(validateResponse);
+                }
+            }
+
+            var error = await ReadErrorMessage(response);
+            return ApiResult<ValidateResetTokenResponse>.Failure(error, (int)response.StatusCode);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Token validation failed");
+            return ApiResult<ValidateResetTokenResponse>.Failure("Validation failed. Please try again.");
+        }
+    }
+
+    public async Task<ApiResult<ResetPasswordResponse>> ResetPasswordAsync(ResetPasswordRequest request)
+    {
+        try
+        {
+            var response = await _httpClient.PostAsJsonAsync("api/auth/reset-password", request, JsonOptions);
+
+            if (response.IsSuccessStatusCode)
+            {
+                var resetResponse = await response.Content.ReadFromJsonAsync<ResetPasswordResponse>(JsonOptions);
+                if (resetResponse != null)
+                {
+                    return ApiResult<ResetPasswordResponse>.Success(resetResponse);
+                }
+            }
+
+            var error = await ReadErrorMessage(response);
+            return ApiResult<ResetPasswordResponse>.Failure(error, (int)response.StatusCode);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Password reset failed");
+            return ApiResult<ResetPasswordResponse>.Failure("Password reset failed. Please try again.");
+        }
+    }
+
     public async Task<ApiResult<SetupStatusResponse>> GetSetupStatusAsync()
     {
         try
