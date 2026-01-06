@@ -32,26 +32,31 @@ else if (_home != null)
                            OnClick="CancelEdit">
                     @L["common.cancel"]
                 </MudButton>
-                <MudButton Variant="Variant.Filled"
-                           Color="Color.Primary"
-                           StartIcon="@Icons.Material.Filled.Save"
-                           OnClick="SaveChanges"
-                           Disabled="@_isSaving">
-                    @if (_isSaving)
-                    {
-                        <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
-                    }
-                    @L["common.save"]
-                </MudButton>
+                <MudTooltip Text="@(CanEdit ? null : L["common.viewerNoPermission"])" Disabled="@CanEdit">
+                    <MudButton Variant="Variant.Filled"
+                               Color="Color.Primary"
+                               StartIcon="@Icons.Material.Filled.Save"
+                               OnClick="SaveChanges"
+                               Disabled="@(!CanEdit || _isSaving)">
+                        @if (_isSaving)
+                        {
+                            <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                        }
+                        @L["common.save"]
+                    </MudButton>
+                </MudTooltip>
             }
             else
             {
-                <MudButton Variant="Variant.Filled"
-                           Color="Color.Primary"
-                           StartIcon="@Icons.Material.Filled.Edit"
-                           OnClick="StartEdit">
-                    @L["common.edit"]
-                </MudButton>
+                <MudTooltip Text="@(CanEdit ? null : L["common.viewerNoPermission"])" Disabled="@CanEdit">
+                    <MudButton Variant="Variant.Filled"
+                               Color="Color.Primary"
+                               StartIcon="@Icons.Material.Filled.Edit"
+                               OnClick="StartEdit"
+                               Disabled="@(!CanEdit)">
+                        @L["common.edit"]
+                    </MudButton>
+                </MudTooltip>
             }
         </MudStack>
 
@@ -166,13 +171,16 @@ else if (_home != null)
                 <MudExpansionPanel Text="@L["home.utilities"]">
                     <MudStack Spacing="2">
                         <MudStack Row="true" Justify="Justify.FlexEnd">
-                            <MudButton Variant="Variant.Outlined"
-                                       Color="Color.Primary"
-                                       StartIcon="@Icons.Material.Filled.Add"
-                                       OnClick="OpenAddUtilityDialog"
-                                       Size="Size.Small">
-                                @L["home.addUtility"]
-                            </MudButton>
+                            <MudTooltip Text="@(CanEdit ? null : L["common.viewerNoPermission"])" Disabled="@CanEdit">
+                                <MudButton Variant="Variant.Outlined"
+                                           Color="Color.Primary"
+                                           StartIcon="@Icons.Material.Filled.Add"
+                                           OnClick="OpenAddUtilityDialog"
+                                           Size="Size.Small"
+                                           Disabled="@(!CanEdit)">
+                                    @L["home.addUtility"]
+                                </MudButton>
+                            </MudTooltip>
                         </MudStack>
 
                         @if (_home.Utilities.Count == 0)
@@ -193,14 +201,20 @@ else if (_home != null)
                                     <TemplateColumn Title="@L["common.actions"]" Sortable="false">
                                         <CellTemplate>
                                             <MudStack Row="true" Spacing="1">
-                                                <MudIconButton Icon="@Icons.Material.Filled.Edit"
-                                                               Size="Size.Small"
-                                                               Color="Color.Primary"
-                                                               OnClick="@(() => OpenEditUtilityDialog(context.Item))" />
-                                                <MudIconButton Icon="@Icons.Material.Filled.Delete"
-                                                               Size="Size.Small"
-                                                               Color="Color.Error"
-                                                               OnClick="@(() => DeleteUtility(context.Item))" />
+                                                <MudTooltip Text="@(CanEdit ? null : L["common.viewerNoPermission"])">
+                                                    <MudIconButton Icon="@Icons.Material.Filled.Edit"
+                                                                   Size="Size.Small"
+                                                                   Color="Color.Primary"
+                                                                   OnClick="@(() => OpenEditUtilityDialog(context.Item))"
+                                                                   Disabled="@(!CanEdit)" />
+                                                </MudTooltip>
+                                                <MudTooltip Text="@(CanEdit ? null : L["common.viewerNoPermission"])">
+                                                    <MudIconButton Icon="@Icons.Material.Filled.Delete"
+                                                                   Size="Size.Small"
+                                                                   Color="Color.Error"
+                                                                   OnClick="@(() => DeleteUtility(context.Item))"
+                                                                   Disabled="@(!CanEdit)" />
+                                                </MudTooltip>
                                             </MudStack>
                                         </CellTemplate>
                                     </TemplateColumn>
@@ -444,20 +458,26 @@ else if (_home != null)
                 <MudExpansionPanel Text="@L["equipment.title"]">
                     <MudStack Spacing="2">
                         <MudStack Row="true" Justify="Justify.FlexEnd" Spacing="2">
-                            <MudButton Variant="Variant.Text"
-                                       Color="Color.Default"
-                                       StartIcon="@Icons.Material.Filled.Category"
-                                       OnClick="OpenCategoryDialog"
-                                       Size="Size.Small">
-                                @L["equipment.manageCategories"]
-                            </MudButton>
-                            <MudButton Variant="Variant.Outlined"
-                                       Color="Color.Primary"
-                                       StartIcon="@Icons.Material.Filled.Add"
-                                       OnClick="OpenAddEquipmentDialog"
-                                       Size="Size.Small">
-                                @L["equipment.add"]
-                            </MudButton>
+                            <MudTooltip Text="@(CanEdit ? null : L["common.viewerNoPermission"])" Disabled="@CanEdit">
+                                <MudButton Variant="Variant.Text"
+                                           Color="Color.Default"
+                                           StartIcon="@Icons.Material.Filled.Category"
+                                           OnClick="OpenCategoryDialog"
+                                           Size="Size.Small"
+                                           Disabled="@(!CanEdit)">
+                                    @L["equipment.manageCategories"]
+                                </MudButton>
+                            </MudTooltip>
+                            <MudTooltip Text="@(CanEdit ? null : L["common.viewerNoPermission"])" Disabled="@CanEdit">
+                                <MudButton Variant="Variant.Outlined"
+                                           Color="Color.Primary"
+                                           StartIcon="@Icons.Material.Filled.Add"
+                                           OnClick="OpenAddEquipmentDialog"
+                                           Size="Size.Small"
+                                           Disabled="@(!CanEdit)">
+                                    @L["equipment.add"]
+                                </MudButton>
+                            </MudTooltip>
                         </MudStack>
 
                         @if (_isLoadingEquipment)
@@ -508,10 +528,13 @@ else if (_home != null)
                                                                Size="Size.Small"
                                                                Color="Color.Primary"
                                                                OnClick="@(() => NavigateToEquipment(context.Item.Id))" />
-                                                <MudIconButton Icon="@Icons.Material.Filled.Delete"
-                                                               Size="Size.Small"
-                                                               Color="Color.Error"
-                                                               OnClick="@(() => DeleteEquipment(context.Item))" />
+                                                <MudTooltip Text="@(CanEdit ? null : L["common.viewerNoPermission"])">
+                                                    <MudIconButton Icon="@Icons.Material.Filled.Delete"
+                                                                   Size="Size.Small"
+                                                                   Color="Color.Error"
+                                                                   OnClick="@(() => DeleteEquipment(context.Item))"
+                                                                   Disabled="@(!CanEdit)" />
+                                                </MudTooltip>
                                             </MudStack>
                                         </CellTemplate>
                                     </TemplateColumn>
@@ -534,6 +557,9 @@ else if (_home != null)
 <EquipmentCategoryDialog @bind-Visible="_categoryDialogVisible" />
 
 @code {
+    [CascadingParameter(Name = "CanEdit")]
+    private bool CanEdit { get; set; }
+
     private bool _isLoading = true;
     private bool _isSetupComplete = false;
     private bool _isEditing = false;

@@ -52,7 +52,8 @@
     "password": "Password",
     "never": "Never",
     "generate": "Generate",
-    "copied": "Copied to clipboard"
+    "copied": "Copied to clipboard",
+    "viewerNoPermission": "You don't have permission to edit. Contact an administrator."
   },
 
   "auth": {

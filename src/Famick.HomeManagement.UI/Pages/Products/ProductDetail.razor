@@ -45,6 +45,7 @@ else
                                           Variant="Variant.Outlined"
                                           Required="true"
                                           RequiredError="@L["products.nameRequired"]"
+                                          ReadOnly="@(!CanEdit)"
                                           Class="flex-grow-1" />
                             <MudTooltip Text="@L["productLookup.title"]">
                                 <MudIconButton Icon="@Icons.Material.Filled.Search"
@@ -58,13 +59,15 @@ else
                         <MudTextField @bind-Value="_description"
                                       Label="@L["products.description"]"
                                       Variant="Variant.Outlined"
+                                      ReadOnly="@(!CanEdit)"
                                       Lines="3" />
 
                         <MudSelect T="Guid" @bind-Value="_locationId"
                                    Label="@L["products.location"]"
                                    Variant="Variant.Outlined"
                                    Required="true"
-                                   RequiredError="@L["products.locationRequired"]">
+                                   RequiredError="@L["products.locationRequired"]"
+                                   Disabled="@(!CanEdit)">
                             @foreach (var location in _locations)
                             {
                                 <MudSelectItem Value="@location.Id">@location.Name</MudSelectItem>
@@ -77,6 +80,7 @@ else
                                        Variant="Variant.Outlined"
                                        Required="true"
                                        RequiredError="@L["products.purchaseUnitRequired"]"
+                                       Disabled="@(!CanEdit)"
                                        Style="flex: 1;">
                                 @foreach (var unit in _quantityUnits)
                                 {
@@ -89,6 +93,7 @@ else
                                        Variant="Variant.Outlined"
                                        Required="true"
                                        RequiredError="@L["products.stockUnitRequired"]"
+                                       Disabled="@(!CanEdit)"
                                        Style="flex: 1;">
                                 @foreach (var unit in _quantityUnits)
                                 {
@@ -101,6 +106,7 @@ else
                                          Label="@L["products.conversionFactor"]"
                                          Variant="Variant.Outlined"
                                          Min="0.001m"
+                                         ReadOnly="@(!CanEdit)"
                                          HelperText="@L["products.conversionFactorHint"]" />
 
                         <MudStack Row="true" Spacing="3">
@@ -108,12 +114,14 @@ else
                                              Label="@L["products.minStock"]"
                                              Variant="Variant.Outlined"
                                              Min="0m"
+                                             ReadOnly="@(!CanEdit)"
                                              Style="flex: 1;" />
 
                             <MudNumericField T="int" @bind-Value="_defaultBestBeforeDays"
                                              Label="@L["products.defaultBestBeforeDays"]"
                                              Variant="Variant.Outlined"
                                              Min="0"
+                                             ReadOnly="@(!CanEdit)"
                                              Style="flex: 1;" />
                         </MudStack>
 
@@ -125,11 +133,13 @@ else
                                              Label="Serving Size"
                                              Variant="Variant.Outlined"
                                              Min="0.1m"
+                                             ReadOnly="@(!CanEdit)"
                                              Style="flex: 1;" />
 
                             <MudSelect T="string" @bind-Value="_servingUnit"
                                        Label="Unit"
                                        Variant="Variant.Outlined"
+                                       Disabled="@(!CanEdit)"
                                        Style="flex: 0.5;">
                                 <MudSelectItem Value="@("g")">g</MudSelectItem>
                                 <MudSelectItem Value="@("ml")">ml</MudSelectItem>
@@ -140,6 +150,7 @@ else
                                              Label="Servings Per Container"
                                              Variant="Variant.Outlined"
                                              Min="0.1m"
+                                             ReadOnly="@(!CanEdit)"
                                              Style="flex: 1;" />
                         </MudStack>
 
@@ -152,7 +163,8 @@ else
 
                         <MudSwitch @bind-Value="_isActive"
                                    Label="@L["products.active"]"
-                                   Color="Color.Primary" />
+                                   Color="Color.Primary"
+                                   Disabled="@(!CanEdit)" />
                     </MudStack>
                 </MudPaper>
             </MudItem>
@@ -199,7 +211,7 @@ else
                         }
                     </MudPaper>
 
-                    <ProductStoreList ProductId="@Id!.Value" ProductName="@_name" OnBarcodeAdded="RefreshBarcodes" />
+                    <ProductStoreList ProductId="@Id!.Value" ProductName="@_name" ReadOnly="@(!CanEdit)" OnBarcodeAdded="RefreshBarcodes" />
                 }
 
                 <MudPaper Elevation="1" Class="@(!IsNew ? "pa-3 mt-3" : "pa-3")">
@@ -212,7 +224,7 @@ else
                         <div class="mt-2">
                             <ProductBarcodeList ProductId="@(Id ?? Guid.Empty)"
                                                 Barcodes="@_barcodes"
-                                                ReadOnly="@IsNew"
+                                                ReadOnly="@(IsNew || !CanEdit)"
                                                 OnBarcodeAdded="HandleBarcodeAdded"
                                                 OnBarcodeDeleted="HandleBarcodeDeleted" />
 
@@ -230,7 +242,7 @@ else
                     <MudText Typo="Typo.h6" Class="mb-2">@L["products.images"]</MudText>
                     <ProductImageGallery ProductId="@(Id ?? Guid.Empty)"
                                          Images="@_images"
-                                         ReadOnly="@IsNew"
+                                         ReadOnly="@(IsNew || !CanEdit)"
                                          OnImageUploaded="HandleImageUploaded"
                                          OnImageDeleted="HandleImageDeleted"
                                          OnPrimaryChanged="HandleImagePrimaryChanged" />
@@ -277,17 +289,19 @@ else
         <MudHidden Breakpoint="Breakpoint.SmAndDown">
             <MudStack Row="true" Spacing="2" Class="mt-4" Justify="Justify.SpaceBetween">
                 <MudStack Row="true" Spacing="2">
-                    <MudButton Variant="Variant.Filled"
-                               Color="Color.Primary"
-                               StartIcon="@Icons.Material.Filled.Save"
-                               OnClick="HandleSave"
-                               Disabled="@(!_formValid || _isSaving)">
-                        @if (_isSaving)
-                        {
-                            <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
-                        }
-                        @L["common.save"]
-                    </MudButton>
+                    <MudTooltip Text="@(CanEdit ? null : L["common.viewerNoPermission"])" Disabled="@CanEdit">
+                        <MudButton Variant="Variant.Filled"
+                                   Color="Color.Primary"
+                                   StartIcon="@Icons.Material.Filled.Save"
+                                   OnClick="HandleSave"
+                                   Disabled="@(!CanEdit || !_formValid || _isSaving)">
+                            @if (_isSaving)
+                            {
+                                <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                            }
+                            @L["common.save"]
+                        </MudButton>
+                    </MudTooltip>
 
                     <MudButton Variant="Variant.Outlined"
                                Color="Color.Default"
@@ -298,13 +312,15 @@ else
 
                 @if (!IsNew)
                 {
-                    <MudButton Variant="Variant.Outlined"
-                               Color="Color.Error"
-                               StartIcon="@Icons.Material.Filled.Delete"
-                               OnClick="HandleDelete"
-                               Disabled="@_isSaving">
-                        @L["common.delete"]
-                    </MudButton>
+                    <MudTooltip Text="@(CanEdit ? null : L["common.viewerNoPermission"])" Disabled="@CanEdit">
+                        <MudButton Variant="Variant.Outlined"
+                                   Color="Color.Error"
+                                   StartIcon="@Icons.Material.Filled.Delete"
+                                   OnClick="HandleDelete"
+                                   Disabled="@(!CanEdit || _isSaving)">
+                            @L["common.delete"]
+                        </MudButton>
+                    </MudTooltip>
                 }
             </MudStack>
         </MudHidden>
@@ -312,18 +328,20 @@ else
         @* Mobile button bar - stacked *@
         <MudHidden Breakpoint="Breakpoint.MdAndUp">
             <MudStack Spacing="2" Class="mt-3">
-                <MudButton Variant="Variant.Filled"
-                           Color="Color.Primary"
-                           StartIcon="@Icons.Material.Filled.Save"
-                           OnClick="HandleSave"
-                           Disabled="@(!_formValid || _isSaving)"
-                           FullWidth="true">
-                    @if (_isSaving)
-                    {
-                        <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
-                    }
-                    @L["common.save"]
-                </MudButton>
+                <MudTooltip Text="@(CanEdit ? null : L["common.viewerNoPermission"])" Disabled="@CanEdit">
+                    <MudButton Variant="Variant.Filled"
+                               Color="Color.Primary"
+                               StartIcon="@Icons.Material.Filled.Save"
+                               OnClick="HandleSave"
+                               Disabled="@(!CanEdit || !_formValid || _isSaving)"
+                               FullWidth="true">
+                        @if (_isSaving)
+                        {
+                            <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                        }
+                        @L["common.save"]
+                    </MudButton>
+                </MudTooltip>
 
                 <MudButton Variant="Variant.Outlined"
                            Color="Color.Default"
@@ -334,14 +352,16 @@ else
 
                 @if (!IsNew)
                 {
-                    <MudButton Variant="Variant.Outlined"
-                               Color="Color.Error"
-                               StartIcon="@Icons.Material.Filled.Delete"
-                               OnClick="HandleDelete"
-                               Disabled="@_isSaving"
-                               FullWidth="true">
-                        @L["common.delete"]
-                    </MudButton>
+                    <MudTooltip Text="@(CanEdit ? null : L["common.viewerNoPermission"])" Disabled="@CanEdit">
+                        <MudButton Variant="Variant.Outlined"
+                                   Color="Color.Error"
+                                   StartIcon="@Icons.Material.Filled.Delete"
+                                   OnClick="HandleDelete"
+                                   Disabled="@(!CanEdit || _isSaving)"
+                                   FullWidth="true">
+                            @L["common.delete"]
+                        </MudButton>
+                    </MudTooltip>
                 }
             </MudStack>
         </MudHidden>
@@ -351,6 +371,9 @@ else
 @code {
     [Parameter]
     public Guid? Id { get; set; }
+
+    [CascadingParameter(Name = "CanEdit")]
+    private bool CanEdit { get; set; }
 
     private bool IsNew => Id == null;
 

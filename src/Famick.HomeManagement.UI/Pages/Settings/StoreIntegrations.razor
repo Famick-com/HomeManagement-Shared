@@ -90,39 +90,51 @@
                         <MudStack Row="true" Spacing="1">
                             @if (!context.Item.HasIntegration)
                             {
-                                <MudButton Variant="Variant.Outlined"
-                                           Color="Color.Primary"
-                                           Size="Size.Small"
-                                           OnClick="@(() => OpenLinkDialog(context.Item))">
-                                    @L["settings.storeIntegrations.link"]
-                                </MudButton>
+                                <MudTooltip Text="@(CanEdit ? null : L["common.viewerNoPermission"])" Disabled="@CanEdit">
+                                    <MudButton Variant="Variant.Outlined"
+                                               Color="Color.Primary"
+                                               Size="Size.Small"
+                                               OnClick="@(() => OpenLinkDialog(context.Item))"
+                                               Disabled="@(!CanEdit)">
+                                        @L["settings.storeIntegrations.link"]
+                                    </MudButton>
+                                </MudTooltip>
                             }
                             else
                             {
                                 @if (!context.Item.IsConnected)
                                 {
-                                    <MudButton Variant="Variant.Outlined"
-                                               Color="Color.Primary"
-                                               Size="Size.Small"
-                                               OnClick="@(() => StartOAuthFlow(context.Item))">
-                                        @L["settings.storeIntegrations.connect"]
-                                    </MudButton>
+                                    <MudTooltip Text="@(CanEdit ? null : L["common.viewerNoPermission"])" Disabled="@CanEdit">
+                                        <MudButton Variant="Variant.Outlined"
+                                                   Color="Color.Primary"
+                                                   Size="Size.Small"
+                                                   OnClick="@(() => StartOAuthFlow(context.Item))"
+                                                   Disabled="@(!CanEdit)">
+                                            @L["settings.storeIntegrations.connect"]
+                                        </MudButton>
+                                    </MudTooltip>
                                 }
                                 else
                                 {
-                                    <MudButton Variant="Variant.Outlined"
-                                               Color="Color.Warning"
-                                               Size="Size.Small"
-                                               OnClick="@(() => Disconnect(context.Item))">
-                                        @L["settings.storeIntegrations.disconnect"]
-                                    </MudButton>
+                                    <MudTooltip Text="@(CanEdit ? null : L["common.viewerNoPermission"])" Disabled="@CanEdit">
+                                        <MudButton Variant="Variant.Outlined"
+                                                   Color="Color.Warning"
+                                                   Size="Size.Small"
+                                                   OnClick="@(() => Disconnect(context.Item))"
+                                                   Disabled="@(!CanEdit)">
+                                            @L["settings.storeIntegrations.disconnect"]
+                                        </MudButton>
+                                    </MudTooltip>
                                 }
-                                <MudButton Variant="Variant.Outlined"
-                                           Color="Color.Error"
-                                           Size="Size.Small"
-                                           OnClick="@(() => UnlinkStore(context.Item))">
-                                    @L["settings.storeIntegrations.unlink"]
-                                </MudButton>
+                                <MudTooltip Text="@(CanEdit ? null : L["common.viewerNoPermission"])" Disabled="@CanEdit">
+                                    <MudButton Variant="Variant.Outlined"
+                                               Color="Color.Error"
+                                               Size="Size.Small"
+                                               OnClick="@(() => UnlinkStore(context.Item))"
+                                               Disabled="@(!CanEdit)">
+                                        @L["settings.storeIntegrations.unlink"]
+                                    </MudButton>
+                                </MudTooltip>
                             }
                         </MudStack>
                     </CellTemplate>
@@ -210,6 +222,9 @@
 </MudDialog>
 
 @code {
+    [CascadingParameter(Name = "CanEdit")]
+    private bool CanEdit { get; set; }
+
     private List<ShoppingLocationDto> _shoppingLocations = new();
     private List<StoreIntegrationPluginInfo> _availablePlugins = new();
     private bool _isLoading = true;

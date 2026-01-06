@@ -35,28 +35,33 @@ else
                                       Label="@L["equipment.name"]"
                                       Required="true"
                                       RequiredError="@L["validation.required"]"
-                                      Variant="Variant.Outlined" />
+                                      Variant="Variant.Outlined"
+                                      ReadOnly="@(!CanEdit)" />
 
                         <MudTextField @bind-Value="_model.Description"
                                       Label="@L["equipment.description"]"
                                       Variant="Variant.Outlined"
-                                      Lines="2" />
+                                      Lines="2"
+                                      ReadOnly="@(!CanEdit)" />
 
                         <MudTextField @bind-Value="_model.Location"
                                       Label="@L["equipment.location"]"
                                       HelperText="@L["equipment.locationHelp"]"
-                                      Variant="Variant.Outlined" />
+                                      Variant="Variant.Outlined"
+                                      ReadOnly="@(!CanEdit)" />
 
                         <MudGrid>
                             <MudItem xs="12" md="6">
                                 <MudTextField @bind-Value="_model.ModelNumber"
                                               Label="@L["equipment.modelNumber"]"
-                                              Variant="Variant.Outlined" />
+                                              Variant="Variant.Outlined"
+                                              ReadOnly="@(!CanEdit)" />
                             </MudItem>
                             <MudItem xs="12" md="6">
                                 <MudTextField @bind-Value="_model.SerialNumber"
                                               Label="@L["equipment.serialNumber"]"
-                                              Variant="Variant.Outlined" />
+                                              Variant="Variant.Outlined"
+                                              ReadOnly="@(!CanEdit)" />
                             </MudItem>
                         </MudGrid>
 
@@ -64,12 +69,14 @@ else
                             <MudItem xs="12" md="6">
                                 <MudDatePicker @bind-Date="_purchaseDate"
                                                Label="@L["equipment.purchaseDate"]"
-                                               Variant="Variant.Outlined" />
+                                               Variant="Variant.Outlined"
+                                               Disabled="@(!CanEdit)" />
                             </MudItem>
                             <MudItem xs="12" md="6">
                                 <MudTextField @bind-Value="_model.PurchaseLocation"
                                               Label="@L["equipment.purchaseLocation"]"
-                                              Variant="Variant.Outlined" />
+                                              Variant="Variant.Outlined"
+                                              ReadOnly="@(!CanEdit)" />
                             </MudItem>
                         </MudGrid>
 
@@ -77,19 +84,22 @@ else
                             <MudItem xs="12" md="6">
                                 <MudDatePicker @bind-Date="_warrantyExpirationDate"
                                                Label="@L["equipment.warrantyExpiration"]"
-                                               Variant="Variant.Outlined" />
+                                               Variant="Variant.Outlined"
+                                               Disabled="@(!CanEdit)" />
                             </MudItem>
                             <MudItem xs="12" md="6">
                                 <MudTextField @bind-Value="_model.WarrantyContactInfo"
                                               Label="@L["equipment.warrantyContact"]"
-                                              Variant="Variant.Outlined" />
+                                              Variant="Variant.Outlined"
+                                              ReadOnly="@(!CanEdit)" />
                             </MudItem>
                         </MudGrid>
 
                         <MudSelect T="Guid?" @bind-Value="_model.CategoryId"
                                    Label="@L["equipment.category"]"
                                    Variant="Variant.Outlined"
-                                   Clearable="true">
+                                   Clearable="true"
+                                   Disabled="@(!CanEdit)">
                             @foreach (var category in _categories)
                             {
                                 <MudSelectItem T="Guid?" Value="@category.Id">@category.Name</MudSelectItem>
@@ -100,7 +110,8 @@ else
                                    Label="@L["equipment.parent"]"
                                    HelperText="@L["equipment.parentHelp"]"
                                    Variant="Variant.Outlined"
-                                   Clearable="true">
+                                   Clearable="true"
+                                   Disabled="@(!CanEdit)">
                             @foreach (var item in _parentOptions)
                             {
                                 <MudSelectItem T="Guid?" Value="@item.Id">@item.Name</MudSelectItem>
@@ -110,27 +121,33 @@ else
                         <MudTextField @bind-Value="_model.Notes"
                                       Label="@L["equipment.notes"]"
                                       Variant="Variant.Outlined"
-                                      Lines="3" />
+                                      Lines="3"
+                                      ReadOnly="@(!CanEdit)" />
 
                         <MudStack Row="true" Justify="Justify.FlexEnd" Spacing="2">
                             @if (!IsNew)
                             {
-                                <MudButton Variant="Variant.Outlined"
-                                           Color="Color.Error"
-                                           OnClick="DeleteEquipment">
-                                    @L["common.delete"]
-                                </MudButton>
+                                <MudTooltip Text="@(CanEdit ? null : L["common.viewerNoPermission"])" Disabled="@CanEdit">
+                                    <MudButton Variant="Variant.Outlined"
+                                               Color="Color.Error"
+                                               OnClick="DeleteEquipment"
+                                               Disabled="@(!CanEdit)">
+                                        @L["common.delete"]
+                                    </MudButton>
+                                </MudTooltip>
                             }
-                            <MudButton Variant="Variant.Filled"
-                                       Color="Color.Primary"
-                                       OnClick="SaveEquipment"
-                                       Disabled="@_isSaving">
-                                @if (_isSaving)
-                                {
-                                    <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
-                                }
-                                @L["common.save"]
-                            </MudButton>
+                            <MudTooltip Text="@(CanEdit ? null : L["common.viewerNoPermission"])" Disabled="@CanEdit">
+                                <MudButton Variant="Variant.Filled"
+                                           Color="Color.Primary"
+                                           OnClick="SaveEquipment"
+                                           Disabled="@(!CanEdit || _isSaving)">
+                                    @if (_isSaving)
+                                    {
+                                        <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                                    }
+                                    @L["common.save"]
+                                </MudButton>
+                            </MudTooltip>
                         </MudStack>
                     </MudStack>
                 </MudForm>
@@ -166,24 +183,27 @@ else
                     <MudText Typo="Typo.h6">@L["equipment.documents.title"]</MudText>
                     @if (!IsNew)
                     {
-                        <MudFileUpload T="IBrowserFile"
-                                       Accept=".pdf,.jpg,.jpeg,.png,.gif,.webp,.doc,.docx,.xls,.xlsx,.txt"
-                                       FilesChanged="UploadDocument"
-                                       MaximumFileCount="1">
-                            <ActivatorContent>
-                                <MudButton Variant="Variant.Outlined"
-                                           Color="Color.Primary"
-                                           StartIcon="@Icons.Material.Filled.Upload"
-                                           Size="Size.Small"
-                                           Disabled="@_isUploading">
-                                    @if (_isUploading)
-                                    {
-                                        <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
-                                    }
-                                    @L["equipment.documents.upload"]
-                                </MudButton>
-                            </ActivatorContent>
-                        </MudFileUpload>
+                        <MudTooltip Text="@(CanEdit ? null : L["common.viewerNoPermission"])" Disabled="@CanEdit">
+                            <MudFileUpload T="IBrowserFile"
+                                           Accept=".pdf,.jpg,.jpeg,.png,.gif,.webp,.doc,.docx,.xls,.xlsx,.txt"
+                                           FilesChanged="UploadDocument"
+                                           MaximumFileCount="1"
+                                           Disabled="@(!CanEdit)">
+                                <ActivatorContent>
+                                    <MudButton Variant="Variant.Outlined"
+                                               Color="Color.Primary"
+                                               StartIcon="@Icons.Material.Filled.Upload"
+                                               Size="Size.Small"
+                                               Disabled="@(!CanEdit || _isUploading)">
+                                        @if (_isUploading)
+                                        {
+                                            <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                                        }
+                                        @L["equipment.documents.upload"]
+                                    </MudButton>
+                                </ActivatorContent>
+                            </MudFileUpload>
+                        </MudTooltip>
                     }
                 </MudStack>
 
@@ -241,11 +261,12 @@ else
                                                Size="Size.Small"
                                                OnClick="() => DownloadDocument(_previewDocument)" />
                             </MudTooltip>
-                            <MudTooltip Text="Delete">
+                            <MudTooltip Text="@(CanEdit ? "Delete" : L["common.viewerNoPermission"])">
                                 <MudIconButton Icon="@Icons.Material.Filled.Delete"
                                                Color="Color.Error"
                                                Size="Size.Small"
-                                               OnClick="() => DeleteDocument(_previewDocument)" />
+                                               OnClick="() => DeleteDocument(_previewDocument)"
+                                               Disabled="@(!CanEdit)" />
                             </MudTooltip>
                         </MudStack>
                     </MudStack>
@@ -288,6 +309,9 @@ else
 
 @code {
     [Parameter] public Guid? Id { get; set; }
+
+    [CascadingParameter(Name = "CanEdit")]
+    private bool CanEdit { get; set; }
 
     private bool IsNew => Id == null;
 
