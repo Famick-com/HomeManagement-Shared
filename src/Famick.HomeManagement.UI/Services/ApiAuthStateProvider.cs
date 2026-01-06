@@ -6,15 +6,18 @@ namespace Famick.HomeManagement.UI.Services;
 
 /// <summary>
 /// Custom authentication state provider that reads JWT tokens from storage.
+/// Proactively refreshes expired access tokens using the refresh token.
 /// </summary>
 public class ApiAuthStateProvider : AuthenticationStateProvider
 {
     private readonly ITokenStorage _tokenStorage;
+    private readonly IApiClient _apiClient;
     private readonly ClaimsPrincipal _anonymous = new(new ClaimsIdentity());
 
-    public ApiAuthStateProvider(ITokenStorage tokenStorage)
+    public ApiAuthStateProvider(ITokenStorage tokenStorage, IApiClient apiClient)
     {
         _tokenStorage = tokenStorage;
+        _apiClient = apiClient;
     }
 
     public override async Task<AuthenticationState> GetAuthenticationStateAsync()
@@ -40,6 +43,28 @@ public class ApiAuthStateProvider : AuthenticationStateProvider
                 var expDate = DateTimeOffset.FromUnixTimeSeconds(exp);
                 if (expDate <= DateTimeOffset.UtcNow)
                 {
+                    // Access token expired - try to refresh using refresh token
+                    var refreshToken = await _tokenStorage.GetRefreshTokenAsync();
+                    if (!string.IsNullOrEmpty(refreshToken))
+                    {
+                        var result = await _apiClient.RefreshTokenAsync(refreshToken);
+                        if (result.IsSuccess)
+                        {
+                            // Re-read the new access token (already saved by HttpApiClient)
+                            token = await _tokenStorage.GetAccessTokenAsync();
+                            if (!string.IsNullOrEmpty(token))
+                            {
+                                claims = ParseClaimsFromJwt(token);
+                                if (claims != null && claims.Any())
+                                {
+                                    var refreshedIdentity = new ClaimsIdentity(claims, "jwt");
+                                    return new AuthenticationState(new ClaimsPrincipal(refreshedIdentity));
+                                }
+                            }
+                        }
+                        // Refresh failed - clear invalid tokens
+                        await _tokenStorage.ClearTokensAsync();
+                    }
                     return new AuthenticationState(_anonymous);
                 }
             }
