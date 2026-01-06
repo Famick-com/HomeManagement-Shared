@@ -24,12 +24,21 @@ public interface IFileStorageService
     Task DeleteProductImageAsync(Guid productId, string fileName, CancellationToken ct = default);
 
     /// <summary>
-    /// Gets the URL for accessing a product image.
+    /// Gets the URL for accessing a product image via the secure API endpoint.
+    /// </summary>
+    /// <param name="productId">The product ID.</param>
+    /// <param name="imageId">The image ID.</param>
+    /// <param name="accessToken">Optional pre-signed access token for browser-initiated requests.</param>
+    /// <returns>The API URL to access the image.</returns>
+    string GetProductImageUrl(Guid productId, Guid imageId, string? accessToken = null);
+
+    /// <summary>
+    /// Gets the physical file path for a product image.
     /// </summary>
     /// <param name="productId">The product ID.</param>
     /// <param name="fileName">The stored file name.</param>
-    /// <returns>The URL to access the image.</returns>
-    string GetProductImageUrl(Guid productId, string fileName);
+    /// <returns>The full file path on disk.</returns>
+    string GetProductImagePath(Guid productId, string fileName);
 
     /// <summary>
     /// Deletes all images for a product (used when deleting a product).
@@ -74,12 +83,20 @@ public interface IFileStorageService
     Task DeleteEquipmentDocumentAsync(Guid equipmentId, string fileName, CancellationToken ct = default);
 
     /// <summary>
-    /// Gets the URL for accessing an equipment document.
+    /// Gets the URL for accessing an equipment document via the secure API endpoint.
+    /// </summary>
+    /// <param name="documentId">The document ID.</param>
+    /// <param name="accessToken">Optional pre-signed access token for browser-initiated requests.</param>
+    /// <returns>The API URL to access the document.</returns>
+    string GetEquipmentDocumentUrl(Guid documentId, string? accessToken = null);
+
+    /// <summary>
+    /// Gets the physical file path for an equipment document.
     /// </summary>
     /// <param name="equipmentId">The equipment ID.</param>
     /// <param name="fileName">The stored file name.</param>
-    /// <returns>The URL to access the document.</returns>
-    string GetEquipmentDocumentUrl(Guid equipmentId, string fileName);
+    /// <returns>The full file path on disk.</returns>
+    string GetEquipmentDocumentPath(Guid equipmentId, string fileName);
 
     /// <summary>
     /// Deletes all documents for an equipment item (used when deleting equipment).

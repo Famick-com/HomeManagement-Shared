@@ -13,12 +13,18 @@ public class ProductsService : IProductsService
     private readonly HomeManagementDbContext _context;
     private readonly IMapper _mapper;
     private readonly IFileStorageService _fileStorage;
+    private readonly IFileAccessTokenService _tokenService;
 
-    public ProductsService(HomeManagementDbContext context, IMapper mapper, IFileStorageService fileStorage)
+    public ProductsService(
+        HomeManagementDbContext context,
+        IMapper mapper,
+        IFileStorageService fileStorage,
+        IFileAccessTokenService tokenService)
     {
         _context = context;
         _mapper = mapper;
         _fileStorage = fileStorage;
+        _tokenService = tokenService;
     }
 
     public async Task<ProductDto> CreateAsync(CreateProductRequest request, CancellationToken cancellationToken = default)
@@ -66,11 +72,8 @@ public class ProductsService : IProductsService
 
         var dto = _mapper.Map<ProductDto>(product);
 
-        // Set computed URLs for images
-        foreach (var image in dto.Images)
-        {
-            image.Url = _fileStorage.GetProductImageUrl(product.Id, image.FileName);
-        }
+        // Set computed URLs for images with access tokens
+        SetImageUrls(dto.Images, product.Images.ToList(), product.Id);
 
         return dto;
     }
@@ -151,19 +154,15 @@ public class ProductsService : IProductsService
         // Get stock data for all products
         var stockByProduct = await GetStockByProductAndLocationAsync(cancellationToken);
 
+        // Build lookup for image entities (to get TenantId for token generation)
+        var productLookup = products.ToDictionary(p => p.Id);
+
         // Populate image URLs and stock data
         foreach (var dto in dtos)
         {
-            if (dto.Images != null)
+            if (dto.Images != null && productLookup.TryGetValue(dto.Id, out var product))
             {
-                foreach (var image in dto.Images)
-                {
-                    // Set local URL for non-external images
-                    if (!string.IsNullOrEmpty(image.FileName))
-                    {
-                        image.Url = _fileStorage.GetProductImageUrl(dto.Id, image.FileName);
-                    }
-                }
+                SetImageUrls(dto.Images, product.Images.ToList(), dto.Id);
             }
 
             // Populate stock summary
@@ -330,14 +329,8 @@ public class ProductsService : IProductsService
 
         var dto = _mapper.Map<ProductDto>(productBarcode.Product);
 
-        // Set computed URLs for images
-        foreach (var image in dto.Images)
-        {
-            if (!string.IsNullOrEmpty(image.FileName))
-            {
-                image.Url = _fileStorage.GetProductImageUrl(dto.Id, image.FileName);
-            }
-        }
+        // Set computed URLs for images with access tokens
+        SetImageUrls(dto.Images, productBarcode.Product.Images.ToList(), dto.Id);
 
         return dto;
     }
@@ -397,7 +390,8 @@ public class ProductsService : IProductsService
         await _context.SaveChangesAsync(cancellationToken);
 
         var dto = _mapper.Map<ProductImageDto>(productImage);
-        dto.Url = _fileStorage.GetProductImageUrl(productId, storedFileName);
+        var token = _tokenService.GenerateToken("product-image", productImage.Id, productImage.TenantId);
+        dto.Url = _fileStorage.GetProductImageUrl(productId, productImage.Id, token);
         return dto;
     }
 
@@ -410,13 +404,23 @@ public class ProductsService : IProductsService
 
         var dtos = _mapper.Map<List<ProductImageDto>>(images);
 
-        // Add URLs
-        foreach (var dto in dtos)
-        {
-            dto.Url = _fileStorage.GetProductImageUrl(productId, dto.FileName);
-        }
+        // Add URLs with access tokens
+        SetImageUrls(dtos, images, productId);
 
         return dtos;
+    }
+
+    public async Task<ProductImageDto?> GetImageByIdAsync(Guid productId, Guid imageId, CancellationToken cancellationToken = default)
+    {
+        var image = await _context.ProductImages
+            .FirstOrDefaultAsync(pi => pi.ProductId == productId && pi.Id == imageId, cancellationToken);
+
+        if (image == null) return null;
+
+        var dto = _mapper.Map<ProductImageDto>(image);
+        var token = _tokenService.GenerateToken("product-image", image.Id, image.TenantId);
+        dto.Url = _fileStorage.GetProductImageUrl(productId, imageId, token);
+        return dto;
     }
 
     public async Task DeleteImageAsync(Guid imageId, CancellationToken cancellationToken = default)
@@ -572,15 +576,15 @@ public class ProductsService : IProductsService
 
         var dtos = _mapper.Map<List<ProductDto>>(products);
 
-        // Set computed URLs for images
+        // Build lookup for image entities (to get TenantId for token generation)
+        var productLookup = products.ToDictionary(p => p.Id);
+
+        // Set computed URLs for images with access tokens
         foreach (var dto in dtos)
         {
-            foreach (var image in dto.Images)
+            if (dto.Images != null && productLookup.TryGetValue(dto.Id, out var product))
             {
-                if (!string.IsNullOrEmpty(image.FileName))
-                {
-                    image.Url = _fileStorage.GetProductImageUrl(dto.Id, image.FileName);
-                }
+                SetImageUrls(dto.Images, product.Images.ToList(), dto.Id);
             }
         }
 
@@ -588,6 +592,24 @@ public class ProductsService : IProductsService
     }
 
     // Private helper methods
+
+    /// <summary>
+    /// Sets URLs with access tokens for product images.
+    /// Matches DTOs with entities to get TenantId for token generation.
+    /// </summary>
+    private void SetImageUrls(List<ProductImageDto> dtos, List<ProductImage> entities, Guid productId)
+    {
+        var entityLookup = entities.ToDictionary(e => e.Id);
+
+        foreach (var dto in dtos)
+        {
+            if (!string.IsNullOrEmpty(dto.FileName) && entityLookup.TryGetValue(dto.Id, out var entity))
+            {
+                var token = _tokenService.GenerateToken("product-image", dto.Id, entity.TenantId);
+                dto.Url = _fileStorage.GetProductImageUrl(productId, dto.Id, token);
+            }
+        }
+    }
 
     private async Task ValidateForeignKeysAsync(
         Guid locationId,

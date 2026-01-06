@@ -19,6 +19,7 @@ public interface IProductsService
     // Image management
     Task<ProductImageDto> AddImageAsync(Guid productId, Stream imageStream, string fileName, string contentType, long fileSize, CancellationToken cancellationToken = default);
     Task<List<ProductImageDto>> GetImagesAsync(Guid productId, CancellationToken cancellationToken = default);
+    Task<ProductImageDto?> GetImageByIdAsync(Guid productId, Guid imageId, CancellationToken cancellationToken = default);
     Task DeleteImageAsync(Guid imageId, CancellationToken cancellationToken = default);
     Task SetPrimaryImageAsync(Guid imageId, CancellationToken cancellationToken = default);
     Task ReorderImagesAsync(Guid productId, List<Guid> imageIds, CancellationToken cancellationToken = default);
