@@ -34,6 +34,21 @@ public interface IApiClient
     Task<ApiResult<RegisterResponse>> RegisterAsync(RegisterRequest request);
 
     /// <summary>
+    /// Request a password reset email.
+    /// </summary>
+    Task<ApiResult<ForgotPasswordResponse>> ForgotPasswordAsync(ForgotPasswordRequest request);
+
+    /// <summary>
+    /// Validate a password reset token.
+    /// </summary>
+    Task<ApiResult<ValidateResetTokenResponse>> ValidateResetTokenAsync(string token);
+
+    /// <summary>
+    /// Reset password using a valid token.
+    /// </summary>
+    Task<ApiResult<ResetPasswordResponse>> ResetPasswordAsync(ResetPasswordRequest request);
+
+    /// <summary>
     /// Check if initial setup is required.
     /// </summary>
     Task<ApiResult<SetupStatusResponse>> GetSetupStatusAsync();
