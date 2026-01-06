@@ -12,6 +12,7 @@ public class EquipmentService : IEquipmentService
 {
     private readonly HomeManagementDbContext _context;
     private readonly IFileStorageService _fileStorage;
+    private readonly IFileAccessTokenService _tokenService;
     private readonly ILogger<EquipmentService> _logger;
 
     private static readonly string[] DefaultDocumentTags = new[]
@@ -27,10 +28,12 @@ public class EquipmentService : IEquipmentService
     public EquipmentService(
         HomeManagementDbContext context,
         IFileStorageService fileStorage,
+        IFileAccessTokenService tokenService,
         ILogger<EquipmentService> logger)
     {
         _context = context;
         _fileStorage = fileStorage;
+        _tokenService = tokenService;
         _logger = logger;
     }
 
@@ -398,6 +401,15 @@ public class EquipmentService : IEquipmentService
         return documents.Select(d => MapToDocumentDto(d)).ToList();
     }
 
+    public async Task<EquipmentDocumentDto?> GetDocumentByIdAsync(Guid documentId, CancellationToken ct = default)
+    {
+        var document = await _context.EquipmentDocuments
+            .Include(d => d.Tag)
+            .FirstOrDefaultAsync(d => d.Id == documentId, ct);
+
+        return document == null ? null : MapToDocumentDto(document);
+    }
+
     public async Task<EquipmentDocumentDto> UpdateDocumentAsync(Guid documentId, UpdateEquipmentDocumentRequest request, CancellationToken ct = default)
     {
         _logger.LogInformation("Updating document: {DocumentId}", documentId);
@@ -659,6 +671,12 @@ public class EquipmentService : IEquipmentService
 
     private EquipmentDocumentDto MapToDocumentDto(EquipmentDocument document)
     {
+        // Generate a signed access token for browser-initiated requests (img src, iframe, etc.)
+        var accessToken = _tokenService.GenerateToken(
+            "equipment-document",
+            document.Id,
+            document.TenantId);
+
         return new EquipmentDocumentDto
         {
             Id = document.Id,
@@ -671,7 +689,7 @@ public class EquipmentService : IEquipmentService
             SortOrder = document.SortOrder,
             TagId = document.TagId,
             TagName = document.Tag?.Name,
-            Url = _fileStorage.GetEquipmentDocumentUrl(document.EquipmentId, document.FileName),
+            Url = _fileStorage.GetEquipmentDocumentUrl(document.Id, accessToken),
             CreatedAt = document.CreatedAt,
             UpdatedAt = document.UpdatedAt
         };

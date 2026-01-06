@@ -5,7 +5,8 @@ namespace Famick.HomeManagement.Infrastructure.Services;
 
 /// <summary>
 /// File storage service that saves files to the local file system.
-/// Files are stored in wwwroot/uploads/products/{productId}/{filename}
+/// Files are stored outside wwwroot in {contentRoot}/uploads/{type}/{id}/{filename}
+/// to prevent direct access - all files must be served through authenticated API endpoints.
 /// </summary>
 public class LocalFileStorageService : IFileStorageService
 {
@@ -15,12 +16,12 @@ public class LocalFileStorageService : IFileStorageService
     private readonly HttpClient _httpClient;
 
     public LocalFileStorageService(
-        string webRootPath,
+        string contentRootPath,
         string baseUrl,
         ILogger<LocalFileStorageService> logger,
         IHttpClientFactory? httpClientFactory = null)
     {
-        _basePath = Path.Combine(webRootPath, "uploads");
+        _basePath = Path.Combine(contentRootPath, "uploads");
         _baseUrl = baseUrl.TrimEnd('/');
         _logger = logger;
         _httpClient = httpClientFactory?.CreateClient("ImageDownloader") ?? new HttpClient();
@@ -73,9 +74,15 @@ public class LocalFileStorageService : IFileStorageService
         return Task.CompletedTask;
     }
 
-    public string GetProductImageUrl(Guid productId, string fileName)
+    public string GetProductImageUrl(Guid productId, Guid imageId, string? accessToken = null)
     {
-        return $"{_baseUrl}/uploads/products/{productId}/{fileName}";
+        var url = $"{_baseUrl}/api/v1/products/{productId}/images/{imageId}/download";
+        return string.IsNullOrEmpty(accessToken) ? url : $"{url}?token={accessToken}";
+    }
+
+    public string GetProductImagePath(Guid productId, string fileName)
+    {
+        return Path.Combine(GetProductImageDirectory(productId), fileName);
     }
 
     public Task DeleteAllProductImagesAsync(Guid productId, CancellationToken ct = default)
@@ -240,9 +247,15 @@ public class LocalFileStorageService : IFileStorageService
         return Task.CompletedTask;
     }
 
-    public string GetEquipmentDocumentUrl(Guid equipmentId, string fileName)
+    public string GetEquipmentDocumentUrl(Guid documentId, string? accessToken = null)
     {
-        return $"{_baseUrl}/uploads/equipment/{equipmentId}/{fileName}";
+        var url = $"{_baseUrl}/api/v1/equipment/documents/{documentId}/download";
+        return string.IsNullOrEmpty(accessToken) ? url : $"{url}?token={accessToken}";
+    }
+
+    public string GetEquipmentDocumentPath(Guid equipmentId, string fileName)
+    {
+        return Path.Combine(GetEquipmentDocumentDirectory(equipmentId), fileName);
     }
 
     public Task DeleteAllEquipmentDocumentsAsync(Guid equipmentId, CancellationToken ct = default)
