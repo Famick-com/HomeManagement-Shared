@@ -49,6 +49,7 @@ public static class InfrastructureStartup
         services.AddScoped<IStockService, StockService>();
         services.AddScoped<IHomeService, HomeService>();
         services.AddScoped<IEquipmentService, EquipmentService>();
+        services.AddScoped<IStorageBinService, StorageBinService>();
 
         // Configure plugin system
         services.Configure<Plugins.PluginLoaderOptions>(options =>

@@ -83,6 +83,10 @@ public class HomeManagementDbContext : DbContext
     public DbSet<EquipmentDocument> EquipmentDocuments => Set<EquipmentDocument>();
     public DbSet<EquipmentDocumentTag> EquipmentDocumentTags => Set<EquipmentDocumentTag>();
 
+    // Storage Bins
+    public DbSet<StorageBin> StorageBins => Set<StorageBin>();
+    public DbSet<StorageBinPhoto> StorageBinPhotos => Set<StorageBinPhoto>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);

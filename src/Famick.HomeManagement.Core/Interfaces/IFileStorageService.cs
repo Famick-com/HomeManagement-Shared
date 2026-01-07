@@ -106,4 +106,50 @@ public interface IFileStorageService
     Task DeleteAllEquipmentDocumentsAsync(Guid equipmentId, CancellationToken ct = default);
 
     #endregion
+
+    #region Storage Bin Photos
+
+    /// <summary>
+    /// Saves a storage bin photo to storage.
+    /// </summary>
+    /// <param name="storageBinId">The storage bin ID for organizing storage.</param>
+    /// <param name="stream">The file stream to save.</param>
+    /// <param name="fileName">The original file name.</param>
+    /// <param name="contentType">The MIME content type (used to determine extension if filename lacks one).</param>
+    /// <param name="ct">Cancellation token.</param>
+    /// <returns>The stored file name (unique).</returns>
+    Task<string> SaveStorageBinPhotoAsync(Guid storageBinId, Stream stream, string fileName, string contentType, CancellationToken ct = default);
+
+    /// <summary>
+    /// Deletes a storage bin photo from storage.
+    /// </summary>
+    /// <param name="storageBinId">The storage bin ID.</param>
+    /// <param name="fileName">The stored file name.</param>
+    /// <param name="ct">Cancellation token.</param>
+    Task DeleteStorageBinPhotoAsync(Guid storageBinId, string fileName, CancellationToken ct = default);
+
+    /// <summary>
+    /// Gets the URL for accessing a storage bin photo via the secure API endpoint.
+    /// </summary>
+    /// <param name="photoId">The photo ID.</param>
+    /// <param name="accessToken">Optional pre-signed access token for browser-initiated requests.</param>
+    /// <returns>The API URL to access the photo.</returns>
+    string GetStorageBinPhotoUrl(Guid photoId, string? accessToken = null);
+
+    /// <summary>
+    /// Gets the physical file path for a storage bin photo.
+    /// </summary>
+    /// <param name="storageBinId">The storage bin ID.</param>
+    /// <param name="fileName">The stored file name.</param>
+    /// <returns>The full file path on disk.</returns>
+    string GetStorageBinPhotoPath(Guid storageBinId, string fileName);
+
+    /// <summary>
+    /// Deletes all photos for a storage bin (used when deleting the bin).
+    /// </summary>
+    /// <param name="storageBinId">The storage bin ID.</param>
+    /// <param name="ct">Cancellation token.</param>
+    Task DeleteAllStorageBinPhotosAsync(Guid storageBinId, CancellationToken ct = default);
+
+    #endregion
 }
