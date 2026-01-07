@@ -293,4 +293,104 @@ public class LocalFileStorageService : IFileStorageService
     }
 
     #endregion
+
+    #region Storage Bin Photos
+
+    public async Task<string> SaveStorageBinPhotoAsync(Guid storageBinId, Stream stream, string fileName, string contentType, CancellationToken ct = default)
+    {
+        var directory = GetStorageBinPhotoDirectory(storageBinId);
+        Directory.CreateDirectory(directory);
+
+        var uniqueFileName = GenerateUniquePhotoFileName(fileName, contentType);
+        var filePath = Path.Combine(directory, uniqueFileName);
+
+        try
+        {
+            await using var fileStream = File.Create(filePath);
+            await stream.CopyToAsync(fileStream, ct);
+
+            _logger.LogInformation("Saved storage bin photo {FileName} for bin {StorageBinId}", uniqueFileName, storageBinId);
+            return uniqueFileName;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to save storage bin photo {FileName} for bin {StorageBinId}", fileName, storageBinId);
+            throw;
+        }
+    }
+
+    public Task DeleteStorageBinPhotoAsync(Guid storageBinId, string fileName, CancellationToken ct = default)
+    {
+        var filePath = Path.Combine(GetStorageBinPhotoDirectory(storageBinId), fileName);
+
+        if (File.Exists(filePath))
+        {
+            try
+            {
+                File.Delete(filePath);
+                _logger.LogInformation("Deleted storage bin photo {FileName} for bin {StorageBinId}", fileName, storageBinId);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to delete storage bin photo {FileName} for bin {StorageBinId}", fileName, storageBinId);
+                throw;
+            }
+        }
+
+        return Task.CompletedTask;
+    }
+
+    public string GetStorageBinPhotoUrl(Guid photoId, string? accessToken = null)
+    {
+        var url = $"{_baseUrl}/api/v1/storage-bins/photos/{photoId}/download";
+        return string.IsNullOrEmpty(accessToken) ? url : $"{url}?token={accessToken}";
+    }
+
+    public string GetStorageBinPhotoPath(Guid storageBinId, string fileName)
+    {
+        return Path.Combine(GetStorageBinPhotoDirectory(storageBinId), fileName);
+    }
+
+    public Task DeleteAllStorageBinPhotosAsync(Guid storageBinId, CancellationToken ct = default)
+    {
+        var directory = GetStorageBinPhotoDirectory(storageBinId);
+
+        if (Directory.Exists(directory))
+        {
+            try
+            {
+                Directory.Delete(directory, recursive: true);
+                _logger.LogInformation("Deleted all photos for storage bin {StorageBinId}", storageBinId);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to delete photo directory for storage bin {StorageBinId}", storageBinId);
+                throw;
+            }
+        }
+
+        return Task.CompletedTask;
+    }
+
+    private string GetStorageBinPhotoDirectory(Guid storageBinId)
+    {
+        return Path.Combine(_basePath, "storage-bins", storageBinId.ToString());
+    }
+
+    private static string GenerateUniquePhotoFileName(string originalFileName, string contentType)
+    {
+        var extension = Path.GetExtension(originalFileName).ToLowerInvariant();
+
+        // If filename has no extension, derive it from content type
+        if (string.IsNullOrEmpty(extension))
+        {
+            extension = GetExtensionFromContentType(contentType) ?? ".jpg";
+        }
+
+        var timestamp = DateTime.UtcNow.ToString("yyyyMMdd_HHmmss");
+        var random = Guid.NewGuid().ToString("N")[..8];
+        return $"photo_{timestamp}_{random}{extension}";
+    }
+
+    #endregion
 }
