@@ -31,6 +31,15 @@ public class GeoapifyAddressService : IAddressNormalizationService
         NormalizeAddressRequest request,
         CancellationToken cancellationToken = default)
     {
+        var suggestions = await NormalizeSuggestionsAsync(request, 1, cancellationToken);
+        return suggestions.FirstOrDefault();
+    }
+
+    public async Task<List<NormalizedAddressResult>> NormalizeSuggestionsAsync(
+        NormalizeAddressRequest request,
+        int limit = 5,
+        CancellationToken cancellationToken = default)
+    {
         // Build the address text from components for logging/fallback
         var addressParts = new List<string>();
         if (!string.IsNullOrWhiteSpace(request.AddressLine1)) addressParts.Add(request.AddressLine1);
@@ -43,29 +52,30 @@ public class GeoapifyAddressService : IAddressNormalizationService
         var addressText = string.Join(", ", addressParts);
         if (string.IsNullOrWhiteSpace(addressText))
         {
-            _logger.LogDebug("Empty address provided, returning null");
-            return null;
+            _logger.LogDebug("Empty address provided, returning empty list");
+            return new List<NormalizedAddressResult>();
         }
 
         // If no API key, return a fallback formatted result using the input
         if (string.IsNullOrWhiteSpace(_options.ApiKey))
         {
             _logger.LogWarning("Geoapify API key not configured, using fallback address formatting");
-            return CreateFallbackResult(request);
+            var fallback = CreateFallbackResult(request);
+            return new List<NormalizedAddressResult> { fallback };
         }
 
         try
         {
             var encodedAddress = Uri.EscapeDataString(addressText);
-            var url = $"{_options.BaseUrl}/search?text={encodedAddress}&apiKey={_options.ApiKey}&format=json&limit=1";
+            var url = $"{_options.BaseUrl}/search?text={encodedAddress}&apiKey={_options.ApiKey}&format=json&limit={limit}";
 
-            _logger.LogDebug("Calling Geoapify API for address: {Address}", addressText);
+            _logger.LogDebug("Calling Geoapify API for address: {Address} with limit {Limit}", addressText, limit);
 
             var response = await _httpClient.GetAsync(url, cancellationToken);
             if (!response.IsSuccessStatusCode)
             {
                 _logger.LogWarning("Geoapify API returned status {StatusCode}", response.StatusCode);
-                return null;
+                return new List<NormalizedAddressResult>();
             }
 
             var result = await response.Content.ReadFromJsonAsync<GeoapifyResponse>(
@@ -75,16 +85,18 @@ public class GeoapifyAddressService : IAddressNormalizationService
             if (result?.Results == null || result.Results.Count == 0)
             {
                 _logger.LogDebug("No results returned from Geoapify for address: {Address}", addressText);
-                return null;
+                return new List<NormalizedAddressResult>();
             }
 
-            var topResult = result.Results[0];
-            return MapToNormalizedResult(topResult);
+            return result.Results
+                .Select(MapToNormalizedResult)
+                .OrderByDescending(r => r.Confidence)
+                .ToList();
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error calling Geoapify API for address: {Address}", addressText);
-            return null;
+            return new List<NormalizedAddressResult>();
         }
     }
 

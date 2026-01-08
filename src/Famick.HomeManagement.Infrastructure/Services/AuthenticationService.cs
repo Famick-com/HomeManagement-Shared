@@ -23,6 +23,7 @@ public class AuthenticationService : IAuthenticationService
     private readonly ITokenService _tokenService;
     private readonly IMapper _mapper;
     private readonly IConfiguration _configuration;
+    private readonly IContactService _contactService;
     private readonly ILogger<AuthenticationService> _logger;
 
     public AuthenticationService(
@@ -31,6 +32,7 @@ public class AuthenticationService : IAuthenticationService
         ITokenService tokenService,
         IMapper mapper,
         IConfiguration configuration,
+        IContactService contactService,
         ILogger<AuthenticationService> logger)
     {
         _context = context;
@@ -38,6 +40,7 @@ public class AuthenticationService : IAuthenticationService
         _tokenService = tokenService;
         _mapper = mapper;
         _configuration = configuration;
+        _contactService = contactService;
         _logger = logger;
     }
 
@@ -86,6 +89,18 @@ public class AuthenticationService : IAuthenticationService
         await _context.SaveChangesAsync(cancellationToken);
 
         _logger.LogInformation("New user registered: {Email}, ID: {UserId}", email, user.Id);
+
+        // Create contact record for the user
+        try
+        {
+            await _contactService.CreateContactForUserAsync(user, cancellationToken);
+            _logger.LogInformation("Contact created for user: {UserId}", user.Id);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to create contact for user {UserId}", user.Id);
+            // Don't fail registration if contact creation fails
+        }
 
         var response = new RegisterResponse
         {

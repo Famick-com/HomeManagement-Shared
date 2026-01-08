@@ -19,6 +19,7 @@ public class UserManagementService : IUserManagementService
     private readonly IPasswordHasher _passwordHasher;
     private readonly IEmailService _emailService;
     private readonly ITenantProvider _tenantProvider;
+    private readonly IContactService _contactService;
     private readonly ILogger<UserManagementService> _logger;
 
     private const int GeneratedPasswordLength = 12;
@@ -29,12 +30,14 @@ public class UserManagementService : IUserManagementService
         IPasswordHasher passwordHasher,
         IEmailService emailService,
         ITenantProvider tenantProvider,
+        IContactService contactService,
         ILogger<UserManagementService> logger)
     {
         _context = context;
         _passwordHasher = passwordHasher;
         _emailService = emailService;
         _tenantProvider = tenantProvider;
+        _contactService = contactService;
         _logger = logger;
     }
 
@@ -43,6 +46,7 @@ public class UserManagementService : IUserManagementService
     {
         var users = await _context.Users
             .Include(u => u.UserRoles)
+            .Include(u => u.Contact)
             .OrderBy(u => u.Email)
             .ToListAsync(cancellationToken);
 
@@ -54,6 +58,7 @@ public class UserManagementService : IUserManagementService
     {
         var user = await _context.Users
             .Include(u => u.UserRoles)
+            .Include(u => u.Contact)
             .FirstOrDefaultAsync(u => u.Id == userId, cancellationToken);
 
         return user == null ? null : MapToDto(user);
@@ -122,6 +127,18 @@ public class UserManagementService : IUserManagementService
         await _context.SaveChangesAsync(cancellationToken);
 
         _logger.LogInformation("User created: {Email}, ID: {UserId}", email, user.Id);
+
+        // Create contact record for the user
+        try
+        {
+            await _contactService.CreateContactForUserAsync(user, cancellationToken);
+            _logger.LogInformation("Contact created for user: {UserId}", user.Id);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to create contact for user {UserId}", user.Id);
+            // Don't fail user creation if contact creation fails
+        }
 
         // Send welcome email if requested
         bool welcomeEmailSent = false;
@@ -295,6 +312,60 @@ public class UserManagementService : IUserManagementService
             .ToListAsync(cancellationToken);
     }
 
+    /// <inheritdoc />
+    public async Task<ManagedUserDto> LinkContactAsync(Guid userId, Guid contactId, CancellationToken cancellationToken = default)
+    {
+        var user = await _context.Users
+            .Include(u => u.UserRoles)
+            .Include(u => u.Contact)
+            .FirstOrDefaultAsync(u => u.Id == userId, cancellationToken)
+            ?? throw new EntityNotFoundException(nameof(User), userId);
+
+        var contact = await _context.Contacts.FindAsync(new object[] { contactId }, cancellationToken)
+            ?? throw new EntityNotFoundException(nameof(Contact), contactId);
+
+        // Unlink from any previous contact
+        if (user.Contact != null)
+        {
+            user.Contact.LinkedUserId = null;
+        }
+
+        // Link user to new contact
+        user.ContactId = contactId;
+        contact.LinkedUserId = userId;
+
+        await _context.SaveChangesAsync(cancellationToken);
+
+        // Reload to get updated contact info
+        await _context.Entry(user).Reference(u => u.Contact).LoadAsync(cancellationToken);
+
+        _logger.LogInformation("Linked user {UserId} to contact {ContactId}", userId, contactId);
+
+        return MapToDto(user);
+    }
+
+    /// <inheritdoc />
+    public async Task<ManagedUserDto> UnlinkContactAsync(Guid userId, CancellationToken cancellationToken = default)
+    {
+        var user = await _context.Users
+            .Include(u => u.UserRoles)
+            .Include(u => u.Contact)
+            .FirstOrDefaultAsync(u => u.Id == userId, cancellationToken)
+            ?? throw new EntityNotFoundException(nameof(User), userId);
+
+        if (user.Contact != null)
+        {
+            user.Contact.LinkedUserId = null;
+        }
+        user.ContactId = null;
+
+        await _context.SaveChangesAsync(cancellationToken);
+
+        _logger.LogInformation("Unlinked contact from user {UserId}", userId);
+
+        return MapToDto(user);
+    }
+
     private static ManagedUserDto MapToDto(User user)
     {
         return new ManagedUserDto
@@ -307,7 +378,9 @@ public class UserManagementService : IUserManagementService
             IsActive = user.IsActive,
             LastLoginAt = user.LastLoginAt,
             Roles = user.UserRoles.Select(ur => ur.Role).ToList(),
-            CreatedAt = user.CreatedAt
+            CreatedAt = user.CreatedAt,
+            ContactId = user.ContactId,
+            ContactName = user.Contact != null ? $"{user.Contact.FirstName} {user.Contact.LastName}".Trim() : null
         };
     }
 

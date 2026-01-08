@@ -1,0 +1,415 @@
+@page "/contacts/new"
+@page "/contacts/{Id:guid}"
+@attribute [Authorize]
+@inject IApiClient ApiClient
+@inject NavigationManager Navigation
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+@inject ILocalizer L
+@using Famick.HomeManagement.Core.DTOs.Contacts
+@using Famick.HomeManagement.Domain.Enums
+@using Famick.HomeManagement.UI.Components.Contacts
+
+<MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-4">
+    <MudIconButton Icon="@Icons.Material.Filled.ArrowBack"
+                   OnClick="NavigateBack" />
+    <MudText Typo="Typo.h4">
+        @(IsNew ? L["contacts.add"] : $"{_contact?.FirstName} {_contact?.LastName}")
+    </MudText>
+    @if (_contact?.LinkedUserId != null)
+    {
+        <MudChip T="string" Size="Size.Small" Color="Color.Info" Variant="Variant.Filled">@L["contacts.linkedUser"]</MudChip>
+    }
+</MudStack>
+
+@if (_isLoading)
+{
+    <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+}
+else
+{
+    <MudTabs Elevation="1" Rounded="true" ApplyEffectsToContainer="true" PanelClass="pa-4">
+        @* Basic Info Tab *@
+        <MudTabPanel Text="@L["contacts.basicInfo"]" Icon="@Icons.Material.Filled.Person">
+            <MudForm @ref="_form">
+                <MudGrid Spacing="3">
+                    <MudItem xs="12" md="6">
+                        <MudStack Spacing="3">
+                            <MudText Typo="Typo.h6">@L["contacts.name"]</MudText>
+
+                            <MudGrid>
+                                <MudItem xs="12" md="6">
+                                    <MudTextField @bind-Value="_model.FirstName"
+                                                  Label="@L["common.firstName"]"
+                                                  Required="true"
+                                                  RequiredError="@L["validation.required"]"
+                                                  Variant="Variant.Outlined"
+                                                  ReadOnly="@(!CanEdit)" />
+                                </MudItem>
+                                <MudItem xs="12" md="6">
+                                    <MudTextField @bind-Value="_model.MiddleName"
+                                                  Label="@L["contacts.middleName"]"
+                                                  Variant="Variant.Outlined"
+                                                  ReadOnly="@(!CanEdit)" />
+                                </MudItem>
+                            </MudGrid>
+
+                            <MudGrid>
+                                <MudItem xs="12" md="6">
+                                    <MudTextField @bind-Value="_model.LastName"
+                                                  Label="@L["common.lastName"]"
+                                                  Required="true"
+                                                  RequiredError="@L["validation.required"]"
+                                                  Variant="Variant.Outlined"
+                                                  ReadOnly="@(!CanEdit)" />
+                                </MudItem>
+                                <MudItem xs="12" md="6">
+                                    <MudTextField @bind-Value="_model.PreferredName"
+                                                  Label="@L["contacts.preferredName"]"
+                                                  HelperText="@L["contacts.preferredNameHelp"]"
+                                                  Variant="Variant.Outlined"
+                                                  ReadOnly="@(!CanEdit)" />
+                                </MudItem>
+                            </MudGrid>
+
+                            <MudTextField @bind-Value="_model.Email"
+                                          Label="@L["common.email"]"
+                                          InputType="InputType.Email"
+                                          Variant="Variant.Outlined"
+                                          ReadOnly="@(!CanEdit)" />
+
+                            <MudSelect T="Gender" @bind-Value="_model.Gender"
+                                       Label="@L["contacts.gender"]"
+                                       Variant="Variant.Outlined"
+                                       Disabled="@(!CanEdit)">
+                                @foreach (Gender gender in Enum.GetValues<Gender>())
+                                {
+                                    <MudSelectItem T="Gender" Value="@gender">@L[$"contacts.gender.{gender}"]</MudSelectItem>
+                                }
+                            </MudSelect>
+                        </MudStack>
+                    </MudItem>
+
+                    <MudItem xs="12" md="6">
+                        <MudStack Spacing="3">
+                            <MudText Typo="Typo.h6">@L["contacts.dates"]</MudText>
+
+                            <DateWithPrecisionPicker Label="@L["contacts.birthDate"]"
+                                                     Year="@_model.BirthYear"
+                                                     Month="@_model.BirthMonth"
+                                                     Day="@_model.BirthDay"
+                                                     Precision="@_model.BirthDatePrecision"
+                                                     YearChanged="y => _model.BirthYear = y"
+                                                     MonthChanged="m => _model.BirthMonth = m"
+                                                     DayChanged="d => _model.BirthDay = d"
+                                                     PrecisionChanged="p => _model.BirthDatePrecision = p"
+                                                     ReadOnly="@(!CanEdit)" />
+
+                            <DateWithPrecisionPicker Label="@L["contacts.deathDate"]"
+                                                     Year="@_model.DeathYear"
+                                                     Month="@_model.DeathMonth"
+                                                     Day="@_model.DeathDay"
+                                                     Precision="@_model.DeathDatePrecision"
+                                                     YearChanged="y => _model.DeathYear = y"
+                                                     MonthChanged="m => _model.DeathMonth = m"
+                                                     DayChanged="d => _model.DeathDay = d"
+                                                     PrecisionChanged="p => _model.DeathDatePrecision = p"
+                                                     ReadOnly="@(!CanEdit)" />
+                        </MudStack>
+
+                        <MudStack Spacing="3" Class="mt-4">
+                            <MudText Typo="Typo.h6">@L["contacts.tags"]</MudText>
+                            <ContactTagSelector ContactId="@Id"
+                                                SelectedTagIds="@_selectedTagIds"
+                                                SelectedTagIdsChanged="OnTagsChanged"
+                                                ReadOnly="@(!CanEdit || IsNew)" />
+                            @if (IsNew)
+                            {
+                                <MudText Typo="Typo.caption" Color="Color.Secondary">@L["contacts.saveToAddTags"]</MudText>
+                            }
+                        </MudStack>
+                    </MudItem>
+
+                    <MudItem xs="12">
+                        <MudTextField @bind-Value="_model.Notes"
+                                      Label="@L["contacts.notes"]"
+                                      Variant="Variant.Outlined"
+                                      Lines="3"
+                                      ReadOnly="@(!CanEdit)" />
+                    </MudItem>
+
+                    <MudItem xs="12">
+                        <MudStack Row="true" Justify="Justify.FlexEnd" Spacing="2">
+                            @if (!IsNew)
+                            {
+                                <MudTooltip Text="@(CanEdit ? null : L["common.viewerNoPermission"])" Disabled="@CanEdit">
+                                    <MudButton Variant="Variant.Outlined"
+                                               Color="Color.Error"
+                                               OnClick="DeleteContact"
+                                               Disabled="@(!CanEdit)">
+                                        @L["common.delete"]
+                                    </MudButton>
+                                </MudTooltip>
+                            }
+                            <MudTooltip Text="@(CanEdit ? null : L["common.viewerNoPermission"])" Disabled="@CanEdit">
+                                <MudButton Variant="Variant.Filled"
+                                           Color="Color.Primary"
+                                           OnClick="SaveContact"
+                                           Disabled="@(!CanEdit || _isSaving)">
+                                    @if (_isSaving)
+                                    {
+                                        <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                                    }
+                                    @L["common.save"]
+                                </MudButton>
+                            </MudTooltip>
+                        </MudStack>
+                    </MudItem>
+                </MudGrid>
+            </MudForm>
+        </MudTabPanel>
+
+        @* Addresses Tab *@
+        <MudTabPanel Text="@L["contacts.addresses"]" Icon="@Icons.Material.Filled.LocationOn" Disabled="@IsNew">
+            <ContactAddressList ContactId="@(Id ?? Guid.Empty)"
+                                UsesTenantAddress="@(_contact?.UsesTenantAddress ?? false)"
+                                ReadOnly="@(!CanEdit)" />
+        </MudTabPanel>
+
+        @* Phones Tab *@
+        <MudTabPanel Text="@L["contacts.phones"]" Icon="@Icons.Material.Filled.Phone" Disabled="@IsNew">
+            <ContactPhoneList ContactId="@(Id ?? Guid.Empty)"
+                              ReadOnly="@(!CanEdit)" />
+        </MudTabPanel>
+
+        @* Social Media Tab *@
+        <MudTabPanel Text="@L["contacts.socialMedia"]" Icon="@Icons.Material.Filled.Share" Disabled="@IsNew">
+            <ContactSocialMediaList ContactId="@(Id ?? Guid.Empty)"
+                                    ReadOnly="@(!CanEdit)" />
+        </MudTabPanel>
+
+        @* Relationships Tab *@
+        <MudTabPanel Text="@L["contacts.relationships"]" Icon="@Icons.Material.Filled.People" Disabled="@IsNew">
+            <ContactRelationshipList ContactId="@(Id ?? Guid.Empty)"
+                                     ContactGender="@(_contact?.Gender ?? Gender.Unknown)"
+                                     ReadOnly="@(!CanEdit)" />
+        </MudTabPanel>
+
+        @* Audit Log Tab (Admin only) *@
+        <MudTabPanel Text="@L["contacts.auditLog"]" Icon="@Icons.Material.Filled.History" Disabled="@IsNew">
+            <ContactAuditLog ContactId="@(Id ?? Guid.Empty)" />
+        </MudTabPanel>
+    </MudTabs>
+}
+
+@code {
+    [Parameter] public Guid? Id { get; set; }
+
+    [CascadingParameter(Name = "CanEdit")]
+    private bool CanEdit { get; set; }
+
+    private bool IsNew => Id == null;
+
+    private MudForm _form = null!;
+    private bool _isLoading = true;
+    private bool _isSaving = false;
+
+    private ContactDto? _contact;
+    private ContactFormModel _model = new();
+    private List<Guid> _selectedTagIds = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadDataAsync();
+    }
+
+    private async Task LoadDataAsync()
+    {
+        _isLoading = true;
+        try
+        {
+            if (!IsNew)
+            {
+                var result = await ApiClient.GetAsync<ContactDto>($"api/v1/contacts/{Id}");
+                if (result.IsSuccess && result.Data != null)
+                {
+                    _contact = result.Data;
+                    _model = new ContactFormModel
+                    {
+                        FirstName = _contact.FirstName,
+                        MiddleName = _contact.MiddleName,
+                        LastName = _contact.LastName,
+                        PreferredName = _contact.PreferredName,
+                        Email = _contact.Email,
+                        Gender = _contact.Gender,
+                        BirthYear = _contact.BirthYear,
+                        BirthMonth = _contact.BirthMonth,
+                        BirthDay = _contact.BirthDay,
+                        BirthDatePrecision = _contact.BirthDatePrecision,
+                        DeathYear = _contact.DeathYear,
+                        DeathMonth = _contact.DeathMonth,
+                        DeathDay = _contact.DeathDay,
+                        DeathDatePrecision = _contact.DeathDatePrecision,
+                        Notes = _contact.Notes
+                    };
+                    _selectedTagIds = _contact.Tags.Select(t => t.Id).ToList();
+                }
+                else
+                {
+                    Snackbar.Add(L["contacts.notFound"], Severity.Error);
+                    Navigation.NavigateTo("/contacts");
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error loading contact: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private async Task SaveContact()
+    {
+        await _form.Validate();
+        if (!_form.IsValid)
+            return;
+
+        _isSaving = true;
+        try
+        {
+            if (IsNew)
+            {
+                var request = new CreateContactRequest
+                {
+                    FirstName = _model.FirstName!,
+                    MiddleName = _model.MiddleName,
+                    LastName = _model.LastName!,
+                    PreferredName = _model.PreferredName,
+                    Email = _model.Email,
+                    Gender = _model.Gender,
+                    BirthYear = _model.BirthYear,
+                    BirthMonth = _model.BirthMonth,
+                    BirthDay = _model.BirthDay,
+                    BirthDatePrecision = _model.BirthDatePrecision,
+                    DeathYear = _model.DeathYear,
+                    DeathMonth = _model.DeathMonth,
+                    DeathDay = _model.DeathDay,
+                    DeathDatePrecision = _model.DeathDatePrecision,
+                    Notes = _model.Notes
+                };
+
+                var result = await ApiClient.PostAsync<CreateContactRequest, ContactDto>("api/v1/contacts", request);
+                if (result.IsSuccess && result.Data != null)
+                {
+                    Snackbar.Add(L["contacts.created"], Severity.Success);
+                    Navigation.NavigateTo($"/contacts/{result.Data.Id}");
+                }
+                else
+                {
+                    Snackbar.Add(result.ErrorMessage ?? L["common.error"], Severity.Error);
+                }
+            }
+            else
+            {
+                var request = new UpdateContactRequest
+                {
+                    FirstName = _model.FirstName!,
+                    MiddleName = _model.MiddleName,
+                    LastName = _model.LastName!,
+                    PreferredName = _model.PreferredName,
+                    Email = _model.Email,
+                    Gender = _model.Gender,
+                    BirthYear = _model.BirthYear,
+                    BirthMonth = _model.BirthMonth,
+                    BirthDay = _model.BirthDay,
+                    BirthDatePrecision = _model.BirthDatePrecision,
+                    DeathYear = _model.DeathYear,
+                    DeathMonth = _model.DeathMonth,
+                    DeathDay = _model.DeathDay,
+                    DeathDatePrecision = _model.DeathDatePrecision,
+                    Notes = _model.Notes
+                };
+
+                var result = await ApiClient.PutAsync<UpdateContactRequest, ContactDto>($"api/v1/contacts/{Id}", request);
+                if (result.IsSuccess)
+                {
+                    Snackbar.Add(L["contacts.updated"], Severity.Success);
+                    await LoadDataAsync();
+                }
+                else
+                {
+                    Snackbar.Add(result.ErrorMessage ?? L["common.error"], Severity.Error);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error saving: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isSaving = false;
+        }
+    }
+
+    private async Task DeleteContact()
+    {
+        var confirmed = await DialogService.ShowMessageBox(
+            L["confirmations.deleteTitle"],
+            L["contacts.confirmDelete"],
+            yesText: L["common.delete"],
+            cancelText: L["common.cancel"]);
+
+        if (confirmed != true) return;
+
+        try
+        {
+            var result = await ApiClient.DeleteAsync($"api/v1/contacts/{Id}");
+            if (result.IsSuccess)
+            {
+                Snackbar.Add(L["contacts.deleted"], Severity.Success);
+                Navigation.NavigateTo("/contacts");
+            }
+            else
+            {
+                Snackbar.Add(result.ErrorMessage ?? L["common.error"], Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error deleting: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private void OnTagsChanged(List<Guid> tagIds)
+    {
+        _selectedTagIds = tagIds;
+    }
+
+    private void NavigateBack()
+    {
+        Navigation.NavigateTo("/contacts");
+    }
+
+    private class ContactFormModel
+    {
+        public string? FirstName { get; set; }
+        public string? MiddleName { get; set; }
+        public string? LastName { get; set; }
+        public string? PreferredName { get; set; }
+        public string? Email { get; set; }
+        public Gender Gender { get; set; } = Gender.Unknown;
+        public int? BirthYear { get; set; }
+        public int? BirthMonth { get; set; }
+        public int? BirthDay { get; set; }
+        public DatePrecision BirthDatePrecision { get; set; } = DatePrecision.Unknown;
+        public int? DeathYear { get; set; }
+        public int? DeathMonth { get; set; }
+        public int? DeathDay { get; set; }
+        public DatePrecision DeathDatePrecision { get; set; } = DatePrecision.Unknown;
+        public string? Notes { get; set; }
+    }
+}

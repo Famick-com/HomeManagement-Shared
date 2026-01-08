@@ -6,95 +6,99 @@
         <MudText Typo="Typo.h6">@L["address.confirmTitle"]</MudText>
     </TitleContent>
     <DialogContent>
-        <MudGrid Spacing="3">
+        <MudStack Spacing="3">
             @* Original Input *@
-            <MudItem xs="12" md="6">
-                <MudPaper Class="pa-3" Elevation="1">
-                    <MudText Typo="Typo.subtitle2" Class="mb-2">@L["address.yourInput"]</MudText>
-                    <MudStack Spacing="0">
-                        @if (!string.IsNullOrWhiteSpace(OriginalAddress?.AddressLine1))
+            <MudPaper Class="pa-3" Elevation="1">
+                <MudText Typo="Typo.subtitle2" Class="mb-2">@L["address.yourInput"]</MudText>
+                <MudStack Spacing="0">
+                    @if (!string.IsNullOrWhiteSpace(OriginalAddress?.AddressLine1))
+                    {
+                        <MudText>@OriginalAddress.AddressLine1</MudText>
+                    }
+                    @if (!string.IsNullOrWhiteSpace(OriginalAddress?.AddressLine2))
+                    {
+                        <MudText>@OriginalAddress.AddressLine2</MudText>
+                    }
+                    @{
+                        var originalCityStateZip = BuildCityStateZip(OriginalAddress);
+                    }
+                    @if (!string.IsNullOrWhiteSpace(originalCityStateZip))
+                    {
+                        <MudText>@originalCityStateZip</MudText>
+                    }
+                    @if (!string.IsNullOrWhiteSpace(OriginalAddress?.Country))
+                    {
+                        <MudText>@OriginalAddress.Country</MudText>
+                    }
+                </MudStack>
+            </MudPaper>
+
+            @* Suggestions *@
+            @if (AddressSuggestions != null && AddressSuggestions.Count > 0)
+            {
+                <MudText Typo="Typo.subtitle2">@L["address.selectSuggestion"]</MudText>
+                <MudRadioGroup @bind-Value="_selectedIndex">
+                    <MudStack Spacing="2">
+                        @for (int i = 0; i < AddressSuggestions.Count; i++)
                         {
-                            <MudText>@OriginalAddress.AddressLine1</MudText>
-                        }
-                        @if (!string.IsNullOrWhiteSpace(OriginalAddress?.AddressLine2))
-                        {
-                            <MudText>@OriginalAddress.AddressLine2</MudText>
-                        }
-                        @{
-                            var originalCityStateZip = BuildCityStateZip(OriginalAddress);
-                        }
-                        @if (!string.IsNullOrWhiteSpace(originalCityStateZip))
-                        {
-                            <MudText>@originalCityStateZip</MudText>
-                        }
-                        @if (!string.IsNullOrWhiteSpace(OriginalAddress?.Country))
-                        {
-                            <MudText>@OriginalAddress.Country</MudText>
+                            var index = i;
+                            var suggestion = AddressSuggestions[index];
+                            <MudPaper Class="pa-3" Elevation="1"
+                                      Style="@(_selectedIndex == index ? "border: 2px solid var(--mud-palette-primary); background-color: var(--mud-palette-primary-lighten);" : "cursor: pointer;")"
+                                      @onclick="@(() => _selectedIndex = index)">
+                                <MudStack Row="true" AlignItems="AlignItems.Start">
+                                    <MudRadio Value="@index" Color="Color.Primary" Dense="true" />
+                                    <MudStack Spacing="0" Style="flex: 1;">
+                                        <MudText Typo="Typo.body1">
+                                            <b>@suggestion.FormattedAddress</b>
+                                        </MudText>
+                                        @if (suggestion.Confidence < 0.8)
+                                        {
+                                            <MudText Typo="Typo.caption" Color="Color.Warning">
+                                                @L["address.lowConfidenceShort"] (@(suggestion.Confidence * 100):F0%)
+                                            </MudText>
+                                        }
+                                        @if (!string.IsNullOrWhiteSpace(suggestion.MatchType))
+                                        {
+                                            <MudText Typo="Typo.caption" Color="Color.Secondary">
+                                                @GetMatchTypeLabel(suggestion.MatchType)
+                                            </MudText>
+                                        }
+                                    </MudStack>
+                                </MudStack>
+                            </MudPaper>
                         }
                     </MudStack>
-                </MudPaper>
-            </MudItem>
+                </MudRadioGroup>
 
-            @* Normalized Address *@
-            <MudItem xs="12" md="6">
-                <MudPaper Class="pa-3" Elevation="1" Style="background-color: var(--mud-palette-success-lighten);">
-                    <MudText Typo="Typo.subtitle2" Class="mb-2">@L["address.normalized"]</MudText>
-                    @if (NormalizedAddress != null)
+                @* Map preview for selected suggestion *@
+                @if (_selectedIndex >= 0 && _selectedIndex < AddressSuggestions.Count)
+                {
+                    var selectedAddress = AddressSuggestions[_selectedIndex];
+                    @if (selectedAddress.Latitude.HasValue && selectedAddress.Longitude.HasValue)
                     {
-                        <MudStack Spacing="0">
-                            @if (!string.IsNullOrWhiteSpace(NormalizedAddress.AddressLine1))
-                            {
-                                <MudText><b>@NormalizedAddress.AddressLine1</b></MudText>
-                            }
-                            @if (!string.IsNullOrWhiteSpace(NormalizedAddress.AddressLine2))
-                            {
-                                <MudText>@NormalizedAddress.AddressLine2</MudText>
-                            }
-                            @{
-                                var normalizedCityStateZip = BuildCityStateZipFromResult(NormalizedAddress);
-                            }
-                            @if (!string.IsNullOrWhiteSpace(normalizedCityStateZip))
-                            {
-                                <MudText>@normalizedCityStateZip</MudText>
-                            }
-                            @if (!string.IsNullOrWhiteSpace(NormalizedAddress.Country))
-                            {
-                                <MudText>@NormalizedAddress.Country</MudText>
-                            }
-                        </MudStack>
-
-                        @if (NormalizedAddress.Confidence < 0.8)
-                        {
-                            <MudAlert Severity="Severity.Warning" Class="mt-2" Dense="true">
-                                @L["address.lowConfidence"]
-                            </MudAlert>
-                        }
+                        <MudPaper Class="pa-2" Elevation="1">
+                            <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Class="mb-1">
+                                <MudText Typo="Typo.caption">
+                                    @L["address.location"]: @selectedAddress.Latitude.Value.ToString("F6"), @selectedAddress.Longitude.Value.ToString("F6")
+                                </MudText>
+                                <MudLink Href="@GetMapLink(selectedAddress)" Target="_blank" Typo="Typo.caption">
+                                    @L["common.viewOnMap"]
+                                </MudLink>
+                            </MudStack>
+                            <iframe src="@GetMapImageUrl(selectedAddress)"
+                                    style="width: 100%; height: 180px; border: none; border-radius: 4px;"
+                                    loading="lazy">
+                            </iframe>
+                        </MudPaper>
                     }
-                </MudPaper>
-            </MudItem>
-
-            @* Map preview if coordinates available *@
-            @if (NormalizedAddress?.Latitude.HasValue == true && NormalizedAddress?.Longitude.HasValue == true)
-            {
-                <MudItem xs="12">
-                    <MudPaper Class="pa-2" Elevation="1">
-                        <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Class="mb-1">
-                            <MudText Typo="Typo.caption">
-                                Location: @NormalizedAddress.Latitude.Value.ToString("F6"), @NormalizedAddress.Longitude.Value.ToString("F6")
-                            </MudText>
-                            <MudLink Href="@GetMapLink()" Target="_blank" Typo="Typo.caption">
-                                @L["common.viewOnMap"]
-                            </MudLink>
-                        </MudStack>
-                        @* OpenStreetMap embed *@
-                        <iframe src="@GetMapImageUrl()"
-                                style="width: 100%; height: 180px; border: none; border-radius: 4px;"
-                                loading="lazy">
-                        </iframe>
-                    </MudPaper>
-                </MudItem>
+                }
             }
-        </MudGrid>
+            else
+            {
+                <MudAlert Severity="Severity.Warning">@L["address.noSuggestions"]</MudAlert>
+            }
+        </MudStack>
     </DialogContent>
     <DialogActions>
         <MudButton OnClick="OnCancel">@L["common.cancel"]</MudButton>
@@ -105,8 +109,9 @@
         </MudButton>
         <MudButton Variant="Variant.Filled"
                    Color="Color.Primary"
-                   OnClick="OnUseNormalized">
-            @L["address.useNormalized"]
+                   OnClick="OnUseSelected"
+                   Disabled="@(_selectedIndex < 0 || AddressSuggestions == null || AddressSuggestions.Count == 0)">
+            @L["address.useSelected"]
         </MudButton>
     </DialogActions>
 </MudDialog>
@@ -122,10 +127,33 @@
     public AddressForm.AddressEditModel? OriginalAddress { get; set; }
 
     [Parameter]
+    public List<NormalizedAddressResult>? AddressSuggestions { get; set; }
+
+    /// <summary>
+    /// Legacy support: Single normalized address (converts to list internally)
+    /// </summary>
+    [Parameter]
     public NormalizedAddressResult? NormalizedAddress { get; set; }
 
     [Parameter]
     public EventCallback<AddressConfirmationResult> OnConfirm { get; set; }
+
+    private int _selectedIndex = 0;
+
+    protected override void OnParametersSet()
+    {
+        // Legacy support: if NormalizedAddress is set but AddressSuggestions is not, use it
+        if (NormalizedAddress != null && (AddressSuggestions == null || AddressSuggestions.Count == 0))
+        {
+            AddressSuggestions = new List<NormalizedAddressResult> { NormalizedAddress };
+        }
+
+        // Reset selection when dialog opens with new suggestions
+        if (Visible && AddressSuggestions?.Count > 0)
+        {
+            _selectedIndex = 0;
+        }
+    }
 
     private string BuildCityStateZip(AddressForm.AddressEditModel? address)
     {
@@ -138,36 +166,42 @@
         return string.Join(", ", parts);
     }
 
-    private string BuildCityStateZipFromResult(NormalizedAddressResult? address)
+    private string GetMatchTypeLabel(string? matchType)
     {
-        if (address == null) return string.Empty;
-
-        var parts = new List<string>();
-        if (!string.IsNullOrWhiteSpace(address.City)) parts.Add(address.City);
-        if (!string.IsNullOrWhiteSpace(address.StateProvince)) parts.Add(address.StateProvince);
-        if (!string.IsNullOrWhiteSpace(address.PostalCode)) parts.Add(address.PostalCode);
-        return string.Join(", ", parts);
+        return matchType?.ToLower() switch
+        {
+            "street" => L["address.matchType.street"],
+            "building" => L["address.matchType.building"],
+            "amenity" => L["address.matchType.amenity"],
+            "locality" => L["address.matchType.locality"],
+            "postcode" => L["address.matchType.postcode"],
+            "district" => L["address.matchType.district"],
+            "city" => L["address.matchType.city"],
+            "county" => L["address.matchType.county"],
+            "state" => L["address.matchType.state"],
+            "country" => L["address.matchType.country"],
+            _ => matchType ?? ""
+        };
     }
 
-    private string GetMapImageUrl()
+    private string GetMapImageUrl(NormalizedAddressResult? address)
     {
-        if (NormalizedAddress?.Latitude == null || NormalizedAddress?.Longitude == null)
+        if (address?.Latitude == null || address?.Longitude == null)
             return string.Empty;
 
-        var lat = NormalizedAddress.Latitude.Value;
-        var lng = NormalizedAddress.Longitude.Value;
+        var lat = address.Latitude.Value;
+        var lng = address.Longitude.Value;
 
-        // Use OpenStreetMap embedded map (no API key needed)
         return $"https://www.openstreetmap.org/export/embed.html?bbox={lng - 0.005},{lat - 0.003},{lng + 0.005},{lat + 0.003}&layer=mapnik&marker={lat},{lng}";
     }
 
-    private string GetMapLink()
+    private string GetMapLink(NormalizedAddressResult? address)
     {
-        if (NormalizedAddress?.Latitude == null || NormalizedAddress?.Longitude == null)
+        if (address?.Latitude == null || address?.Longitude == null)
             return string.Empty;
 
-        var lat = NormalizedAddress.Latitude.Value;
-        var lng = NormalizedAddress.Longitude.Value;
+        var lat = address.Latitude.Value;
+        var lng = address.Longitude.Value;
 
         return $"https://www.openstreetmap.org/?mlat={lat}&mlon={lng}#map=17/{lat}/{lng}";
     }
@@ -184,13 +218,16 @@
         await VisibleChanged.InvokeAsync(false);
     }
 
-    private async Task OnUseNormalized()
+    private async Task OnUseSelected()
     {
-        await OnConfirm.InvokeAsync(new AddressConfirmationResult
+        if (_selectedIndex >= 0 && AddressSuggestions != null && _selectedIndex < AddressSuggestions.Count)
         {
-            Action = AddressConfirmationAction.UseNormalized,
-            NormalizedAddress = NormalizedAddress
-        });
+            await OnConfirm.InvokeAsync(new AddressConfirmationResult
+            {
+                Action = AddressConfirmationAction.UseNormalized,
+                NormalizedAddress = AddressSuggestions[_selectedIndex]
+            });
+        }
         await VisibleChanged.InvokeAsync(false);
     }
 

@@ -621,7 +621,7 @@ else if (_home != null)
 @* Address Confirmation Dialog *@
 <AddressConfirmationDialog @bind-Visible="_addressConfirmationVisible"
                            OriginalAddress="_addressEditModel"
-                           NormalizedAddress="_normalizedAddress"
+                           AddressSuggestions="_addressSuggestions"
                            OnConfirm="HandleAddressConfirmation" />
 
 @code {
@@ -643,7 +643,7 @@ else if (_home != null)
     private AddressForm.AddressEditModel _originalAddressEditModel = new();
     private bool _isNormalizing = false;
     private bool _addressConfirmationVisible = false;
-    private NormalizedAddressResult? _normalizedAddress;
+    private List<NormalizedAddressResult>? _addressSuggestions;
     private bool _pendingSave = false;
 
     // Utility dialog state
@@ -912,10 +912,10 @@ else if (_home != null)
                 Country = _addressEditModel.Country
             };
 
-            var result = await ApiClient.PostAsync<NormalizeAddressRequest, NormalizedAddressResult>("api/v1/addresses/normalize", request);
-            if (result.IsSuccess && result.Data != null)
+            var result = await ApiClient.PostAsync<NormalizeAddressRequest, List<NormalizedAddressResult>>("api/v1/addresses/normalize/suggestions", request);
+            if (result.IsSuccess && result.Data != null && result.Data.Count > 0)
             {
-                _normalizedAddress = result.Data;
+                _addressSuggestions = result.Data;
                 _addressConfirmationVisible = true;
             }
             else
@@ -952,7 +952,7 @@ else if (_home != null)
         }
 
         _addressConfirmationVisible = false;
-        _normalizedAddress = null;
+        _addressSuggestions = null;
 
         // If we were saving, continue with save after user confirms/keeps address
         if (_pendingSave && result.Action != AddressConfirmationDialog.AddressConfirmationAction.Cancel)
