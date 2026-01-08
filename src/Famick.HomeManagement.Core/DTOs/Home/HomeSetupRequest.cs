@@ -9,11 +9,6 @@ public class HomeSetupRequest
     #region Property Basics (Step 1)
 
     /// <summary>
-    /// Street address of the property (required)
-    /// </summary>
-    public string Address { get; set; } = string.Empty;
-
-    /// <summary>
     /// Unit or apartment number (optional)
     /// </summary>
     public string? Unit { get; set; }

@@ -7,10 +7,6 @@ public class HomeSetupRequestValidator : AbstractValidator<HomeSetupRequest>
 {
     public HomeSetupRequestValidator()
     {
-        RuleFor(x => x.Address)
-            .NotEmpty().WithMessage("Address is required")
-            .MaximumLength(500).WithMessage("Address cannot exceed 500 characters");
-
         RuleFor(x => x.Unit)
             .MaximumLength(50).WithMessage("Unit cannot exceed 50 characters")
             .When(x => !string.IsNullOrEmpty(x.Unit));

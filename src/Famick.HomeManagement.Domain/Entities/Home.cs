@@ -11,11 +11,6 @@ public class Home : BaseTenantEntity
     #region Property Basics
 
     /// <summary>
-    /// Street address of the property
-    /// </summary>
-    public string Address { get; set; } = string.Empty;
-
-    /// <summary>
     /// Unit or apartment number (if applicable)
     /// </summary>
     public string? Unit { get; set; }

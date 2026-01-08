@@ -46,6 +46,7 @@
     "all": "All",
     "unknown": "Unknown",
     "viewLink": "View",
+    "viewOnMap": "View on Map",
     "email": "Email",
     "firstName": "First Name",
     "lastName": "Last Name",
@@ -878,6 +879,34 @@
       "securitySystem": "Security System",
       "hoaDues": "HOA Dues Portal"
     }
+  },
+
+  "tenant": {
+    "household": "Household",
+    "householdName": "Household Name",
+    "householdNameHelp": "e.g., 'The Smiths', 'Our Beach House'",
+    "address": "Address",
+    "saved": "Household information saved successfully"
+  },
+
+  "address": {
+    "line1": "Street Address",
+    "line2": "Apt/Suite/Unit",
+    "line3": "Address Line 3",
+    "line4": "Address Line 4",
+    "city": "City",
+    "stateProvince": "State/Province",
+    "postalCode": "Postal Code",
+    "country": "Country",
+    "normalize": "Verify Address",
+    "normalizing": "Verifying address...",
+    "confirmTitle": "Confirm Address",
+    "yourInput": "Your Input",
+    "normalized": "Verified Address",
+    "useNormalized": "Use Verified",
+    "keepOriginal": "Keep Original",
+    "noMatch": "Could not verify address. Please check and try again.",
+    "lowConfidence": "Low confidence match. Please verify the address is correct."
   },
 
   "roles": {
