@@ -16,4 +16,8 @@ public class ManagedUserDto
     public DateTime? LastLoginAt { get; set; }
     public List<Role> Roles { get; set; } = new();
     public DateTime CreatedAt { get; set; }
+
+    // Contact linking
+    public Guid? ContactId { get; set; }
+    public string? ContactName { get; set; }
 }

@@ -1,0 +1,327 @@
+@page "/contacts"
+@attribute [Authorize]
+@inject IApiClient ApiClient
+@inject NavigationManager Navigation
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+@inject ILocalizer L
+@using Famick.HomeManagement.Core.DTOs.Contacts
+@using Famick.HomeManagement.Core.Interfaces
+
+<MudText Typo="Typo.h4" Class="mb-4">@L["contacts.title"]</MudText>
+
+<MudPaper Elevation="1" Class="pa-4">
+    @* Desktop toolbar *@
+    <MudHidden Breakpoint="Breakpoint.SmAndDown">
+        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="3" Class="mb-4">
+            <MudTextField @bind-Value="_searchText"
+                          Placeholder="@L["common.search"]"
+                          Variant="Variant.Outlined"
+                          Margin="Margin.Dense"
+                          Adornment="Adornment.Start"
+                          AdornmentIcon="@Icons.Material.Filled.Search"
+                          Immediate="true"
+                          DebounceInterval="300"
+                          OnDebounceIntervalElapsed="OnSearchChanged"
+                          Style="max-width: 300px;" />
+
+            <MudSelect T="Guid?" @bind-Value="_tagFilter"
+                       Label="@L["contacts.filterByTag"]"
+                       Variant="Variant.Outlined"
+                       Margin="Margin.Dense"
+                       Clearable="true"
+                       Style="max-width: 200px;">
+                @foreach (var tag in _tags)
+                {
+                    <MudSelectItem T="Guid?" Value="@tag.Id">@tag.Name</MudSelectItem>
+                }
+            </MudSelect>
+
+            <MudSpacer />
+
+            <MudTooltip Text="@(CanEdit ? null : L["common.viewerNoPermission"])" Disabled="@CanEdit">
+                <MudButton Variant="Variant.Text"
+                           Color="Color.Default"
+                           StartIcon="@Icons.Material.Filled.Label"
+                           OnClick="NavigateToTags"
+                           Disabled="@(!CanEdit)">
+                    @L["contacts.manageTags"]
+                </MudButton>
+            </MudTooltip>
+
+            <MudTooltip Text="@(CanEdit ? null : L["common.viewerNoPermission"])" Disabled="@CanEdit">
+                <MudButton Variant="Variant.Filled"
+                           Color="Color.Primary"
+                           StartIcon="@Icons.Material.Filled.PersonAdd"
+                           OnClick="NavigateToNewContact"
+                           Disabled="@(!CanEdit)">
+                    @L["contacts.add"]
+                </MudButton>
+            </MudTooltip>
+        </MudStack>
+    </MudHidden>
+
+    @* Mobile toolbar *@
+    <MudHidden Breakpoint="Breakpoint.MdAndUp">
+        <MudStack Spacing="2" Class="mb-3">
+            <MudStack Row="true" Spacing="2">
+                <MudTextField @bind-Value="_searchText"
+                              Placeholder="@L["common.search"]"
+                              Variant="Variant.Outlined"
+                              Margin="Margin.Dense"
+                              Adornment="Adornment.Start"
+                              AdornmentIcon="@Icons.Material.Filled.Search"
+                              Immediate="true"
+                              DebounceInterval="300"
+                              OnDebounceIntervalElapsed="OnSearchChanged"
+                              FullWidth="true" />
+                <MudTooltip Text="@(CanEdit ? null : L["common.viewerNoPermission"])" Disabled="@CanEdit">
+                    <MudIconButton Icon="@Icons.Material.Filled.PersonAdd"
+                                   Color="Color.Primary"
+                                   Variant="Variant.Filled"
+                                   OnClick="NavigateToNewContact"
+                                   Disabled="@(!CanEdit)" />
+                </MudTooltip>
+            </MudStack>
+            <MudSelect T="Guid?" @bind-Value="_tagFilter"
+                       Label="@L["contacts.filterByTag"]"
+                       Variant="Variant.Outlined"
+                       Margin="Margin.Dense"
+                       Clearable="true"
+                       FullWidth="true">
+                @foreach (var tag in _tags)
+                {
+                    <MudSelectItem T="Guid?" Value="@tag.Id">@tag.Name</MudSelectItem>
+                }
+            </MudSelect>
+        </MudStack>
+    </MudHidden>
+
+    @if (_isLoading)
+    {
+        <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+    }
+    else if (_contacts.Items.Count == 0)
+    {
+        <MudAlert Severity="Severity.Info">@L["contacts.noContacts"]</MudAlert>
+    }
+    else
+    {
+        @* Desktop: Full DataGrid *@
+        <MudHidden Breakpoint="Breakpoint.SmAndDown">
+            <MudDataGrid T="ContactSummaryDto"
+                         Items="@_contacts.Items"
+                         SortMode="SortMode.Single"
+                         Filterable="false"
+                         Hideable="false"
+                         RowClick="OnRowClick"
+                         Dense="true"
+                         Hover="true"
+                         Class="cursor-pointer">
+                <Columns>
+                    <TemplateColumn Title="@L["contacts.name"]">
+                        <CellTemplate>
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudAvatar Size="Size.Small" Color="Color.Primary">
+                                    @GetInitials(context.Item.FirstName, context.Item.LastName)
+                                </MudAvatar>
+                                <MudStack Spacing="0">
+                                    <MudText Typo="Typo.body2">@context.Item.FirstName @context.Item.LastName</MudText>
+                                    @if (!string.IsNullOrEmpty(context.Item.PreferredName))
+                                    {
+                                        <MudText Typo="Typo.caption" Color="Color.Secondary">"@context.Item.PreferredName"</MudText>
+                                    }
+                                </MudStack>
+                                @if (context.Item.IsUserLinked)
+                                {
+                                    <MudTooltip Text="@L["contacts.linkedUser"]">
+                                        <MudIcon Icon="@Icons.Material.Filled.AccountCircle" Size="Size.Small" Color="Color.Info" />
+                                    </MudTooltip>
+                                }
+                            </MudStack>
+                        </CellTemplate>
+                    </TemplateColumn>
+                    <PropertyColumn Property="x => x.Email" Title="@L["common.email"]" />
+                    <PropertyColumn Property="x => x.PrimaryPhone" Title="@L["contacts.phone"]" />
+                    <TemplateColumn Title="@L["contacts.tags"]">
+                        <CellTemplate>
+                            <MudStack Row="true" Spacing="1">
+                                @for (int i = 0; i < Math.Min(3, context.Item.TagNames.Count); i++)
+                                {
+                                    var tagName = context.Item.TagNames[i];
+                                    var tagColor = i < context.Item.TagColors.Count ? context.Item.TagColors[i] : "#757575";
+                                    <MudChip T="string" Size="Size.Small" Style="@($"background-color: {tagColor ?? "#757575"}")">@tagName</MudChip>
+                                }
+                                @if (context.Item.TagNames.Count > 3)
+                                {
+                                    <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined">+@(context.Item.TagNames.Count - 3)</MudChip>
+                                }
+                            </MudStack>
+                        </CellTemplate>
+                    </TemplateColumn>
+                </Columns>
+            </MudDataGrid>
+        </MudHidden>
+
+        @* Mobile: Card list *@
+        <MudHidden Breakpoint="Breakpoint.MdAndUp">
+            <MudStack Spacing="2">
+                @foreach (var contact in _contacts.Items)
+                {
+                    <MudCard Elevation="1" Class="cursor-pointer" @onclick="() => NavigateToContact(contact.Id)">
+                        <MudCardContent>
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudAvatar Size="Size.Medium" Color="Color.Primary">
+                                    @GetInitials(contact.FirstName, contact.LastName)
+                                </MudAvatar>
+                                <MudStack Spacing="0" Style="flex: 1;">
+                                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                                        <MudText Typo="Typo.subtitle1">@contact.FirstName @contact.LastName</MudText>
+                                        @if (contact.IsUserLinked)
+                                        {
+                                            <MudIcon Icon="@Icons.Material.Filled.AccountCircle" Size="Size.Small" Color="Color.Info" />
+                                        }
+                                    </MudStack>
+                                    @if (!string.IsNullOrEmpty(contact.Email))
+                                    {
+                                        <MudText Typo="Typo.body2" Color="Color.Secondary">@contact.Email</MudText>
+                                    }
+                                    @if (!string.IsNullOrEmpty(contact.PrimaryPhone))
+                                    {
+                                        <MudText Typo="Typo.body2" Color="Color.Secondary">@contact.PrimaryPhone</MudText>
+                                    }
+                                </MudStack>
+                            </MudStack>
+                        </MudCardContent>
+                    </MudCard>
+                }
+            </MudStack>
+        </MudHidden>
+
+        @* Pagination *@
+        @if (_contacts.TotalPages > 1)
+        {
+            <MudStack Row="true" Justify="Justify.Center" Class="mt-4">
+                <MudPagination Count="@_contacts.TotalPages"
+                               Selected="@_currentPage"
+                               SelectedChanged="OnPageChanged"
+                               Color="Color.Primary"
+                               Variant="Variant.Filled" />
+            </MudStack>
+        }
+    }
+</MudPaper>
+
+@code {
+    [CascadingParameter(Name = "CanEdit")]
+    private bool CanEdit { get; set; }
+
+    private bool _isLoading = true;
+    private string _searchText = string.Empty;
+    private Guid? _tagFilter;
+    private int _currentPage = 1;
+    private const int PageSize = 20;
+    private PagedResult<ContactSummaryDto> _contacts = new();
+    private List<ContactTagDto> _tags = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadTagsAsync();
+        await LoadContactsAsync();
+    }
+
+    private async Task LoadTagsAsync()
+    {
+        try
+        {
+            var result = await ApiClient.GetAsync<List<ContactTagDto>>("api/v1/contacts/tags");
+            if (result.IsSuccess && result.Data != null)
+            {
+                _tags = result.Data;
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error loading tags: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task LoadContactsAsync()
+    {
+        _isLoading = true;
+        try
+        {
+            var queryParams = new List<string>
+            {
+                $"pageNumber={_currentPage}",
+                $"pageSize={PageSize}"
+            };
+
+            if (!string.IsNullOrWhiteSpace(_searchText))
+            {
+                queryParams.Add($"searchTerm={Uri.EscapeDataString(_searchText)}");
+            }
+
+            if (_tagFilter.HasValue)
+            {
+                queryParams.Add($"tagId={_tagFilter.Value}");
+            }
+
+            var url = $"api/v1/contacts?{string.Join("&", queryParams)}";
+            var result = await ApiClient.GetAsync<PagedResult<ContactSummaryDto>>(url);
+
+            if (result.IsSuccess && result.Data != null)
+            {
+                _contacts = result.Data;
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error loading contacts: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private async Task OnSearchChanged(string value)
+    {
+        _searchText = value;
+        _currentPage = 1;
+        await LoadContactsAsync();
+    }
+
+    private async Task OnPageChanged(int page)
+    {
+        _currentPage = page;
+        await LoadContactsAsync();
+    }
+
+    private void NavigateToNewContact()
+    {
+        Navigation.NavigateTo("/contacts/new");
+    }
+
+    private void NavigateToContact(Guid id)
+    {
+        Navigation.NavigateTo($"/contacts/{id}");
+    }
+
+    private void NavigateToTags()
+    {
+        Navigation.NavigateTo("/settings/contact-tags");
+    }
+
+    private void OnRowClick(DataGridRowClickEventArgs<ContactSummaryDto> args)
+    {
+        NavigateToContact(args.Item.Id);
+    }
+
+    private static string GetInitials(string firstName, string lastName)
+    {
+        var first = !string.IsNullOrEmpty(firstName) ? firstName[0].ToString().ToUpper() : "";
+        var last = !string.IsNullOrEmpty(lastName) ? lastName[0].ToString().ToUpper() : "";
+        return $"{first}{last}";
+    }
+}

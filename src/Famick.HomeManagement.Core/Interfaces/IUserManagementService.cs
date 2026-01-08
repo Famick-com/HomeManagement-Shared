@@ -44,4 +44,14 @@ public interface IUserManagementService
     /// Get roles for a specific user
     /// </summary>
     Task<List<Role>> GetUserRolesAsync(Guid userId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Link a contact to a user
+    /// </summary>
+    Task<ManagedUserDto> LinkContactAsync(Guid userId, Guid contactId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Unlink a contact from a user
+    /// </summary>
+    Task<ManagedUserDto> UnlinkContactAsync(Guid userId, CancellationToken cancellationToken = default);
 }

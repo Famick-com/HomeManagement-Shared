@@ -51,6 +51,7 @@ public static class InfrastructureStartup
         services.AddScoped<IEquipmentService, EquipmentService>();
         services.AddScoped<IStorageBinService, StorageBinService>();
         services.AddScoped<ITenantService, TenantService>();
+        services.AddScoped<IContactService, ContactService>();
 
         // Configure Geoapify address normalization service
         services.Configure<GeoapifyOptions>(configuration.GetSection(GeoapifyOptions.SectionName));

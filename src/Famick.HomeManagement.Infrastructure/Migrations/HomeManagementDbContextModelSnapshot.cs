@@ -292,6 +292,514 @@ namespace Famick.HomeManagement.Infrastructure.Migrations
                     b.ToTable("chores_log", (string)null);
                 });
 
+            modelBuilder.Entity("Famick.HomeManagement.Domain.Entities.Contact", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("BirthDatePrecision")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasDefaultValue("Unknown");
+
+                    b.Property<int?>("BirthDay")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("BirthMonth")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("BirthYear")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.Property<Guid>("CreatedByUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("DeathDatePrecision")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasDefaultValue("Unknown");
+
+                    b.Property<int?>("DeathDay")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("DeathMonth")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("DeathYear")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Email")
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)");
+
+                    b.Property<string>("FirstName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("Gender")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasDefaultValue("Unknown");
+
+                    b.Property<Guid?>("HouseholdTenantId")
+                        .HasColumnType("uuid");
+
+                    b.Property<bool>("IsActive")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(true);
+
+                    b.Property<string>("LastName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<Guid?>("LinkedUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("MiddleName")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(4000)
+                        .HasColumnType("character varying(4000)");
+
+                    b.Property<string>("PreferredName")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("UsesTenantAddress")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false);
+
+                    b.Property<string>("Visibility")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasDefaultValue("TenantShared");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedByUserId");
+
+                    b.HasIndex("TenantId");
+
+                    b.HasIndex("TenantId", "Email");
+
+                    b.HasIndex("TenantId", "IsActive");
+
+                    b.HasIndex("TenantId", "LinkedUserId");
+
+                    b.HasIndex("TenantId", "Visibility");
+
+                    b.HasIndex("TenantId", "FirstName", "LastName");
+
+                    b.ToTable("contacts", (string)null);
+                });
+
+            modelBuilder.Entity("Famick.HomeManagement.Domain.Entities.ContactAddress", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("AddressId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("ContactId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.Property<bool>("IsPrimary")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false);
+
+                    b.Property<string>("Label")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("Tag")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasDefaultValue("Home");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AddressId");
+
+                    b.HasIndex("TenantId");
+
+                    b.HasIndex("ContactId", "AddressId")
+                        .IsUnique();
+
+                    b.HasIndex("ContactId", "IsPrimary");
+
+                    b.ToTable("contact_addresses", (string)null);
+                });
+
+            modelBuilder.Entity("Famick.HomeManagement.Domain.Entities.ContactAuditLog", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Action")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<Guid>("ContactId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<string>("IpAddress")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<string>("NewValues")
+                        .HasColumnType("jsonb");
+
+                    b.Property<string>("OldValues")
+                        .HasColumnType("jsonb");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("UserAgent")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TenantId");
+
+                    b.HasIndex("UserId");
+
+                    b.HasIndex("ContactId", "CreatedAt");
+
+                    b.HasIndex("TenantId", "CreatedAt");
+
+                    b.ToTable("contact_audit_logs", (string)null);
+                });
+
+            modelBuilder.Entity("Famick.HomeManagement.Domain.Entities.ContactPhoneNumber", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("ContactId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.Property<bool>("IsPrimary")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false);
+
+                    b.Property<string>("Label")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("NormalizedNumber")
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)");
+
+                    b.Property<string>("PhoneNumber")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<string>("Tag")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasDefaultValue("Mobile");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TenantId");
+
+                    b.HasIndex("ContactId", "IsPrimary");
+
+                    b.HasIndex("TenantId", "NormalizedNumber");
+
+                    b.ToTable("contact_phone_numbers", (string)null);
+                });
+
+            modelBuilder.Entity("Famick.HomeManagement.Domain.Entities.ContactRelationship", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.Property<string>("CustomLabel")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<string>("RelationshipType")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<Guid>("SourceContactId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("TargetContactId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("SourceContactId");
+
+                    b.HasIndex("TargetContactId");
+
+                    b.HasIndex("TenantId");
+
+                    b.HasIndex("SourceContactId", "TargetContactId", "RelationshipType")
+                        .IsUnique();
+
+                    b.ToTable("contact_relationships", (string)null);
+                });
+
+            modelBuilder.Entity("Famick.HomeManagement.Domain.Entities.ContactSocialMedia", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("ContactId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.Property<string>("ProfileUrl")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<string>("Service")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Username")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TenantId");
+
+                    b.HasIndex("ContactId", "Service")
+                        .IsUnique();
+
+                    b.ToTable("contact_social_media", (string)null);
+                });
+
+            modelBuilder.Entity("Famick.HomeManagement.Domain.Entities.ContactTag", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Color")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<string>("Icon")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TenantId");
+
+                    b.HasIndex("TenantId", "Name")
+                        .IsUnique();
+
+                    b.ToTable("contact_tags", (string)null);
+                });
+
+            modelBuilder.Entity("Famick.HomeManagement.Domain.Entities.ContactTagLink", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("ContactId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.Property<Guid>("TagId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TagId");
+
+                    b.HasIndex("TenantId");
+
+                    b.HasIndex("ContactId", "TagId")
+                        .IsUnique();
+
+                    b.ToTable("contact_tag_links", (string)null);
+                });
+
+            modelBuilder.Entity("Famick.HomeManagement.Domain.Entities.ContactUserShare", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<bool>("CanEdit")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false);
+
+                    b.Property<Guid>("ContactId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.Property<Guid>("SharedWithUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("SharedWithUserId");
+
+                    b.HasIndex("TenantId");
+
+                    b.HasIndex("ContactId", "SharedWithUserId")
+                        .IsUnique();
+
+                    b.ToTable("contact_user_shares", (string)null);
+                });
+
             modelBuilder.Entity("Famick.HomeManagement.Domain.Entities.Equipment", b =>
                 {
                     b.Property<Guid>("Id")
@@ -2394,6 +2902,9 @@ namespace Famick.HomeManagement.Infrastructure.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
+                    b.Property<Guid?>("ContactId")
+                        .HasColumnType("uuid");
+
                     b.Property<DateTime>("CreatedAt")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("timestamp with time zone")
@@ -2439,6 +2950,9 @@ namespace Famick.HomeManagement.Infrastructure.Migrations
                         .HasColumnType("character varying(100)");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("ContactId")
+                        .IsUnique();
 
                     b.HasIndex("TenantId");
 
@@ -2572,6 +3086,134 @@ namespace Famick.HomeManagement.Infrastructure.Migrations
                     b.Navigation("Chore");
 
                     b.Navigation("DoneByUser");
+                });
+
+            modelBuilder.Entity("Famick.HomeManagement.Domain.Entities.Contact", b =>
+                {
+                    b.HasOne("Famick.HomeManagement.Domain.Entities.User", "CreatedByUser")
+                        .WithMany()
+                        .HasForeignKey("CreatedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("CreatedByUser");
+                });
+
+            modelBuilder.Entity("Famick.HomeManagement.Domain.Entities.ContactAddress", b =>
+                {
+                    b.HasOne("Famick.HomeManagement.Domain.Entities.Address", "Address")
+                        .WithMany()
+                        .HasForeignKey("AddressId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Famick.HomeManagement.Domain.Entities.Contact", "Contact")
+                        .WithMany("Addresses")
+                        .HasForeignKey("ContactId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Address");
+
+                    b.Navigation("Contact");
+                });
+
+            modelBuilder.Entity("Famick.HomeManagement.Domain.Entities.ContactAuditLog", b =>
+                {
+                    b.HasOne("Famick.HomeManagement.Domain.Entities.Contact", "Contact")
+                        .WithMany("AuditLogs")
+                        .HasForeignKey("ContactId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Famick.HomeManagement.Domain.Entities.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Contact");
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("Famick.HomeManagement.Domain.Entities.ContactPhoneNumber", b =>
+                {
+                    b.HasOne("Famick.HomeManagement.Domain.Entities.Contact", "Contact")
+                        .WithMany("PhoneNumbers")
+                        .HasForeignKey("ContactId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Contact");
+                });
+
+            modelBuilder.Entity("Famick.HomeManagement.Domain.Entities.ContactRelationship", b =>
+                {
+                    b.HasOne("Famick.HomeManagement.Domain.Entities.Contact", "SourceContact")
+                        .WithMany("RelationshipsAsSource")
+                        .HasForeignKey("SourceContactId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Famick.HomeManagement.Domain.Entities.Contact", "TargetContact")
+                        .WithMany("RelationshipsAsTarget")
+                        .HasForeignKey("TargetContactId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("SourceContact");
+
+                    b.Navigation("TargetContact");
+                });
+
+            modelBuilder.Entity("Famick.HomeManagement.Domain.Entities.ContactSocialMedia", b =>
+                {
+                    b.HasOne("Famick.HomeManagement.Domain.Entities.Contact", "Contact")
+                        .WithMany("SocialMedia")
+                        .HasForeignKey("ContactId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Contact");
+                });
+
+            modelBuilder.Entity("Famick.HomeManagement.Domain.Entities.ContactTagLink", b =>
+                {
+                    b.HasOne("Famick.HomeManagement.Domain.Entities.Contact", "Contact")
+                        .WithMany("Tags")
+                        .HasForeignKey("ContactId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Famick.HomeManagement.Domain.Entities.ContactTag", "Tag")
+                        .WithMany("Contacts")
+                        .HasForeignKey("TagId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Contact");
+
+                    b.Navigation("Tag");
+                });
+
+            modelBuilder.Entity("Famick.HomeManagement.Domain.Entities.ContactUserShare", b =>
+                {
+                    b.HasOne("Famick.HomeManagement.Domain.Entities.Contact", "Contact")
+                        .WithMany("SharedWithUsers")
+                        .HasForeignKey("ContactId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Famick.HomeManagement.Domain.Entities.User", "SharedWithUser")
+                        .WithMany()
+                        .HasForeignKey("SharedWithUserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Contact");
+
+                    b.Navigation("SharedWithUser");
                 });
 
             modelBuilder.Entity("Famick.HomeManagement.Domain.Entities.Equipment", b =>
@@ -2896,6 +3538,16 @@ namespace Famick.HomeManagement.Infrastructure.Migrations
                     b.Navigation("Address");
                 });
 
+            modelBuilder.Entity("Famick.HomeManagement.Domain.Entities.User", b =>
+                {
+                    b.HasOne("Famick.HomeManagement.Domain.Entities.Contact", "Contact")
+                        .WithOne("LinkedUser")
+                        .HasForeignKey("Famick.HomeManagement.Domain.Entities.User", "ContactId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("Contact");
+                });
+
             modelBuilder.Entity("Famick.HomeManagement.Domain.Entities.UserPermission", b =>
                 {
                     b.HasOne("Famick.HomeManagement.Domain.Entities.Permission", "Permission")
@@ -2929,6 +3581,32 @@ namespace Famick.HomeManagement.Infrastructure.Migrations
             modelBuilder.Entity("Famick.HomeManagement.Domain.Entities.Chore", b =>
                 {
                     b.Navigation("LogEntries");
+                });
+
+            modelBuilder.Entity("Famick.HomeManagement.Domain.Entities.Contact", b =>
+                {
+                    b.Navigation("Addresses");
+
+                    b.Navigation("AuditLogs");
+
+                    b.Navigation("LinkedUser");
+
+                    b.Navigation("PhoneNumbers");
+
+                    b.Navigation("RelationshipsAsSource");
+
+                    b.Navigation("RelationshipsAsTarget");
+
+                    b.Navigation("SharedWithUsers");
+
+                    b.Navigation("SocialMedia");
+
+                    b.Navigation("Tags");
+                });
+
+            modelBuilder.Entity("Famick.HomeManagement.Domain.Entities.ContactTag", b =>
+                {
+                    b.Navigation("Contacts");
                 });
 
             modelBuilder.Entity("Famick.HomeManagement.Domain.Entities.Equipment", b =>

@@ -88,6 +88,17 @@ public class HomeManagementDbContext : DbContext
     public DbSet<StorageBin> StorageBins => Set<StorageBin>();
     public DbSet<StorageBinPhoto> StorageBinPhotos => Set<StorageBinPhoto>();
 
+    // Contacts
+    public DbSet<Contact> Contacts => Set<Contact>();
+    public DbSet<ContactAddress> ContactAddresses => Set<ContactAddress>();
+    public DbSet<ContactPhoneNumber> ContactPhoneNumbers => Set<ContactPhoneNumber>();
+    public DbSet<ContactSocialMedia> ContactSocialMedia => Set<ContactSocialMedia>();
+    public DbSet<ContactRelationship> ContactRelationships => Set<ContactRelationship>();
+    public DbSet<ContactTag> ContactTags => Set<ContactTag>();
+    public DbSet<ContactTagLink> ContactTagLinks => Set<ContactTagLink>();
+    public DbSet<ContactUserShare> ContactUserShares => Set<ContactUserShare>();
+    public DbSet<ContactAuditLog> ContactAuditLogs => Set<ContactAuditLog>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);

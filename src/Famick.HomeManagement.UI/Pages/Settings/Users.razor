@@ -6,6 +6,8 @@
 @inject ILocalizer L
 @inject IJSRuntime JS
 @using Famick.HomeManagement.Core.DTOs.Users
+@using Famick.HomeManagement.Core.DTOs.Contacts
+@using Famick.HomeManagement.Core.Interfaces
 @using Famick.HomeManagement.Domain.Enums
 
 <MudText Typo="Typo.h4" Class="mb-4">@L["settings.users.title"]</MudText>
@@ -65,6 +67,30 @@
                         else
                         {
                             <MudChip T="string" Size="Size.Small" Color="Color.Default" Variant="Variant.Outlined">@L["common.inactive"]</MudChip>
+                        }
+                    </CellTemplate>
+                </TemplateColumn>
+                <TemplateColumn Title="@L["settings.users.linkedContact"]">
+                    <CellTemplate>
+                        @if (context.Item.ContactId.HasValue)
+                        {
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                                <MudLink Href="@($"/contacts/{context.Item.ContactId}")">@context.Item.ContactName</MudLink>
+                                <MudIconButton Icon="@Icons.Material.Filled.LinkOff"
+                                               Size="Size.Small"
+                                               Color="Color.Error"
+                                               OnClick="@(() => HandleUnlinkContact(context.Item))" />
+                            </MudStack>
+                        }
+                        else
+                        {
+                            <MudButton Variant="Variant.Text"
+                                       Size="Size.Small"
+                                       Color="Color.Primary"
+                                       StartIcon="@Icons.Material.Filled.PersonAdd"
+                                       OnClick="@(() => OpenLinkContactDialog(context.Item))">
+                                @L["settings.users.linkContact"]
+                            </MudButton>
                         }
                     </CellTemplate>
                 </TemplateColumn>
@@ -259,6 +285,48 @@
     </DialogActions>
 </MudDialog>
 
+@* Link Contact Dialog *@
+<MudDialog @bind-Visible="_linkContactDialogVisible" Options="@(new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true })">
+    <TitleContent>
+        <MudText Typo="Typo.h6">@L["settings.users.linkContactTitle"]</MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudStack Spacing="3">
+            <MudText>@L["settings.users.linkContactFor", _linkContactUser?.Email ?? ""]</MudText>
+            <MudAutocomplete T="ContactSummaryDto"
+                             Label="@L["settings.users.selectContact"]"
+                             Variant="Variant.Outlined"
+                             SearchFunc="SearchContacts"
+                             ToStringFunc="@(c => c == null ? "" : $"{c.FirstName} {c.LastName}")"
+                             @bind-Value="_selectedContact"
+                             ShowProgressIndicator="true"
+                             DebounceInterval="300">
+                <ItemTemplate Context="contact">
+                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                        <MudAvatar Size="Size.Small" Color="Color.Primary">
+                            @GetContactInitials(contact.FirstName, contact.LastName)
+                        </MudAvatar>
+                        <MudText>@contact.FirstName @contact.LastName</MudText>
+                    </MudStack>
+                </ItemTemplate>
+            </MudAutocomplete>
+        </MudStack>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="CloseLinkContactDialog">@L["common.cancel"]</MudButton>
+        <MudButton Variant="Variant.Filled"
+                   Color="Color.Primary"
+                   OnClick="HandleLinkContact"
+                   Disabled="@(_selectedContact == null || _isLinkingContact)">
+            @if (_isLinkingContact)
+            {
+                <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+            }
+            @L["settings.users.linkContact"]
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
 @code {
     private List<ManagedUserDto> _users = new();
     private bool _isLoading = true;
@@ -288,6 +356,12 @@
     // Generated password display
     private bool _generatedPasswordDialogVisible;
     private string _generatedPasswordToShow = string.Empty;
+
+    // Link contact dialog
+    private bool _linkContactDialogVisible;
+    private bool _isLinkingContact;
+    private ManagedUserDto? _linkContactUser;
+    private ContactSummaryDto? _selectedContact;
 
     protected override async Task OnInitializedAsync()
     {
@@ -608,4 +682,109 @@
         Role.Viewer => L["settings.users.roles.viewer"],
         _ => role.ToString()
     };
+
+    // Link Contact Methods
+    private void OpenLinkContactDialog(ManagedUserDto user)
+    {
+        _linkContactUser = user;
+        _selectedContact = null;
+        _linkContactDialogVisible = true;
+    }
+
+    private void CloseLinkContactDialog()
+    {
+        _linkContactDialogVisible = false;
+        _linkContactUser = null;
+        _selectedContact = null;
+    }
+
+    private async Task<IEnumerable<ContactSummaryDto>> SearchContacts(string value, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+            return Enumerable.Empty<ContactSummaryDto>();
+
+        try
+        {
+            var result = await ApiClient.GetAsync<PagedResult<ContactSummaryDto>>(
+                $"api/v1/contacts?searchTerm={Uri.EscapeDataString(value)}&pageSize=10");
+
+            if (result.IsSuccess && result.Data != null)
+            {
+                return result.Data.Items;
+            }
+        }
+        catch
+        {
+            // Ignore search errors
+        }
+
+        return Enumerable.Empty<ContactSummaryDto>();
+    }
+
+    private async Task HandleLinkContact()
+    {
+        if (_linkContactUser == null || _selectedContact == null) return;
+
+        _isLinkingContact = true;
+        try
+        {
+            var result = await ApiClient.PutAsync<object, ManagedUserDto>(
+                $"api/v1/users/{_linkContactUser.Id}/contact/{_selectedContact.Id}", new { });
+
+            if (result.IsSuccess)
+            {
+                Snackbar.Add(L["settings.users.contactLinked"], Severity.Success);
+                CloseLinkContactDialog();
+                await LoadUsersAsync();
+            }
+            else
+            {
+                Snackbar.Add(result.ErrorMessage ?? L["errors.generic"], Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error linking contact: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isLinkingContact = false;
+        }
+    }
+
+    private async Task HandleUnlinkContact(ManagedUserDto user)
+    {
+        var confirmed = await DialogService.ShowMessageBox(
+            L["confirmations.title"],
+            L["settings.users.confirmUnlinkContact"],
+            yesText: L["common.yes"],
+            cancelText: L["common.cancel"]);
+
+        if (confirmed != true) return;
+
+        try
+        {
+            var result = await ApiClient.DeleteAsync($"api/v1/users/{user.Id}/contact");
+            if (result.IsSuccess)
+            {
+                Snackbar.Add(L["settings.users.contactUnlinked"], Severity.Success);
+                await LoadUsersAsync();
+            }
+            else
+            {
+                Snackbar.Add(result.ErrorMessage ?? L["errors.generic"], Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error unlinking contact: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private static string GetContactInitials(string firstName, string lastName)
+    {
+        var first = !string.IsNullOrEmpty(firstName) ? firstName[0].ToString().ToUpper() : "";
+        var last = !string.IsNullOrEmpty(lastName) ? lastName[0].ToString().ToUpper() : "";
+        return $"{first}{last}";
+    }
 }
