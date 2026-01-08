@@ -1,0 +1,78 @@
+@inject ILocalizer L
+
+<MudGrid Spacing="2">
+    <MudItem xs="12">
+        <MudTextField @bind-Value="Address.AddressLine1"
+                      Label="@L["address.line1"]"
+                      Variant="Variant.Outlined"
+                      ReadOnly="@ReadOnly" />
+    </MudItem>
+    <MudItem xs="12">
+        <MudTextField @bind-Value="Address.AddressLine2"
+                      Label="@L["address.line2"]"
+                      Variant="Variant.Outlined"
+                      ReadOnly="@ReadOnly" />
+    </MudItem>
+    <MudItem xs="12" md="5">
+        <MudTextField @bind-Value="Address.City"
+                      Label="@L["address.city"]"
+                      Variant="Variant.Outlined"
+                      ReadOnly="@ReadOnly" />
+    </MudItem>
+    <MudItem xs="6" md="4">
+        <MudTextField @bind-Value="Address.StateProvince"
+                      Label="@L["address.stateProvince"]"
+                      Variant="Variant.Outlined"
+                      ReadOnly="@ReadOnly" />
+    </MudItem>
+    <MudItem xs="6" md="3">
+        <MudTextField @bind-Value="Address.PostalCode"
+                      Label="@L["address.postalCode"]"
+                      Variant="Variant.Outlined"
+                      ReadOnly="@ReadOnly" />
+    </MudItem>
+    <MudItem xs="12" md="6">
+        <MudTextField @bind-Value="Address.Country"
+                      Label="@L["address.country"]"
+                      Variant="Variant.Outlined"
+                      ReadOnly="@ReadOnly" />
+    </MudItem>
+</MudGrid>
+
+@code {
+    [Parameter]
+    public AddressEditModel Address { get; set; } = new();
+
+    [Parameter]
+    public EventCallback<AddressEditModel> AddressChanged { get; set; }
+
+    [Parameter]
+    public bool ReadOnly { get; set; }
+}
+
+@code {
+    /// <summary>
+    /// Edit model for address form binding
+    /// </summary>
+    public class AddressEditModel
+    {
+        public string? AddressLine1 { get; set; }
+        public string? AddressLine2 { get; set; }
+        public string? AddressLine3 { get; set; }
+        public string? AddressLine4 { get; set; }
+        public string? City { get; set; }
+        public string? StateProvince { get; set; }
+        public string? PostalCode { get; set; }
+        public string? Country { get; set; }
+        public string? CountryCode { get; set; }
+        public double? Latitude { get; set; }
+        public double? Longitude { get; set; }
+        public string? GeoapifyPlaceId { get; set; }
+        public string? FormattedAddress { get; set; }
+
+        public bool HasContent =>
+            !string.IsNullOrWhiteSpace(AddressLine1) ||
+            !string.IsNullOrWhiteSpace(City) ||
+            !string.IsNullOrWhiteSpace(PostalCode);
+    }
+}

@@ -3,6 +3,7 @@ using System;
 using Famick.HomeManagement.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Famick.HomeManagement.Infrastructure.Migrations
 {
     [DbContext(typeof(HomeManagementDbContext))]
-    partial class HomeManagementDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260108151356_AddTenantAndAddressEntities")]
+    partial class AddTenantAndAddressEntities
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -590,6 +593,12 @@ namespace Famick.HomeManagement.Infrastructure.Migrations
                         .HasMaxLength(255)
                         .HasColumnType("character varying(255)")
                         .HasColumnName("ac_filter_sizes");
+
+                    b.Property<string>("Address")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("address");
 
                     b.Property<DateTime?>("AppraisalDate")
                         .HasColumnType("timestamp with time zone")

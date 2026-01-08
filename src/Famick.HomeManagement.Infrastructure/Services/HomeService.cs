@@ -51,7 +51,7 @@ public class HomeService : IHomeService
         HomeSetupRequest request,
         CancellationToken cancellationToken = default)
     {
-        _logger.LogInformation("Setting up home at address: {Address}", request.Address);
+        _logger.LogInformation("Setting up home for tenant");
 
         // Check if home already exists
         var existingHome = await _context.Homes.FirstOrDefaultAsync(cancellationToken);

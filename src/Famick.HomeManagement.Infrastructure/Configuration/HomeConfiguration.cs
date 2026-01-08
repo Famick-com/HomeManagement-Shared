@@ -23,12 +23,6 @@ public class HomeConfiguration : IEntityTypeConfiguration<Home>
             .IsRequired();
 
         // Property Basics
-        builder.Property(h => h.Address)
-            .HasColumnName("address")
-            .HasColumnType("character varying(500)")
-            .IsRequired()
-            .HasMaxLength(500);
-
         builder.Property(h => h.Unit)
             .HasColumnName("unit")
             .HasColumnType("character varying(50)")

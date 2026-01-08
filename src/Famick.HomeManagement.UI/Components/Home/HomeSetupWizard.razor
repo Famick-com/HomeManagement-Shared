@@ -2,22 +2,52 @@
 @inject ISnackbar Snackbar
 @inject ILocalizer L
 @using Famick.HomeManagement.Core.DTOs.Home
+@using Famick.HomeManagement.Core.DTOs.Tenant
+@using Famick.HomeManagement.Core.DTOs.Common
+@using Famick.HomeManagement.UI.Components.Common
 
 <MudPaper Elevation="2" Class="pa-6">
     <MudText Typo="Typo.h5" Class="mb-4">@L["home.setupWizard.title"]</MudText>
     <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-6">@L["home.setupWizard.description"]</MudText>
 
     <MudStepper @bind-ActiveIndex="_currentStep">
+        @* Step 0: Household *@
+        <MudStep Title="@L["tenant.household"]">
+            <MudForm @ref="_form0" @bind-IsValid="_step0Valid">
+                <MudStack Spacing="3">
+                    <MudTextField @bind-Value="_tenantRequest.Name"
+                                  Label="@L["tenant.householdName"]"
+                                  HelperText="@L["tenant.householdNameHelp"]"
+                                  Variant="Variant.Outlined"
+                                  Required="true"
+                                  RequiredError="@L["validation.required", L["tenant.householdName"]]" />
+
+                    <MudDivider Class="my-2" />
+                    <MudText Typo="Typo.subtitle2">@L["tenant.address"]</MudText>
+
+                    <AddressForm Address="_addressEditModel" ReadOnly="false" />
+
+                    <MudStack Row="true" Justify="Justify.FlexEnd" Class="mt-2">
+                        <MudButton Variant="Variant.Outlined"
+                                   Color="Color.Secondary"
+                                   StartIcon="@Icons.Material.Filled.LocationOn"
+                                   OnClick="NormalizeAddress"
+                                   Disabled="@(_isNormalizing || !_addressEditModel.HasContent)">
+                            @if (_isNormalizing)
+                            {
+                                <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                            }
+                            @L["address.normalize"]
+                        </MudButton>
+                    </MudStack>
+                </MudStack>
+            </MudForm>
+        </MudStep>
+
         @* Step 1: Property Basics *@
         <MudStep Title="@L["home.setupWizard.step1"]">
             <MudForm @ref="_form1" @bind-IsValid="_step1Valid">
                 <MudStack Spacing="3">
-                    <MudTextField @bind-Value="_request.Address"
-                                  Label="@L["home.address"]"
-                                  Variant="Variant.Outlined"
-                                  Required="true"
-                                  RequiredError="@L["validation.required", L["home.address"]]" />
-
                     <MudTextField @bind-Value="_request.Unit"
                                   Label="@L["home.unit"]"
                                   Variant="Variant.Outlined" />
@@ -112,7 +142,7 @@
             @L["common.back"]
         </MudButton>
 
-        @if (_currentStep < 2)
+        @if (_currentStep < 3)
         {
             <MudButton Variant="Variant.Filled"
                        Color="Color.Primary"
@@ -137,6 +167,12 @@
     </MudStack>
 </MudPaper>
 
+@* Address Confirmation Dialog *@
+<AddressConfirmationDialog @bind-Visible="_addressConfirmationVisible"
+                           OriginalAddress="_addressEditModel"
+                           NormalizedAddress="_normalizedAddress"
+                           OnConfirm="HandleAddressConfirmation" />
+
 @code {
     [Parameter]
     public EventCallback OnSetupComplete { get; set; }
@@ -145,10 +181,19 @@
     private bool _isSaving = false;
     private HomeSetupRequest _request = new();
 
+    // Tenant state
+    private UpdateTenantRequest _tenantRequest = new();
+    private AddressForm.AddressEditModel _addressEditModel = new();
+    private bool _isNormalizing = false;
+    private bool _addressConfirmationVisible = false;
+    private NormalizedAddressResult? _normalizedAddress;
+
+    private MudForm? _form0;
     private MudForm? _form1;
     private MudForm? _form2;
     private MudForm? _form3;
-    private bool _step1Valid = false;
+    private bool _step0Valid = false;
+    private bool _step1Valid = true;
     private bool _step2Valid = true;
     private bool _step3Valid = true;
 
@@ -156,16 +201,17 @@
     {
         return _currentStep switch
         {
-            0 => _step1Valid,
-            1 => _step2Valid,
-            2 => _step3Valid,
+            0 => _step0Valid,
+            1 => _step1Valid,
+            2 => _step2Valid,
+            3 => _step3Valid,
             _ => false
         };
     }
 
     private void NextStep()
     {
-        if (_currentStep < 2)
+        if (_currentStep < 3)
         {
             _currentStep++;
         }
@@ -179,11 +225,102 @@
         }
     }
 
+    private async Task NormalizeAddress()
+    {
+        if (!_addressEditModel.HasContent) return;
+
+        _isNormalizing = true;
+        try
+        {
+            var request = new NormalizeAddressRequest
+            {
+                AddressLine1 = _addressEditModel.AddressLine1,
+                AddressLine2 = _addressEditModel.AddressLine2,
+                City = _addressEditModel.City,
+                StateProvince = _addressEditModel.StateProvince,
+                PostalCode = _addressEditModel.PostalCode,
+                Country = _addressEditModel.Country
+            };
+
+            var result = await ApiClient.PostAsync<NormalizeAddressRequest, NormalizedAddressResult>("api/v1/addresses/normalize", request);
+            if (result.IsSuccess && result.Data != null)
+            {
+                _normalizedAddress = result.Data;
+                _addressConfirmationVisible = true;
+            }
+            else
+            {
+                Snackbar.Add(result.ErrorMessage ?? L["address.noMatch"], Severity.Warning);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error normalizing address: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isNormalizing = false;
+        }
+    }
+
+    private void HandleAddressConfirmation(AddressConfirmationDialog.AddressConfirmationResult result)
+    {
+        if (result.Action == AddressConfirmationDialog.AddressConfirmationAction.UseNormalized && result.NormalizedAddress != null)
+        {
+            _addressEditModel.AddressLine1 = result.NormalizedAddress.AddressLine1;
+            _addressEditModel.AddressLine2 = result.NormalizedAddress.AddressLine2;
+            _addressEditModel.City = result.NormalizedAddress.City;
+            _addressEditModel.StateProvince = result.NormalizedAddress.StateProvince;
+            _addressEditModel.PostalCode = result.NormalizedAddress.PostalCode;
+            _addressEditModel.Country = result.NormalizedAddress.Country;
+            _addressEditModel.CountryCode = result.NormalizedAddress.CountryCode;
+            _addressEditModel.Latitude = result.NormalizedAddress.Latitude;
+            _addressEditModel.Longitude = result.NormalizedAddress.Longitude;
+            _addressEditModel.GeoapifyPlaceId = result.NormalizedAddress.GeoapifyPlaceId;
+            _addressEditModel.FormattedAddress = result.NormalizedAddress.FormattedAddress;
+
+            Snackbar.Add(L["address.normalized"], Severity.Success);
+        }
+
+        _addressConfirmationVisible = false;
+        _normalizedAddress = null;
+    }
+
     private async Task CompleteSetup()
     {
         _isSaving = true;
         try
         {
+            // Save tenant first
+            var tenantRequest = new UpdateTenantRequest
+            {
+                Name = _tenantRequest.Name,
+                Address = _addressEditModel.HasContent ? new UpdateAddressRequest
+                {
+                    AddressLine1 = _addressEditModel.AddressLine1,
+                    AddressLine2 = _addressEditModel.AddressLine2,
+                    AddressLine3 = _addressEditModel.AddressLine3,
+                    AddressLine4 = _addressEditModel.AddressLine4,
+                    City = _addressEditModel.City,
+                    StateProvince = _addressEditModel.StateProvince,
+                    PostalCode = _addressEditModel.PostalCode,
+                    Country = _addressEditModel.Country,
+                    CountryCode = _addressEditModel.CountryCode,
+                    Latitude = _addressEditModel.Latitude,
+                    Longitude = _addressEditModel.Longitude,
+                    GeoapifyPlaceId = _addressEditModel.GeoapifyPlaceId,
+                    FormattedAddress = _addressEditModel.FormattedAddress
+                } : null
+            };
+
+            var tenantResult = await ApiClient.PutAsync<UpdateTenantRequest, Famick.HomeManagement.Core.DTOs.Tenant.TenantDto>("api/v1/tenant", tenantRequest);
+            if (!tenantResult.IsSuccess)
+            {
+                Snackbar.Add(tenantResult.ErrorMessage ?? L["common.error"], Severity.Error);
+                return;
+            }
+
+            // Then complete home setup
             var result = await ApiClient.PostAsync<HomeSetupRequest, HomeDto>("api/v1/home/setup", _request);
             if (result.IsSuccess)
             {

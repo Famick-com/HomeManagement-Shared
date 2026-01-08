@@ -11,7 +11,6 @@ public class HomeDto
 
     #region Property Basics
 
-    public string Address { get; set; } = string.Empty;
     public string? Unit { get; set; }
     public int? YearBuilt { get; set; }
     public int? SquareFootage { get; set; }

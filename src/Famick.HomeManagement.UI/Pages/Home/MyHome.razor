@@ -6,9 +6,12 @@
 @inject ILocalizer L
 @using Famick.HomeManagement.Core.DTOs.Home
 @using Famick.HomeManagement.Core.DTOs.Equipment
+@using Famick.HomeManagement.Core.DTOs.Tenant
+@using Famick.HomeManagement.Core.DTOs.Common
 @using Famick.HomeManagement.Domain.Enums
 @using Famick.HomeManagement.UI.Components.Home
 @using Famick.HomeManagement.UI.Components.Equipment
+@using Famick.HomeManagement.UI.Components.Common
 
 <MudText Typo="Typo.h4" Class="mb-4">@L["home.title"]</MudText>
 
@@ -62,17 +65,73 @@ else if (_home != null)
 
         <MudPaper Elevation="1" Class="pa-4">
             <MudExpansionPanels MultiExpansion="true">
+                @* Household *@
+                <MudExpansionPanel Text="@L["tenant.household"]" Expanded="true">
+                    @if (_tenant != null)
+                    {
+                        @if (_isEditing)
+                        {
+                            <MudStack Spacing="3">
+                                <MudTextField @bind-Value="_tenantEditModel.Name"
+                                              Label="@L["tenant.householdName"]"
+                                              HelperText="@L["tenant.householdNameHelp"]"
+                                              Variant="Variant.Outlined"
+                                              Required="true" />
+
+                                <MudText Typo="Typo.subtitle2" Class="mt-2">@L["tenant.address"]</MudText>
+                                <AddressForm Address="_addressEditModel" ReadOnly="false" />
+
+                                <MudStack Row="true" Justify="Justify.FlexEnd" Class="mt-2">
+                                    <MudTooltip Text="@(CanEdit ? null : L["common.viewerNoPermission"])" Disabled="@CanEdit">
+                                        <MudButton Variant="Variant.Outlined"
+                                                   Color="Color.Secondary"
+                                                   StartIcon="@Icons.Material.Filled.LocationOn"
+                                                   OnClick="NormalizeAddress"
+                                                   Disabled="@(!CanEdit || _isNormalizing || !_addressEditModel.HasContent)">
+                                            @if (_isNormalizing)
+                                            {
+                                                <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                                            }
+                                            @L["address.normalize"]
+                                        </MudButton>
+                                    </MudTooltip>
+                                </MudStack>
+                            </MudStack>
+                        }
+                        else
+                        {
+                            <MudStack Spacing="2">
+                                <MudGrid>
+                                    <MudItem xs="12" md="6">
+                                        <MudText Typo="Typo.caption" Color="Color.Secondary">@L["tenant.householdName"]</MudText>
+                                        <MudText Typo="Typo.h6">@(string.IsNullOrWhiteSpace(_tenant.Name) ? "—" : _tenant.Name)</MudText>
+                                    </MudItem>
+                                    <MudItem xs="12" md="6">
+                                        <MudText Typo="Typo.caption" Color="Color.Secondary">@L["tenant.address"]</MudText>
+                                        @if (_tenant.Address != null)
+                                        {
+                                            <AddressDisplay Address="_tenant.Address" />
+                                        }
+                                        else
+                                        {
+                                            <MudText>—</MudText>
+                                        }
+                                    </MudItem>
+                                </MudGrid>
+                            </MudStack>
+                        }
+                    }
+                    else
+                    {
+                        <MudSkeleton Width="100%" Height="60px" />
+                    }
+                </MudExpansionPanel>
+
                 @* Property Basics *@
-                <MudExpansionPanel Text="@L["home.propertyBasics"]" Expanded="true">
+                <MudExpansionPanel Text="@L["home.propertyBasics"]">
                     @if (_isEditing)
                     {
                         <MudGrid>
-                            <MudItem xs="12" md="8">
-                                <MudTextField @bind-Value="_editModel.Address"
-                                              Label="@L["home.address"]"
-                                              Variant="Variant.Outlined"
-                                              Required="true" />
-                            </MudItem>
                             <MudItem xs="12" md="4">
                                 <MudTextField @bind-Value="_editModel.Unit"
                                               Label="@L["home.unit"]"
@@ -119,7 +178,10 @@ else if (_home != null)
                     else
                     {
                         <MudStack Spacing="2">
-                            <MudText Typo="Typo.h6">@_home.Address@(string.IsNullOrEmpty(_home.Unit) ? "" : $", {_home.Unit}")</MudText>
+                            @if (!string.IsNullOrWhiteSpace(_home.Unit))
+                            {
+                                <MudText Typo="Typo.h6">@L["home.unit"]: @_home.Unit</MudText>
+                            }
                             <MudGrid>
                                 <MudItem xs="6" md="3">
                                     <MudText Typo="Typo.caption" Color="Color.Secondary">@L["home.yearBuilt"]</MudText>
@@ -556,6 +618,12 @@ else if (_home != null)
 @* Equipment Category Dialog *@
 <EquipmentCategoryDialog @bind-Visible="_categoryDialogVisible" />
 
+@* Address Confirmation Dialog *@
+<AddressConfirmationDialog @bind-Visible="_addressConfirmationVisible"
+                           OriginalAddress="_addressEditModel"
+                           NormalizedAddress="_normalizedAddress"
+                           OnConfirm="HandleAddressConfirmation" />
+
 @code {
     [CascadingParameter(Name = "CanEdit")]
     private bool CanEdit { get; set; }
@@ -567,6 +635,16 @@ else if (_home != null)
     private HomeDto? _home;
     private UpdateHomeRequest _editModel = new();
     private DateTime? _appraisalDate;
+
+    // Tenant state
+    private Famick.HomeManagement.Core.DTOs.Tenant.TenantDto? _tenant;
+    private UpdateTenantRequest _tenantEditModel = new();
+    private AddressForm.AddressEditModel _addressEditModel = new();
+    private AddressForm.AddressEditModel _originalAddressEditModel = new();
+    private bool _isNormalizing = false;
+    private bool _addressConfirmationVisible = false;
+    private NormalizedAddressResult? _normalizedAddress;
+    private bool _pendingSave = false;
 
     // Utility dialog state
     private bool _utilityDialogVisible = false;
@@ -602,6 +680,9 @@ else if (_home != null)
                     CopyHomeToEditModel();
                 }
 
+                // Load tenant
+                await LoadTenantAsync();
+
                 // Load equipment
                 await LoadEquipmentAsync();
             }
@@ -622,7 +703,6 @@ else if (_home != null)
 
         _editModel = new UpdateHomeRequest
         {
-            Address = _home.Address,
             Unit = _home.Unit,
             YearBuilt = _home.YearBuilt,
             SquareFootage = _home.SquareFootage,
@@ -653,6 +733,75 @@ else if (_home != null)
         _appraisalDate = _home.AppraisalDate;
     }
 
+    private async Task LoadTenantAsync()
+    {
+        try
+        {
+            var result = await ApiClient.GetAsync<Famick.HomeManagement.Core.DTOs.Tenant.TenantDto>("api/v1/tenant");
+            if (result.IsSuccess && result.Data != null)
+            {
+                _tenant = result.Data;
+                CopyTenantToEditModel();
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error loading tenant: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private void CopyTenantToEditModel()
+    {
+        if (_tenant == null) return;
+
+        _tenantEditModel = new UpdateTenantRequest
+        {
+            Name = _tenant.Name
+        };
+
+        _addressEditModel = new AddressForm.AddressEditModel
+        {
+            AddressLine1 = _tenant.Address?.AddressLine1,
+            AddressLine2 = _tenant.Address?.AddressLine2,
+            AddressLine3 = _tenant.Address?.AddressLine3,
+            AddressLine4 = _tenant.Address?.AddressLine4,
+            City = _tenant.Address?.City,
+            StateProvince = _tenant.Address?.StateProvince,
+            PostalCode = _tenant.Address?.PostalCode,
+            Country = _tenant.Address?.Country,
+            CountryCode = _tenant.Address?.CountryCode,
+            Latitude = _tenant.Address?.Latitude,
+            Longitude = _tenant.Address?.Longitude,
+            GeoapifyPlaceId = _tenant.Address?.GeoapifyPlaceId,
+            FormattedAddress = _tenant.Address?.FormattedAddress
+        };
+
+        // Store original for comparison
+        _originalAddressEditModel = new AddressForm.AddressEditModel
+        {
+            AddressLine1 = _tenant.Address?.AddressLine1,
+            AddressLine2 = _tenant.Address?.AddressLine2,
+            AddressLine3 = _tenant.Address?.AddressLine3,
+            AddressLine4 = _tenant.Address?.AddressLine4,
+            City = _tenant.Address?.City,
+            StateProvince = _tenant.Address?.StateProvince,
+            PostalCode = _tenant.Address?.PostalCode,
+            Country = _tenant.Address?.Country
+        };
+    }
+
+    private bool HasAddressChanged()
+    {
+        return _addressEditModel.AddressLine1 != _originalAddressEditModel.AddressLine1 ||
+               _addressEditModel.AddressLine2 != _originalAddressEditModel.AddressLine2 ||
+               _addressEditModel.AddressLine3 != _originalAddressEditModel.AddressLine3 ||
+               _addressEditModel.AddressLine4 != _originalAddressEditModel.AddressLine4 ||
+               _addressEditModel.City != _originalAddressEditModel.City ||
+               _addressEditModel.StateProvince != _originalAddressEditModel.StateProvince ||
+               _addressEditModel.PostalCode != _originalAddressEditModel.PostalCode ||
+               _addressEditModel.Country != _originalAddressEditModel.Country;
+    }
+
     private async Task HandleSetupComplete()
     {
         _isSetupComplete = true;
@@ -662,20 +811,66 @@ else if (_home != null)
     private void StartEdit()
     {
         CopyHomeToEditModel();
+        CopyTenantToEditModel();
         _isEditing = true;
     }
 
     private void CancelEdit()
     {
         CopyHomeToEditModel();
+        CopyTenantToEditModel();
         _isEditing = false;
     }
 
     private async Task SaveChanges()
     {
+        // If address has changed, normalize it first
+        if (HasAddressChanged() && _addressEditModel.HasContent)
+        {
+            _pendingSave = true;
+            await NormalizeAddress();
+            return;
+        }
+
+        await DoSave();
+    }
+
+    private async Task DoSave()
+    {
         _isSaving = true;
         try
         {
+            // Save tenant first
+            var tenantRequest = new UpdateTenantRequest
+            {
+                Name = _tenantEditModel.Name,
+                Address = _addressEditModel.HasContent ? new UpdateAddressRequest
+                {
+                    AddressLine1 = _addressEditModel.AddressLine1,
+                    AddressLine2 = _addressEditModel.AddressLine2,
+                    AddressLine3 = _addressEditModel.AddressLine3,
+                    AddressLine4 = _addressEditModel.AddressLine4,
+                    City = _addressEditModel.City,
+                    StateProvince = _addressEditModel.StateProvince,
+                    PostalCode = _addressEditModel.PostalCode,
+                    Country = _addressEditModel.Country,
+                    CountryCode = _addressEditModel.CountryCode,
+                    Latitude = _addressEditModel.Latitude,
+                    Longitude = _addressEditModel.Longitude,
+                    GeoapifyPlaceId = _addressEditModel.GeoapifyPlaceId,
+                    FormattedAddress = _addressEditModel.FormattedAddress
+                } : null
+            };
+
+            var tenantResult = await ApiClient.PutAsync<UpdateTenantRequest, Famick.HomeManagement.Core.DTOs.Tenant.TenantDto>("api/v1/tenant", tenantRequest);
+            if (!tenantResult.IsSuccess)
+            {
+                Snackbar.Add(tenantResult.ErrorMessage ?? L["common.error"], Severity.Error);
+                return;
+            }
+            _tenant = tenantResult.Data;
+
+            // Save home
             _editModel.AppraisalDate = _appraisalDate;
             var result = await ApiClient.PutAsync<UpdateHomeRequest, HomeDto>("api/v1/home", _editModel);
             if (result.IsSuccess && result.Data != null)
@@ -696,6 +891,77 @@ else if (_home != null)
         finally
         {
             _isSaving = false;
+            _pendingSave = false;
+        }
+    }
+
+    private async Task NormalizeAddress()
+    {
+        if (!_addressEditModel.HasContent) return;
+
+        _isNormalizing = true;
+        try
+        {
+            var request = new NormalizeAddressRequest
+            {
+                AddressLine1 = _addressEditModel.AddressLine1,
+                AddressLine2 = _addressEditModel.AddressLine2,
+                City = _addressEditModel.City,
+                StateProvince = _addressEditModel.StateProvince,
+                PostalCode = _addressEditModel.PostalCode,
+                Country = _addressEditModel.Country
+            };
+
+            var result = await ApiClient.PostAsync<NormalizeAddressRequest, NormalizedAddressResult>("api/v1/addresses/normalize", request);
+            if (result.IsSuccess && result.Data != null)
+            {
+                _normalizedAddress = result.Data;
+                _addressConfirmationVisible = true;
+            }
+            else
+            {
+                Snackbar.Add(result.ErrorMessage ?? L["address.noMatch"], Severity.Warning);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error normalizing address: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isNormalizing = false;
+        }
+    }
+
+    private async Task HandleAddressConfirmation(AddressConfirmationDialog.AddressConfirmationResult result)
+    {
+        if (result.Action == AddressConfirmationDialog.AddressConfirmationAction.UseNormalized && result.NormalizedAddress != null)
+        {
+            // Update the edit model with normalized address data
+            _addressEditModel.AddressLine1 = result.NormalizedAddress.AddressLine1;
+            _addressEditModel.AddressLine2 = result.NormalizedAddress.AddressLine2;
+            _addressEditModel.City = result.NormalizedAddress.City;
+            _addressEditModel.StateProvince = result.NormalizedAddress.StateProvince;
+            _addressEditModel.PostalCode = result.NormalizedAddress.PostalCode;
+            _addressEditModel.Country = result.NormalizedAddress.Country;
+            _addressEditModel.CountryCode = result.NormalizedAddress.CountryCode;
+            _addressEditModel.Latitude = result.NormalizedAddress.Latitude;
+            _addressEditModel.Longitude = result.NormalizedAddress.Longitude;
+            _addressEditModel.GeoapifyPlaceId = result.NormalizedAddress.GeoapifyPlaceId;
+            _addressEditModel.FormattedAddress = result.NormalizedAddress.FormattedAddress;
+        }
+
+        _addressConfirmationVisible = false;
+        _normalizedAddress = null;
+
+        // If we were saving, continue with save after user confirms/keeps address
+        if (_pendingSave && result.Action != AddressConfirmationDialog.AddressConfirmationAction.Cancel)
+        {
+            await DoSave();
+        }
+        else
+        {
+            _pendingSave = false;
         }
     }
 

@@ -50,6 +50,11 @@ public static class InfrastructureStartup
         services.AddScoped<IHomeService, HomeService>();
         services.AddScoped<IEquipmentService, EquipmentService>();
         services.AddScoped<IStorageBinService, StorageBinService>();
+        services.AddScoped<ITenantService, TenantService>();
+
+        // Configure Geoapify address normalization service
+        services.Configure<GeoapifyOptions>(configuration.GetSection(GeoapifyOptions.SectionName));
+        services.AddHttpClient<IAddressNormalizationService, GeoapifyAddressService>();
 
         // Configure plugin system
         services.Configure<Plugins.PluginLoaderOptions>(options =>
@@ -104,6 +109,10 @@ public static class InfrastructureStartup
             var tenantProvider = scope.ServiceProvider.GetRequiredService<ITenantProvider>();
             if (tenantProvider.TenantId.HasValue)
             {
+                // Ensure tenant record exists
+                var tenantService = scope.ServiceProvider.GetRequiredService<ITenantService>();
+                await tenantService.EnsureTenantExistsAsync(tenantProvider.TenantId.Value);
+
                 await seeder.SeedDefaultDataAsync(tenantProvider.TenantId.Value);
             }
 
