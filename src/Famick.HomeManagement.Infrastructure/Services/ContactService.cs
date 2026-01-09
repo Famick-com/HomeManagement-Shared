@@ -276,9 +276,21 @@ public partial class ContactService : IContactService
             .Take(filter.PageSize)
             .ToListAsync(ct);
 
+        var dtos = _mapper.Map<List<ContactSummaryDto>>(items);
+
+        // Set profile image URLs for contacts that have images
+        for (int i = 0; i < items.Count; i++)
+        {
+            if (!string.IsNullOrEmpty(items[i].ProfileImageFileName))
+            {
+                var accessToken = _tokenService.GenerateToken("contact-profile-image", items[i].Id, items[i].TenantId);
+                dtos[i].ProfileImageUrl = _fileStorageService.GetContactProfileImageUrl(items[i].Id, accessToken);
+            }
+        }
+
         return new PagedResult<ContactSummaryDto>
         {
-            Items = _mapper.Map<List<ContactSummaryDto>>(items),
+            Items = dtos,
             TotalCount = totalCount,
             Page = filter.Page,
             PageSize = filter.PageSize
@@ -388,7 +400,19 @@ public partial class ContactService : IContactService
             .Take(limit)
             .ToListAsync(ct);
 
-        return _mapper.Map<List<ContactSummaryDto>>(contacts);
+        var dtos = _mapper.Map<List<ContactSummaryDto>>(contacts);
+
+        // Set profile image URLs for contacts that have images
+        for (int i = 0; i < contacts.Count; i++)
+        {
+            if (!string.IsNullOrEmpty(contacts[i].ProfileImageFileName))
+            {
+                var accessToken = _tokenService.GenerateToken("contact-profile-image", contacts[i].Id, contacts[i].TenantId);
+                dtos[i].ProfileImageUrl = _fileStorageService.GetContactProfileImageUrl(contacts[i].Id, accessToken);
+            }
+        }
+
+        return dtos;
     }
 
     #endregion
