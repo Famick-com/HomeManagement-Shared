@@ -83,6 +83,8 @@ public class HomeManagementDbContext : DbContext
     public DbSet<EquipmentCategory> EquipmentCategories => Set<EquipmentCategory>();
     public DbSet<EquipmentDocument> EquipmentDocuments => Set<EquipmentDocument>();
     public DbSet<EquipmentDocumentTag> EquipmentDocumentTags => Set<EquipmentDocumentTag>();
+    public DbSet<EquipmentUsageLog> EquipmentUsageLogs => Set<EquipmentUsageLog>();
+    public DbSet<EquipmentMaintenanceRecord> EquipmentMaintenanceRecords => Set<EquipmentMaintenanceRecord>();
 
     // Storage Bins
     public DbSet<StorageBin> StorageBins => Set<StorageBin>();

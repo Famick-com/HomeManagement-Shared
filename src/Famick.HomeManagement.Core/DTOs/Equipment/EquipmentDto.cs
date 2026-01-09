@@ -10,6 +10,7 @@ public class EquipmentDto
     #region Basic Information
 
     public string Name { get; set; } = string.Empty;
+    public string? Icon { get; set; }
     public string? Description { get; set; }
     public string? Location { get; set; }
 
@@ -19,6 +20,9 @@ public class EquipmentDto
 
     public string? ModelNumber { get; set; }
     public string? SerialNumber { get; set; }
+    public string? Manufacturer { get; set; }
+    public string? ManufacturerLink { get; set; }
+    public string? UsageUnit { get; set; }
 
     #endregion
 
@@ -73,6 +77,16 @@ public class EquipmentDto
     public int ChildEquipmentCount { get; set; }
     public int DocumentCount { get; set; }
     public int RelatedChoreCount { get; set; }
+    public int MaintenanceRecordCount { get; set; }
+
+    #endregion
+
+    #region Usage & Maintenance
+
+    public decimal? LatestUsageReading { get; set; }
+    public DateTime? LatestUsageDate { get; set; }
+    public List<EquipmentUsageLogDto>? UsageLogs { get; set; }
+    public List<EquipmentMaintenanceRecordDto>? MaintenanceRecords { get; set; }
 
     #endregion
 

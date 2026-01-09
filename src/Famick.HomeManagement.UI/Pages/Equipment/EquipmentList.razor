@@ -119,7 +119,17 @@
                          Hover="true"
                          Class="cursor-pointer">
                 <Columns>
-                    <PropertyColumn Property="x => x.Name" Title="@L["equipment.name"]" />
+                    <TemplateColumn Title="@L["equipment.name"]" SortBy="x => x.Name">
+                        <CellTemplate>
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                @if (!string.IsNullOrEmpty(context.Item.Icon))
+                                {
+                                    <MudIcon Icon="@GetMaterialIcon(context.Item.Icon)" Size="Size.Small" />
+                                }
+                                <span>@context.Item.Name</span>
+                            </MudStack>
+                        </CellTemplate>
+                    </TemplateColumn>
                     <PropertyColumn Property="x => x.Location" Title="@L["equipment.location"]" />
                     <PropertyColumn Property="x => x.CategoryName" Title="@L["equipment.category"]" />
                     <TemplateColumn Title="@L["equipment.warranty"]">
@@ -166,7 +176,13 @@
                         <MudCardContent>
                             <MudStack>
                                 <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
-                                    <MudText Typo="Typo.subtitle1">@item.Name</MudText>
+                                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                        @if (!string.IsNullOrEmpty(item.Icon))
+                                        {
+                                            <MudIcon Icon="@GetMaterialIcon(item.Icon)" Size="Size.Small" />
+                                        }
+                                        <MudText Typo="Typo.subtitle1">@item.Name</MudText>
+                                    </MudStack>
                                     @if (item.WarrantyExpirationDate.HasValue)
                                     {
                                         @if (item.IsWarrantyExpired)
@@ -283,5 +299,59 @@
     private void OpenCategoryDialog()
     {
         _categoryDialogVisible = true;
+    }
+
+    private static string GetMaterialIcon(string iconName)
+    {
+        // Map icon name to Material icon path
+        return iconName switch
+        {
+            "Kitchen" => Icons.Material.Filled.Kitchen,
+            "Microwave" => Icons.Material.Filled.Microwave,
+            "Blender" => Icons.Material.Filled.Blender,
+            "CoffeeMaker" => Icons.Material.Filled.CoffeeMaker,
+            "LocalLaundryService" => Icons.Material.Filled.LocalLaundryService,
+            "Iron" => Icons.Material.Filled.Iron,
+            "AcUnit" => Icons.Material.Filled.AcUnit,
+            "Hvac" => Icons.Material.Filled.Hvac,
+            "WaterDrop" => Icons.Material.Filled.WaterDrop,
+            "Fireplace" => Icons.Material.Filled.Fireplace,
+            "DirectionsCar" => Icons.Material.Filled.DirectionsCar,
+            "DirectionsBike" => Icons.Material.Filled.DirectionsBike,
+            "TwoWheeler" => Icons.Material.Filled.TwoWheeler,
+            "DirectionsBoat" => Icons.Material.Filled.DirectionsBoat,
+            "Agriculture" => Icons.Material.Filled.Agriculture,
+            "LocalShipping" => Icons.Material.Filled.LocalShipping,
+            "Tv" => Icons.Material.Filled.Tv,
+            "Computer" => Icons.Material.Filled.Computer,
+            "Laptop" => Icons.Material.Filled.Laptop,
+            "Router" => Icons.Material.Filled.Router,
+            "SpeakerGroup" => Icons.Material.Filled.SpeakerGroup,
+            "Videocam" => Icons.Material.Filled.Videocam,
+            "Print" => Icons.Material.Filled.Print,
+            "PhoneAndroid" => Icons.Material.Filled.PhoneAndroid,
+            "Construction" => Icons.Material.Filled.Construction,
+            "Handyman" => Icons.Material.Filled.Handyman,
+            "Grass" => Icons.Material.Filled.Grass,
+            "Pool" => Icons.Material.Filled.Pool,
+            "OutdoorGrill" => Icons.Material.Filled.OutdoorGrill,
+            "Power" => Icons.Material.Filled.Power,
+            "Chair" => Icons.Material.Filled.Chair,
+            "Bed" => Icons.Material.Filled.Bed,
+            "TableBar" => Icons.Material.Filled.TableBar,
+            "Weekend" => Icons.Material.Filled.Weekend,
+            "Light" => Icons.Material.Filled.Light,
+            "Garage" => Icons.Material.Filled.Garage,
+            "Door" => Icons.Material.Filled.DoorSliding,
+            "Window" => Icons.Material.Filled.Window,
+            "Roofing" => Icons.Material.Filled.Roofing,
+            "MedicalServices" => Icons.Material.Filled.MedicalServices,
+            "FitnessCenter" => Icons.Material.Filled.FitnessCenter,
+            "Toys" => Icons.Material.Filled.Toys,
+            "SportsSoccer" => Icons.Material.Filled.SportsSoccer,
+            "Inventory" => Icons.Material.Filled.Inventory,
+            "Settings" => Icons.Material.Filled.Settings,
+            _ => Icons.Material.Filled.Settings // Default icon
+        };
     }
 }

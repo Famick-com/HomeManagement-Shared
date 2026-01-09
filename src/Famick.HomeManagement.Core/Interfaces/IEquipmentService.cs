@@ -142,4 +142,42 @@ public interface IEquipmentService
     Task SeedDefaultTagsAsync(CancellationToken ct = default);
 
     #endregion
+
+    #region Usage Tracking
+
+    /// <summary>
+    /// Adds a usage log entry to equipment
+    /// </summary>
+    Task<EquipmentUsageLogDto> AddUsageLogAsync(Guid equipmentId, CreateEquipmentUsageLogRequest request, CancellationToken ct = default);
+
+    /// <summary>
+    /// Gets all usage logs for equipment
+    /// </summary>
+    Task<List<EquipmentUsageLogDto>> GetUsageLogsAsync(Guid equipmentId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Deletes a usage log entry
+    /// </summary>
+    Task DeleteUsageLogAsync(Guid logId, CancellationToken ct = default);
+
+    #endregion
+
+    #region Maintenance Records
+
+    /// <summary>
+    /// Adds a maintenance record to equipment
+    /// </summary>
+    Task<EquipmentMaintenanceRecordDto> AddMaintenanceRecordAsync(Guid equipmentId, CreateEquipmentMaintenanceRecordRequest request, CancellationToken ct = default);
+
+    /// <summary>
+    /// Gets all maintenance records for equipment
+    /// </summary>
+    Task<List<EquipmentMaintenanceRecordDto>> GetMaintenanceRecordsAsync(Guid equipmentId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Deletes a maintenance record
+    /// </summary>
+    Task DeleteMaintenanceRecordAsync(Guid recordId, CancellationToken ct = default);
+
+    #endregion
 }

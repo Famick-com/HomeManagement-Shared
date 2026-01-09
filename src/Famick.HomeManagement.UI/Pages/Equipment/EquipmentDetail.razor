@@ -31,12 +31,19 @@ else
                 <MudText Typo="Typo.h6" Class="mb-3">@L["common.details"]</MudText>
                 <MudForm @ref="_form">
                     <MudStack Spacing="3">
-                        <MudTextField @bind-Value="_model.Name"
-                                      Label="@L["equipment.name"]"
-                                      Required="true"
-                                      RequiredError="@L["validation.required"]"
-                                      Variant="Variant.Outlined"
-                                      ReadOnly="@(!CanEdit)" />
+                        <MudGrid>
+                            <MudItem xs="12" md="8">
+                                <MudTextField @bind-Value="_model.Name"
+                                              Label="@L["equipment.name"]"
+                                              Required="true"
+                                              RequiredError="@L["validation.required"]"
+                                              Variant="Variant.Outlined"
+                                              ReadOnly="@(!CanEdit)" />
+                            </MudItem>
+                            <MudItem xs="12" md="4">
+                                <EquipmentIconPicker @bind-Value="_model.Icon" Disabled="@(!CanEdit)" />
+                            </MudItem>
+                        </MudGrid>
 
                         <MudTextField @bind-Value="_model.Description"
                                       Label="@L["equipment.description"]"
@@ -61,6 +68,25 @@ else
                                 <MudTextField @bind-Value="_model.SerialNumber"
                                               Label="@L["equipment.serialNumber"]"
                                               Variant="Variant.Outlined"
+                                              ReadOnly="@(!CanEdit)" />
+                            </MudItem>
+                        </MudGrid>
+
+                        <MudGrid>
+                            <MudItem xs="12" md="6">
+                                <MudTextField @bind-Value="_model.Manufacturer"
+                                              Label="@L["equipment.manufacturer"]"
+                                              Variant="Variant.Outlined"
+                                              ReadOnly="@(!CanEdit)" />
+                            </MudItem>
+                            <MudItem xs="12" md="6">
+                                <MudTextField @bind-Value="_model.ManufacturerLink"
+                                              Label="@L["equipment.manufacturerLink"]"
+                                              HelperText="@L["equipment.manufacturerLinkHelp"]"
+                                              Variant="Variant.Outlined"
+                                              Adornment="@(string.IsNullOrEmpty(_model.ManufacturerLink) ? Adornment.None : Adornment.End)"
+                                              AdornmentIcon="@Icons.Material.Filled.OpenInNew"
+                                              OnAdornmentClick="OpenManufacturerLink"
                                               ReadOnly="@(!CanEdit)" />
                             </MudItem>
                         </MudGrid>
@@ -118,6 +144,13 @@ else
                             }
                         </MudSelect>
 
+                        <MudTextField @bind-Value="_model.UsageUnit"
+                                      Label="@L["equipment.usageUnit"]"
+                                      HelperText="@L["equipment.usageUnitHelp"]"
+                                      Placeholder="@L["equipment.usageUnitPlaceholder"]"
+                                      Variant="Variant.Outlined"
+                                      ReadOnly="@(!CanEdit)" />
+
                         <MudTextField @bind-Value="_model.Notes"
                                       Label="@L["equipment.notes"]"
                                       Variant="Variant.Outlined"
@@ -172,6 +205,35 @@ else
                             </MudListItem>
                         }
                     </MudList>
+                </MudPaper>
+            }
+
+            @* Usage & Maintenance Tabs - Only for existing equipment *@
+            @if (!IsNew && _equipment != null)
+            {
+                <MudPaper Elevation="1" Class="pa-4 mt-3">
+                    <MudTabs Elevation="0" ApplyEffectsToContainer="true" PanelClass="pa-3">
+                        @if (!string.IsNullOrEmpty(_equipment.UsageUnit))
+                        {
+                            <MudTabPanel Text="@L["equipment.usageHistory"]" Icon="@Icons.Material.Filled.Speed">
+                                <EquipmentUsagePanel EquipmentId="@Id!.Value"
+                                                     UsageUnit="@_equipment.UsageUnit"
+                                                     UsageLogs="@_equipment.UsageLogs"
+                                                     CanEdit="@CanEdit"
+                                                     OnLogAdded="RefreshEquipment"
+                                                     OnLogDeleted="RefreshEquipment" />
+                            </MudTabPanel>
+                        }
+                        <MudTabPanel Text="@L["equipment.maintenanceHistory"]" Icon="@Icons.Material.Filled.Build">
+                            <EquipmentMaintenancePanel EquipmentId="@Id!.Value"
+                                                       UsageUnit="@_equipment.UsageUnit"
+                                                       MaintenanceRecords="@_equipment.MaintenanceRecords"
+                                                       LastUsageReading="@_equipment.LatestUsageReading"
+                                                       CanEdit="@CanEdit"
+                                                       OnRecordAdded="RefreshEquipment"
+                                                       OnRecordDeleted="RefreshEquipment" />
+                        </MudTabPanel>
+                    </MudTabs>
                 </MudPaper>
             }
         </MudItem>
@@ -375,10 +437,14 @@ else
                     _model = new CreateEquipmentRequest
                     {
                         Name = _equipment.Name,
+                        Icon = _equipment.Icon,
                         Description = _equipment.Description,
                         Location = _equipment.Location,
                         ModelNumber = _equipment.ModelNumber,
                         SerialNumber = _equipment.SerialNumber,
+                        Manufacturer = _equipment.Manufacturer,
+                        ManufacturerLink = _equipment.ManufacturerLink,
+                        UsageUnit = _equipment.UsageUnit,
                         PurchaseDate = _equipment.PurchaseDate,
                         PurchaseLocation = _equipment.PurchaseLocation,
                         WarrantyExpirationDate = _equipment.WarrantyExpirationDate,
@@ -438,10 +504,14 @@ else
                 var updateRequest = new UpdateEquipmentRequest
                 {
                     Name = _model.Name,
+                    Icon = _model.Icon,
                     Description = _model.Description,
                     Location = _model.Location,
                     ModelNumber = _model.ModelNumber,
                     SerialNumber = _model.SerialNumber,
+                    Manufacturer = _model.Manufacturer,
+                    ManufacturerLink = _model.ManufacturerLink,
+                    UsageUnit = _model.UsageUnit,
                     PurchaseDate = _model.PurchaseDate,
                     PurchaseLocation = _model.PurchaseLocation,
                     WarrantyExpirationDate = _model.WarrantyExpirationDate,
@@ -600,6 +670,33 @@ else
     private void NavigateToEquipment(Guid id)
     {
         Navigation.NavigateTo($"/equipment/{id}");
+    }
+
+    private async Task OpenManufacturerLink()
+    {
+        if (!string.IsNullOrEmpty(_model.ManufacturerLink))
+        {
+            var url = _model.ManufacturerLink;
+            if (!url.StartsWith("http://") && !url.StartsWith("https://"))
+            {
+                url = "https://" + url;
+            }
+            await JS.InvokeVoidAsync("open", url, "_blank");
+        }
+    }
+
+    private async Task RefreshEquipment()
+    {
+        if (!IsNew && Id.HasValue)
+        {
+            var result = await ApiClient.GetAsync<EquipmentDto>($"api/v1/equipment/{Id}");
+            if (result.IsSuccess && result.Data != null)
+            {
+                _equipment = result.Data;
+                _documents = _equipment.Documents ?? new();
+                StateHasChanged();
+            }
+        }
     }
 
     private static string GetDocumentIcon(string contentType)
