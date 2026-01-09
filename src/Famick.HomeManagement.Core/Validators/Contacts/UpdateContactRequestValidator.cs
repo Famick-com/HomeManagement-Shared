@@ -7,13 +7,20 @@ public class UpdateContactRequestValidator : AbstractValidator<UpdateContactRequ
 {
     public UpdateContactRequestValidator()
     {
+        // Conditional validation: CompanyName OR (FirstName OR LastName) required
+        RuleFor(x => x)
+            .Must(x => !string.IsNullOrWhiteSpace(x.CompanyName) ||
+                       !string.IsNullOrWhiteSpace(x.FirstName) ||
+                       !string.IsNullOrWhiteSpace(x.LastName))
+            .WithMessage("Either company name or at least first name or last name is required");
+
         RuleFor(x => x.FirstName)
-            .NotEmpty().WithMessage("First name is required")
-            .MaximumLength(100).WithMessage("First name cannot exceed 100 characters");
+            .MaximumLength(100).WithMessage("First name cannot exceed 100 characters")
+            .When(x => !string.IsNullOrEmpty(x.FirstName));
 
         RuleFor(x => x.LastName)
-            .NotEmpty().WithMessage("Last name is required")
-            .MaximumLength(100).WithMessage("Last name cannot exceed 100 characters");
+            .MaximumLength(100).WithMessage("Last name cannot exceed 100 characters")
+            .When(x => !string.IsNullOrEmpty(x.LastName));
 
         RuleFor(x => x.MiddleName)
             .MaximumLength(100).WithMessage("Middle name cannot exceed 100 characters")
@@ -23,10 +30,13 @@ public class UpdateContactRequestValidator : AbstractValidator<UpdateContactRequ
             .MaximumLength(100).WithMessage("Preferred name cannot exceed 100 characters")
             .When(x => !string.IsNullOrEmpty(x.PreferredName));
 
-        RuleFor(x => x.Email)
-            .EmailAddress().WithMessage("Email address is not valid")
-            .MaximumLength(255).WithMessage("Email cannot exceed 255 characters")
-            .When(x => !string.IsNullOrEmpty(x.Email));
+        RuleFor(x => x.CompanyName)
+            .MaximumLength(200).WithMessage("Company name cannot exceed 200 characters")
+            .When(x => !string.IsNullOrEmpty(x.CompanyName));
+
+        RuleFor(x => x.Title)
+            .MaximumLength(100).WithMessage("Title cannot exceed 100 characters")
+            .When(x => !string.IsNullOrEmpty(x.Title));
 
         RuleFor(x => x.Notes)
             .MaximumLength(5000).WithMessage("Notes cannot exceed 5000 characters")

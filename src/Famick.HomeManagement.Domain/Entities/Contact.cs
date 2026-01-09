@@ -8,12 +8,18 @@ namespace Famick.HomeManagement.Domain.Entities;
 /// </summary>
 public class Contact : BaseTenantEntity
 {
-    // Name
-    public string FirstName { get; set; } = string.Empty;
+    // Name (nullable - either name or company required)
+    public string? FirstName { get; set; }
     public string? MiddleName { get; set; }
-    public string LastName { get; set; } = string.Empty;
+    public string? LastName { get; set; }
     public string? PreferredName { get; set; }
-    public string? Email { get; set; }
+
+    // Company information
+    public string? CompanyName { get; set; }
+    public string? Title { get; set; }
+
+    // Profile image
+    public string? ProfileImageFileName { get; set; }
 
     // Demographics
     public Gender Gender { get; set; } = Gender.Unknown;
@@ -64,6 +70,7 @@ public class Contact : BaseTenantEntity
     public virtual User CreatedByUser { get; set; } = null!;
     public virtual ICollection<ContactAddress> Addresses { get; set; } = new List<ContactAddress>();
     public virtual ICollection<ContactPhoneNumber> PhoneNumbers { get; set; } = new List<ContactPhoneNumber>();
+    public virtual ICollection<ContactEmailAddress> EmailAddresses { get; set; } = new List<ContactEmailAddress>();
     public virtual ICollection<ContactSocialMedia> SocialMedia { get; set; } = new List<ContactSocialMedia>();
     public virtual ICollection<ContactRelationship> RelationshipsAsSource { get; set; } = new List<ContactRelationship>();
     public virtual ICollection<ContactRelationship> RelationshipsAsTarget { get; set; } = new List<ContactRelationship>();
@@ -72,16 +79,34 @@ public class Contact : BaseTenantEntity
     public virtual ICollection<ContactAuditLog> AuditLogs { get; set; } = new List<ContactAuditLog>();
 
     /// <summary>
-    /// Gets the display name for this contact
+    /// Gets the display name for this contact.
+    /// Returns PreferredName if set, otherwise name, otherwise company name.
     /// </summary>
-    public string DisplayName => !string.IsNullOrWhiteSpace(PreferredName)
-        ? PreferredName
-        : $"{FirstName} {LastName}".Trim();
+    public string DisplayName
+    {
+        get
+        {
+            if (!string.IsNullOrWhiteSpace(PreferredName))
+                return PreferredName;
+
+            var name = $"{FirstName} {LastName}".Trim();
+            if (!string.IsNullOrWhiteSpace(name))
+                return name;
+
+            return CompanyName ?? "Unknown";
+        }
+    }
 
     /// <summary>
-    /// Gets the full name for this contact
+    /// Gets the full name for this contact (FirstName MiddleName LastName)
     /// </summary>
-    public string FullName => string.IsNullOrWhiteSpace(MiddleName)
-        ? $"{FirstName} {LastName}".Trim()
-        : $"{FirstName} {MiddleName} {LastName}".Trim();
+    public string FullName
+    {
+        get
+        {
+            var parts = new[] { FirstName, MiddleName, LastName }
+                .Where(p => !string.IsNullOrWhiteSpace(p));
+            return string.Join(" ", parts);
+        }
+    }
 }

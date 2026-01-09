@@ -18,22 +18,28 @@ public class ContactConfiguration : IEntityTypeConfiguration<Contact>
 
         builder.HasIndex(c => c.TenantId);
 
-        // Name fields
+        // Name fields (nullable - either name or company required)
         builder.Property(c => c.FirstName)
-            .IsRequired()
             .HasMaxLength(100);
 
         builder.Property(c => c.MiddleName)
             .HasMaxLength(100);
 
         builder.Property(c => c.LastName)
-            .IsRequired()
             .HasMaxLength(100);
 
         builder.Property(c => c.PreferredName)
             .HasMaxLength(100);
 
-        builder.Property(c => c.Email)
+        // Company fields
+        builder.Property(c => c.CompanyName)
+            .HasMaxLength(200);
+
+        builder.Property(c => c.Title)
+            .HasMaxLength(100);
+
+        // Profile image
+        builder.Property(c => c.ProfileImageFileName)
             .HasMaxLength(255);
 
         // Demographics
@@ -78,7 +84,7 @@ public class ContactConfiguration : IEntityTypeConfiguration<Contact>
 
         // Indexes for search
         builder.HasIndex(c => new { c.TenantId, c.FirstName, c.LastName });
-        builder.HasIndex(c => new { c.TenantId, c.Email });
+        builder.HasIndex(c => new { c.TenantId, c.CompanyName });
         builder.HasIndex(c => new { c.TenantId, c.LinkedUserId });
         builder.HasIndex(c => new { c.TenantId, c.Visibility });
         builder.HasIndex(c => new { c.TenantId, c.IsActive });

@@ -152,4 +152,42 @@ public interface IFileStorageService
     Task DeleteAllStorageBinPhotosAsync(Guid storageBinId, CancellationToken ct = default);
 
     #endregion
+
+    #region Contact Profile Images
+
+    /// <summary>
+    /// Saves a contact profile image to storage.
+    /// </summary>
+    /// <param name="contactId">The contact ID for organizing storage.</param>
+    /// <param name="stream">The file stream to save.</param>
+    /// <param name="fileName">The original file name.</param>
+    /// <param name="ct">Cancellation token.</param>
+    /// <returns>The stored file name (unique).</returns>
+    Task<string> SaveContactProfileImageAsync(Guid contactId, Stream stream, string fileName, CancellationToken ct = default);
+
+    /// <summary>
+    /// Deletes a contact profile image from storage.
+    /// </summary>
+    /// <param name="contactId">The contact ID.</param>
+    /// <param name="fileName">The stored file name.</param>
+    /// <param name="ct">Cancellation token.</param>
+    Task DeleteContactProfileImageAsync(Guid contactId, string fileName, CancellationToken ct = default);
+
+    /// <summary>
+    /// Gets the URL for accessing a contact profile image via the secure API endpoint.
+    /// </summary>
+    /// <param name="contactId">The contact ID.</param>
+    /// <param name="accessToken">Optional pre-signed access token for browser-initiated requests.</param>
+    /// <returns>The API URL to access the image.</returns>
+    string GetContactProfileImageUrl(Guid contactId, string? accessToken = null);
+
+    /// <summary>
+    /// Gets the physical file path for a contact profile image.
+    /// </summary>
+    /// <param name="contactId">The contact ID.</param>
+    /// <param name="fileName">The stored file name.</param>
+    /// <returns>The full file path on disk.</returns>
+    string GetContactProfileImagePath(Guid contactId, string fileName);
+
+    #endregion
 }

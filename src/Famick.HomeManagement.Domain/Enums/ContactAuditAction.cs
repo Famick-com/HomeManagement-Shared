@@ -40,5 +40,15 @@ public enum ContactAuditAction
     // Visibility/Sharing changes
     VisibilityChanged = 60,
     SharedWithUser = 61,
-    UnsharedFromUser = 62
+    UnsharedFromUser = 62,
+
+    // Email changes
+    EmailAdded = 70,
+    EmailRemoved = 71,
+    EmailUpdated = 72,
+    PrimaryEmailChanged = 73,
+
+    // Profile image changes
+    ProfileImageUpdated = 80,
+    ProfileImageRemoved = 81
 }

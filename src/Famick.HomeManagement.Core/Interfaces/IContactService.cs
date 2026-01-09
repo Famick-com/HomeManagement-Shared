@@ -106,6 +106,30 @@ public interface IContactService
 
     #endregion
 
+    #region Email Management
+
+    /// <summary>
+    /// Adds an email address to a contact
+    /// </summary>
+    Task<ContactEmailAddressDto> AddEmailAsync(Guid contactId, AddEmailRequest request, CancellationToken ct = default);
+
+    /// <summary>
+    /// Updates an email address
+    /// </summary>
+    Task<ContactEmailAddressDto> UpdateEmailAsync(Guid emailId, AddEmailRequest request, CancellationToken ct = default);
+
+    /// <summary>
+    /// Removes an email address from a contact
+    /// </summary>
+    Task RemoveEmailAsync(Guid emailId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Sets an email as the primary email for a contact
+    /// </summary>
+    Task SetPrimaryEmailAsync(Guid contactId, Guid emailId, CancellationToken ct = default);
+
+    #endregion
+
     #region Social Media Management
 
     /// <summary>
@@ -214,6 +238,25 @@ public interface IContactService
     /// Gets sharing info for a contact
     /// </summary>
     Task<List<ContactUserShareDto>> GetSharesAsync(Guid contactId, CancellationToken ct = default);
+
+    #endregion
+
+    #region Profile Image Management
+
+    /// <summary>
+    /// Uploads a profile image for a contact (replaces existing)
+    /// </summary>
+    Task<string> UploadProfileImageAsync(Guid contactId, Stream imageStream, string fileName, CancellationToken ct = default);
+
+    /// <summary>
+    /// Deletes the profile image for a contact
+    /// </summary>
+    Task DeleteProfileImageAsync(Guid contactId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Gets the URL for a contact's profile image
+    /// </summary>
+    string? GetProfileImageUrl(Guid contactId);
 
     #endregion
 

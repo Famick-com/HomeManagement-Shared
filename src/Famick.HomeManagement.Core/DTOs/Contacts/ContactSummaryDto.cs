@@ -8,17 +8,34 @@ namespace Famick.HomeManagement.Core.DTOs.Contacts;
 public class ContactSummaryDto
 {
     public Guid Id { get; set; }
-    public string FirstName { get; set; } = string.Empty;
-    public string LastName { get; set; } = string.Empty;
+    public string? FirstName { get; set; }
+    public string? LastName { get; set; }
     public string? PreferredName { get; set; }
-    public string? Email { get; set; }
+    public string? CompanyName { get; set; }
+    public string? ProfileImageUrl { get; set; }
 
     /// <summary>
     /// Display name for the contact
     /// </summary>
-    public string DisplayName => !string.IsNullOrWhiteSpace(PreferredName)
-        ? PreferredName
-        : $"{FirstName} {LastName}".Trim();
+    public string DisplayName
+    {
+        get
+        {
+            if (!string.IsNullOrWhiteSpace(PreferredName))
+                return PreferredName;
+
+            var name = $"{FirstName} {LastName}".Trim();
+            if (!string.IsNullOrWhiteSpace(name))
+                return name;
+
+            return CompanyName ?? "Unknown";
+        }
+    }
+
+    /// <summary>
+    /// Primary email address if available
+    /// </summary>
+    public string? PrimaryEmail { get; set; }
 
     /// <summary>
     /// Primary phone number if available

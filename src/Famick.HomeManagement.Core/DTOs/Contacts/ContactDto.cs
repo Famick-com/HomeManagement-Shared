@@ -11,25 +11,55 @@ public class ContactDto
 
     #region Name
 
-    public string FirstName { get; set; } = string.Empty;
+    public string? FirstName { get; set; }
     public string? MiddleName { get; set; }
-    public string LastName { get; set; } = string.Empty;
+    public string? LastName { get; set; }
     public string? PreferredName { get; set; }
-    public string? Email { get; set; }
 
     /// <summary>
-    /// Display name for the contact (PreferredName or FirstName + LastName)
+    /// Display name for the contact (PreferredName or name or company)
     /// </summary>
-    public string DisplayName => !string.IsNullOrWhiteSpace(PreferredName)
-        ? PreferredName
-        : $"{FirstName} {LastName}".Trim();
+    public string DisplayName
+    {
+        get
+        {
+            if (!string.IsNullOrWhiteSpace(PreferredName))
+                return PreferredName;
+
+            var name = $"{FirstName} {LastName}".Trim();
+            if (!string.IsNullOrWhiteSpace(name))
+                return name;
+
+            return CompanyName ?? "Unknown";
+        }
+    }
 
     /// <summary>
     /// Full name including middle name
     /// </summary>
-    public string FullName => string.IsNullOrWhiteSpace(MiddleName)
-        ? $"{FirstName} {LastName}".Trim()
-        : $"{FirstName} {MiddleName} {LastName}".Trim();
+    public string FullName
+    {
+        get
+        {
+            var parts = new[] { FirstName, MiddleName, LastName }
+                .Where(p => !string.IsNullOrWhiteSpace(p));
+            return string.Join(" ", parts);
+        }
+    }
+
+    #endregion
+
+    #region Company
+
+    public string? CompanyName { get; set; }
+    public string? Title { get; set; }
+
+    #endregion
+
+    #region Profile Image
+
+    public string? ProfileImageFileName { get; set; }
+    public string? ProfileImageUrl { get; set; }
 
     #endregion
 
@@ -111,10 +141,22 @@ public class ContactDto
 
     public List<ContactAddressDto> Addresses { get; set; } = new();
     public List<ContactPhoneNumberDto> PhoneNumbers { get; set; } = new();
+    public List<ContactEmailAddressDto> EmailAddresses { get; set; } = new();
     public List<ContactSocialMediaDto> SocialMedia { get; set; } = new();
     public List<ContactRelationshipDto> Relationships { get; set; } = new();
     public List<ContactTagDto> Tags { get; set; } = new();
     public List<ContactUserShareDto> SharedWithUsers { get; set; } = new();
+
+    /// <summary>
+    /// Primary email address (convenience property)
+    /// </summary>
+    public string? PrimaryEmail => EmailAddresses
+        .Where(e => e.IsPrimary)
+        .Select(e => e.Email)
+        .FirstOrDefault() ?? EmailAddresses
+        .OrderBy(e => e.CreatedAt)
+        .Select(e => e.Email)
+        .FirstOrDefault();
 
     #endregion
 
