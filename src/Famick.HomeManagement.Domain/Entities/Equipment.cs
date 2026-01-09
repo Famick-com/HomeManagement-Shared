@@ -12,6 +12,11 @@ public class Equipment : BaseTenantEntity
     public string Name { get; set; } = string.Empty;
 
     /// <summary>
+    /// Material Design icon name (e.g., "Kitchen", "DirectionsCar", "Hvac")
+    /// </summary>
+    public string? Icon { get; set; }
+
+    /// <summary>
     /// Detailed description of the equipment
     /// </summary>
     public string? Description { get; set; }
@@ -30,6 +35,22 @@ public class Equipment : BaseTenantEntity
     /// Serial number for identification and warranty claims
     /// </summary>
     public string? SerialNumber { get; set; }
+
+    /// <summary>
+    /// Manufacturer or brand name
+    /// </summary>
+    public string? Manufacturer { get; set; }
+
+    /// <summary>
+    /// Link to manufacturer product page
+    /// </summary>
+    public string? ManufacturerLink { get; set; }
+
+    /// <summary>
+    /// Usage unit for tracking (e.g., "miles", "hours", "cycles").
+    /// When set, enables usage tracking UI.
+    /// </summary>
+    public string? UsageUnit { get; set; }
 
     /// <summary>
     /// Date the equipment was purchased
@@ -93,6 +114,16 @@ public class Equipment : BaseTenantEntity
     /// Maintenance chores linked to this equipment
     /// </summary>
     public virtual ICollection<Chore> Chores { get; set; } = new List<Chore>();
+
+    /// <summary>
+    /// Usage history (odometer, hours, etc.)
+    /// </summary>
+    public virtual ICollection<EquipmentUsageLog> UsageLogs { get; set; } = new List<EquipmentUsageLog>();
+
+    /// <summary>
+    /// Maintenance records for this equipment
+    /// </summary>
+    public virtual ICollection<EquipmentMaintenanceRecord> MaintenanceRecords { get; set; } = new List<EquipmentMaintenanceRecord>();
 
     #endregion
 }

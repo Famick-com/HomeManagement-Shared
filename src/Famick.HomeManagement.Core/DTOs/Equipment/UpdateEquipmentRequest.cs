@@ -6,10 +6,14 @@ namespace Famick.HomeManagement.Core.DTOs.Equipment;
 public class UpdateEquipmentRequest
 {
     public string Name { get; set; } = string.Empty;
+    public string? Icon { get; set; }
     public string? Description { get; set; }
     public string? Location { get; set; }
     public string? ModelNumber { get; set; }
     public string? SerialNumber { get; set; }
+    public string? Manufacturer { get; set; }
+    public string? ManufacturerLink { get; set; }
+    public string? UsageUnit { get; set; }
     public DateTime? PurchaseDate { get; set; }
     public string? PurchaseLocation { get; set; }
     public DateTime? WarrantyExpirationDate { get; set; }

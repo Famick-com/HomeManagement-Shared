@@ -47,10 +47,14 @@ public class EquipmentService : IEquipmentService
         {
             Id = Guid.NewGuid(),
             Name = request.Name,
+            Icon = request.Icon,
             Description = request.Description,
             Location = request.Location,
             ModelNumber = request.ModelNumber,
             SerialNumber = request.SerialNumber,
+            Manufacturer = request.Manufacturer,
+            ManufacturerLink = request.ManufacturerLink,
+            UsageUnit = request.UsageUnit,
             PurchaseDate = ToUtcDate(request.PurchaseDate),
             PurchaseLocation = request.PurchaseLocation,
             WarrantyExpirationDate = ToUtcDate(request.WarrantyExpirationDate),
@@ -77,6 +81,9 @@ public class EquipmentService : IEquipmentService
                 .ThenInclude(d => d.Tag)
             .Include(e => e.ChildEquipment)
             .Include(e => e.Chores)
+            .Include(e => e.UsageLogs.OrderByDescending(l => l.Date))
+            .Include(e => e.MaintenanceRecords.OrderByDescending(r => r.CompletedDate))
+                .ThenInclude(r => r.ReminderChore)
             .FirstOrDefaultAsync(e => e.Id == id, ct);
 
         if (equipment == null) return null;
@@ -161,10 +168,14 @@ public class EquipmentService : IEquipmentService
         }
 
         equipment.Name = request.Name;
+        equipment.Icon = request.Icon;
         equipment.Description = request.Description;
         equipment.Location = request.Location;
         equipment.ModelNumber = request.ModelNumber;
         equipment.SerialNumber = request.SerialNumber;
+        equipment.Manufacturer = request.Manufacturer;
+        equipment.ManufacturerLink = request.ManufacturerLink;
+        equipment.UsageUnit = request.UsageUnit;
         equipment.PurchaseDate = ToUtcDate(request.PurchaseDate);
         equipment.PurchaseLocation = request.PurchaseLocation;
         equipment.WarrantyExpirationDate = ToUtcDate(request.WarrantyExpirationDate);
@@ -238,6 +249,7 @@ public class EquipmentService : IEquipmentService
         {
             Id = equipment.Id,
             Name = equipment.Name,
+            Icon = equipment.Icon,
             Location = equipment.Location,
             CategoryName = equipment.Category?.Name,
             WarrantyExpirationDate = equipment.WarrantyExpirationDate,
@@ -608,18 +620,167 @@ public class EquipmentService : IEquipmentService
 
     #endregion
 
+    #region Usage Tracking
+
+    public async Task<EquipmentUsageLogDto> AddUsageLogAsync(Guid equipmentId, CreateEquipmentUsageLogRequest request, CancellationToken ct = default)
+    {
+        _logger.LogInformation("Adding usage log to equipment: {EquipmentId}", equipmentId);
+
+        var equipment = await _context.Equipment.FindAsync(new object[] { equipmentId }, ct);
+        if (equipment == null)
+        {
+            throw new EntityNotFoundException(nameof(Equipment), equipmentId);
+        }
+
+        var log = new EquipmentUsageLog
+        {
+            Id = Guid.NewGuid(),
+            EquipmentId = equipmentId,
+            Date = ToUtcDate(request.Date) ?? DateTime.UtcNow,
+            Reading = request.Reading,
+            Notes = request.Notes
+        };
+
+        _context.EquipmentUsageLogs.Add(log);
+        await _context.SaveChangesAsync(ct);
+
+        _logger.LogInformation("Usage log added: {Id}", log.Id);
+
+        return MapToUsageLogDto(log);
+    }
+
+    public async Task<List<EquipmentUsageLogDto>> GetUsageLogsAsync(Guid equipmentId, CancellationToken ct = default)
+    {
+        var logs = await _context.EquipmentUsageLogs
+            .Where(l => l.EquipmentId == equipmentId)
+            .OrderByDescending(l => l.Date)
+            .ToListAsync(ct);
+
+        return logs.Select(MapToUsageLogDto).ToList();
+    }
+
+    public async Task DeleteUsageLogAsync(Guid logId, CancellationToken ct = default)
+    {
+        _logger.LogInformation("Deleting usage log: {LogId}", logId);
+
+        var log = await _context.EquipmentUsageLogs.FindAsync(new object[] { logId }, ct);
+        if (log == null)
+        {
+            throw new EntityNotFoundException(nameof(EquipmentUsageLog), logId);
+        }
+
+        _context.EquipmentUsageLogs.Remove(log);
+        await _context.SaveChangesAsync(ct);
+
+        _logger.LogInformation("Usage log deleted: {Id}", logId);
+    }
+
+    #endregion
+
+    #region Maintenance Records
+
+    public async Task<EquipmentMaintenanceRecordDto> AddMaintenanceRecordAsync(Guid equipmentId, CreateEquipmentMaintenanceRecordRequest request, CancellationToken ct = default)
+    {
+        _logger.LogInformation("Adding maintenance record to equipment: {EquipmentId}", equipmentId);
+
+        var equipment = await _context.Equipment.FindAsync(new object[] { equipmentId }, ct);
+        if (equipment == null)
+        {
+            throw new EntityNotFoundException(nameof(Equipment), equipmentId);
+        }
+
+        Guid? reminderChoreId = null;
+
+        // Create reminder chore if requested
+        if (request.CreateReminder && request.ReminderDueDate.HasValue)
+        {
+            var chore = new Chore
+            {
+                Id = Guid.NewGuid(),
+                Name = request.ReminderName ?? request.Description,
+                Description = $"Reminder for {request.Description} maintenance",
+                PeriodType = "manually",
+                EquipmentId = equipmentId
+            };
+
+            _context.Chores.Add(chore);
+            reminderChoreId = chore.Id;
+
+            _logger.LogInformation("Created reminder chore: {ChoreId}", chore.Id);
+        }
+
+        var record = new EquipmentMaintenanceRecord
+        {
+            Id = Guid.NewGuid(),
+            EquipmentId = equipmentId,
+            Description = request.Description,
+            CompletedDate = ToUtcDate(request.CompletedDate) ?? DateTime.UtcNow,
+            UsageAtCompletion = request.UsageAtCompletion,
+            Notes = request.Notes,
+            ReminderChoreId = reminderChoreId
+        };
+
+        _context.EquipmentMaintenanceRecords.Add(record);
+        await _context.SaveChangesAsync(ct);
+
+        _logger.LogInformation("Maintenance record added: {Id}", record.Id);
+
+        // Reload with chore to get the name
+        if (reminderChoreId.HasValue)
+        {
+            await _context.Entry(record).Reference(r => r.ReminderChore).LoadAsync(ct);
+        }
+
+        return MapToMaintenanceRecordDto(record);
+    }
+
+    public async Task<List<EquipmentMaintenanceRecordDto>> GetMaintenanceRecordsAsync(Guid equipmentId, CancellationToken ct = default)
+    {
+        var records = await _context.EquipmentMaintenanceRecords
+            .Include(r => r.ReminderChore)
+            .Where(r => r.EquipmentId == equipmentId)
+            .OrderByDescending(r => r.CompletedDate)
+            .ToListAsync(ct);
+
+        return records.Select(MapToMaintenanceRecordDto).ToList();
+    }
+
+    public async Task DeleteMaintenanceRecordAsync(Guid recordId, CancellationToken ct = default)
+    {
+        _logger.LogInformation("Deleting maintenance record: {RecordId}", recordId);
+
+        var record = await _context.EquipmentMaintenanceRecords.FindAsync(new object[] { recordId }, ct);
+        if (record == null)
+        {
+            throw new EntityNotFoundException(nameof(EquipmentMaintenanceRecord), recordId);
+        }
+
+        _context.EquipmentMaintenanceRecords.Remove(record);
+        await _context.SaveChangesAsync(ct);
+
+        _logger.LogInformation("Maintenance record deleted: {Id}", recordId);
+    }
+
+    #endregion
+
     #region Mapping Helpers
 
     private EquipmentDto MapToDto(Equipment equipment, bool includeDocuments = false, bool includeChildren = false)
     {
+        var latestUsageLog = equipment.UsageLogs?.OrderByDescending(l => l.Date).FirstOrDefault();
+
         var dto = new EquipmentDto
         {
             Id = equipment.Id,
             Name = equipment.Name,
+            Icon = equipment.Icon,
             Description = equipment.Description,
             Location = equipment.Location,
             ModelNumber = equipment.ModelNumber,
             SerialNumber = equipment.SerialNumber,
+            Manufacturer = equipment.Manufacturer,
+            ManufacturerLink = equipment.ManufacturerLink,
+            UsageUnit = equipment.UsageUnit,
             PurchaseDate = equipment.PurchaseDate,
             PurchaseLocation = equipment.PurchaseLocation,
             WarrantyExpirationDate = equipment.WarrantyExpirationDate,
@@ -632,6 +793,9 @@ public class EquipmentService : IEquipmentService
             ChildEquipmentCount = equipment.ChildEquipment?.Count ?? 0,
             DocumentCount = equipment.Documents?.Count ?? 0,
             RelatedChoreCount = equipment.Chores?.Count ?? 0,
+            MaintenanceRecordCount = equipment.MaintenanceRecords?.Count ?? 0,
+            LatestUsageReading = latestUsageLog?.Reading,
+            LatestUsageDate = latestUsageLog?.Date,
             CreatedAt = equipment.CreatedAt,
             UpdatedAt = equipment.UpdatedAt
         };
@@ -652,6 +816,24 @@ public class EquipmentService : IEquipmentService
                 .ToList();
         }
 
+        // Include usage logs if available
+        if (equipment.UsageLogs != null)
+        {
+            dto.UsageLogs = equipment.UsageLogs
+                .OrderByDescending(l => l.Date)
+                .Select(MapToUsageLogDto)
+                .ToList();
+        }
+
+        // Include maintenance records if available
+        if (equipment.MaintenanceRecords != null)
+        {
+            dto.MaintenanceRecords = equipment.MaintenanceRecords
+                .OrderByDescending(r => r.CompletedDate)
+                .Select(MapToMaintenanceRecordDto)
+                .ToList();
+        }
+
         return dto;
     }
 
@@ -661,6 +843,7 @@ public class EquipmentService : IEquipmentService
         {
             Id = equipment.Id,
             Name = equipment.Name,
+            Icon = equipment.Icon,
             Location = equipment.Location,
             CategoryName = equipment.Category?.Name,
             WarrantyExpirationDate = equipment.WarrantyExpirationDate,
@@ -721,6 +904,35 @@ public class EquipmentService : IEquipmentService
             DocumentCount = documentCount,
             CreatedAt = tag.CreatedAt,
             UpdatedAt = tag.UpdatedAt
+        };
+    }
+
+    private static EquipmentUsageLogDto MapToUsageLogDto(EquipmentUsageLog log)
+    {
+        return new EquipmentUsageLogDto
+        {
+            Id = log.Id,
+            EquipmentId = log.EquipmentId,
+            Date = log.Date,
+            Reading = log.Reading,
+            Notes = log.Notes,
+            CreatedAt = log.CreatedAt
+        };
+    }
+
+    private static EquipmentMaintenanceRecordDto MapToMaintenanceRecordDto(EquipmentMaintenanceRecord record)
+    {
+        return new EquipmentMaintenanceRecordDto
+        {
+            Id = record.Id,
+            EquipmentId = record.EquipmentId,
+            Description = record.Description,
+            CompletedDate = record.CompletedDate,
+            UsageAtCompletion = record.UsageAtCompletion,
+            Notes = record.Notes,
+            ReminderChoreId = record.ReminderChoreId,
+            ReminderChoreName = record.ReminderChore?.Name,
+            CreatedAt = record.CreatedAt
         };
     }
 

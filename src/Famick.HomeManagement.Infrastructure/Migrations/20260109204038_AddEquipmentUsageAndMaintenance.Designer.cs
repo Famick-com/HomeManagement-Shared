@@ -3,6 +3,7 @@ using System;
 using Famick.HomeManagement.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Famick.HomeManagement.Infrastructure.Migrations
 {
     [DbContext(typeof(HomeManagementDbContext))]
-    partial class HomeManagementDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260109204038_AddEquipmentUsageAndMaintenance")]
+    partial class AddEquipmentUsageAndMaintenance
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -882,11 +885,6 @@ namespace Famick.HomeManagement.Infrastructure.Migrations
                     b.Property<string>("Description")
                         .HasColumnType("text")
                         .HasColumnName("description");
-
-                    b.Property<string>("Icon")
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)")
-                        .HasColumnName("icon");
 
                     b.Property<string>("Location")
                         .HasMaxLength(255)
