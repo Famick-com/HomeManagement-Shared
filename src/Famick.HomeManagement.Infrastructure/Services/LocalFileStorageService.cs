@@ -393,4 +393,68 @@ public class LocalFileStorageService : IFileStorageService
     }
 
     #endregion
+
+    #region Contact Profile Images
+
+    public async Task<string> SaveContactProfileImageAsync(Guid contactId, Stream stream, string fileName, CancellationToken ct = default)
+    {
+        var directory = GetContactProfileImageDirectory(contactId);
+        Directory.CreateDirectory(directory);
+
+        var uniqueFileName = GenerateUniqueFileName(fileName);
+        var filePath = Path.Combine(directory, uniqueFileName);
+
+        try
+        {
+            await using var fileStream = File.Create(filePath);
+            await stream.CopyToAsync(fileStream, ct);
+
+            _logger.LogInformation("Saved contact profile image {FileName} for contact {ContactId}", uniqueFileName, contactId);
+            return uniqueFileName;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to save contact profile image {FileName} for contact {ContactId}", fileName, contactId);
+            throw;
+        }
+    }
+
+    public Task DeleteContactProfileImageAsync(Guid contactId, string fileName, CancellationToken ct = default)
+    {
+        var filePath = Path.Combine(GetContactProfileImageDirectory(contactId), fileName);
+
+        if (File.Exists(filePath))
+        {
+            try
+            {
+                File.Delete(filePath);
+                _logger.LogInformation("Deleted contact profile image {FileName} for contact {ContactId}", fileName, contactId);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to delete contact profile image {FileName} for contact {ContactId}", fileName, contactId);
+                throw;
+            }
+        }
+
+        return Task.CompletedTask;
+    }
+
+    public string GetContactProfileImageUrl(Guid contactId, string? accessToken = null)
+    {
+        var url = $"{_baseUrl}/api/v1/contacts/{contactId}/profile-image";
+        return string.IsNullOrEmpty(accessToken) ? url : $"{url}?token={accessToken}";
+    }
+
+    public string GetContactProfileImagePath(Guid contactId, string fileName)
+    {
+        return Path.Combine(GetContactProfileImageDirectory(contactId), fileName);
+    }
+
+    private string GetContactProfileImageDirectory(Guid contactId)
+    {
+        return Path.Combine(_basePath, "contacts", contactId.ToString());
+    }
+
+    #endregion
 }

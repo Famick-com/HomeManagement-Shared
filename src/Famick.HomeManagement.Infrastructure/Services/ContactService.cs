@@ -22,17 +22,23 @@ public partial class ContactService : IContactService
     private readonly HomeManagementDbContext _context;
     private readonly IMapper _mapper;
     private readonly ITenantProvider _tenantProvider;
+    private readonly IFileStorageService _fileStorageService;
+    private readonly IFileAccessTokenService _tokenService;
     private readonly ILogger<ContactService> _logger;
 
     public ContactService(
         HomeManagementDbContext context,
         IMapper mapper,
         ITenantProvider tenantProvider,
+        IFileStorageService fileStorageService,
+        IFileAccessTokenService tokenService,
         ILogger<ContactService> logger)
     {
         _context = context;
         _mapper = mapper;
         _tenantProvider = tenantProvider;
+        _fileStorageService = fileStorageService;
+        _tokenService = tokenService;
         _logger = logger;
     }
 
@@ -81,7 +87,6 @@ public partial class ContactService : IContactService
             TenantId = user.TenantId,
             FirstName = user.FirstName,
             LastName = user.LastName,
-            Email = user.Email,
             LinkedUserId = user.Id,
             UsesTenantAddress = true,
             CreatedByUserId = user.Id,
@@ -91,6 +96,23 @@ public partial class ContactService : IContactService
 
         _context.Contacts.Add(contact);
         await _context.SaveChangesAsync(ct);
+
+        // Add user's email as primary email address
+        if (!string.IsNullOrWhiteSpace(user.Email))
+        {
+            var emailAddress = new ContactEmailAddress
+            {
+                Id = Guid.NewGuid(),
+                TenantId = user.TenantId,
+                ContactId = contact.Id,
+                Email = user.Email,
+                NormalizedEmail = user.Email.Trim().ToLowerInvariant(),
+                Tag = EmailTag.Personal,
+                IsPrimary = true
+            };
+            _context.ContactEmailAddresses.Add(emailAddress);
+            await _context.SaveChangesAsync(ct);
+        }
 
         // Add tenant's address as home address
         if (tenant?.AddressId != null)
@@ -128,6 +150,7 @@ public partial class ContactService : IContactService
             .Include(c => c.Addresses)
                 .ThenInclude(a => a.Address)
             .Include(c => c.PhoneNumbers)
+            .Include(c => c.EmailAddresses)
             .Include(c => c.SocialMedia)
             .Include(c => c.RelationshipsAsSource)
                 .ThenInclude(r => r.TargetContact)
@@ -140,7 +163,16 @@ public partial class ContactService : IContactService
 
         if (contact == null) return null;
 
-        return _mapper.Map<ContactDto>(contact);
+        var dto = _mapper.Map<ContactDto>(contact);
+
+        // Set profile image URL if exists (with signed token for browser access)
+        if (!string.IsNullOrEmpty(contact.ProfileImageFileName))
+        {
+            var accessToken = _tokenService.GenerateToken("contact-profile-image", contact.Id, contact.TenantId);
+            dto.ProfileImageUrl = _fileStorageService.GetContactProfileImageUrl(contact.Id, accessToken);
+        }
+
+        return dto;
     }
 
     /// <inheritdoc />
@@ -152,6 +184,7 @@ public partial class ContactService : IContactService
             .Include(c => c.Addresses)
                 .ThenInclude(a => a.Address)
             .Include(c => c.PhoneNumbers)
+            .Include(c => c.EmailAddresses)
             .Include(c => c.SocialMedia)
             .Include(c => c.Tags)
                 .ThenInclude(t => t.Tag)
@@ -160,7 +193,16 @@ public partial class ContactService : IContactService
 
         if (contact == null) return null;
 
-        return _mapper.Map<ContactDto>(contact);
+        var dto = _mapper.Map<ContactDto>(contact);
+
+        // Set profile image URL if exists (with signed token for browser access)
+        if (!string.IsNullOrEmpty(contact.ProfileImageFileName))
+        {
+            var accessToken = _tokenService.GenerateToken("contact-profile-image", contact.Id, contact.TenantId);
+            dto.ProfileImageUrl = _fileStorageService.GetContactProfileImageUrl(contact.Id, accessToken);
+        }
+
+        return dto;
     }
 
     /// <inheritdoc />
@@ -168,6 +210,7 @@ public partial class ContactService : IContactService
     {
         var query = _context.Contacts
             .Include(c => c.PhoneNumbers)
+            .Include(c => c.EmailAddresses)
             .Include(c => c.Addresses)
                 .ThenInclude(a => a.Address)
             .Include(c => c.Tags)
@@ -179,10 +222,11 @@ public partial class ContactService : IContactService
         {
             var searchTerm = filter.SearchTerm.ToLower();
             query = query.Where(c =>
-                c.FirstName.ToLower().Contains(searchTerm) ||
-                c.LastName.ToLower().Contains(searchTerm) ||
+                (c.FirstName != null && c.FirstName.ToLower().Contains(searchTerm)) ||
+                (c.LastName != null && c.LastName.ToLower().Contains(searchTerm)) ||
                 (c.PreferredName != null && c.PreferredName.ToLower().Contains(searchTerm)) ||
-                (c.Email != null && c.Email.ToLower().Contains(searchTerm)) ||
+                (c.CompanyName != null && c.CompanyName.ToLower().Contains(searchTerm)) ||
+                c.EmailAddresses.Any(e => e.Email.ToLower().Contains(searchTerm)) ||
                 c.PhoneNumbers.Any(p => p.PhoneNumber.Contains(searchTerm) ||
                     (p.NormalizedNumber != null && p.NormalizedNumber.Contains(searchTerm))));
         }
@@ -216,8 +260,8 @@ public partial class ContactService : IContactService
                 ? query.OrderByDescending(c => c.FirstName)
                 : query.OrderBy(c => c.FirstName),
             "email" => filter.SortDescending
-                ? query.OrderByDescending(c => c.Email)
-                : query.OrderBy(c => c.Email),
+                ? query.OrderByDescending(c => c.EmailAddresses.Where(e => e.IsPrimary).Select(e => e.Email).FirstOrDefault())
+                : query.OrderBy(c => c.EmailAddresses.Where(e => e.IsPrimary).Select(e => e.Email).FirstOrDefault()),
             "createdat" => filter.SortDescending
                 ? query.OrderByDescending(c => c.CreatedAt)
                 : query.OrderBy(c => c.CreatedAt),
@@ -253,7 +297,8 @@ public partial class ContactService : IContactService
             contact.MiddleName,
             contact.LastName,
             contact.PreferredName,
-            contact.Email,
+            contact.CompanyName,
+            contact.Title,
             contact.Gender,
             contact.BirthYear,
             contact.BirthMonth,
@@ -277,7 +322,8 @@ public partial class ContactService : IContactService
             contact.MiddleName,
             contact.LastName,
             contact.PreferredName,
-            contact.Email,
+            contact.CompanyName,
+            contact.Title,
             contact.Gender,
             contact.BirthYear,
             contact.BirthMonth,
@@ -328,13 +374,15 @@ public partial class ContactService : IContactService
         var term = searchTerm.ToLower();
         var contacts = await _context.Contacts
             .Include(c => c.PhoneNumbers)
+            .Include(c => c.EmailAddresses)
             .Include(c => c.Tags)
                 .ThenInclude(t => t.Tag)
             .Where(c => c.IsActive &&
-                (c.FirstName.ToLower().Contains(term) ||
-                 c.LastName.ToLower().Contains(term) ||
+                ((c.FirstName != null && c.FirstName.ToLower().Contains(term)) ||
+                 (c.LastName != null && c.LastName.ToLower().Contains(term)) ||
                  (c.PreferredName != null && c.PreferredName.ToLower().Contains(term)) ||
-                 (c.Email != null && c.Email.ToLower().Contains(term))))
+                 (c.CompanyName != null && c.CompanyName.ToLower().Contains(term)) ||
+                 c.EmailAddresses.Any(e => e.Email.ToLower().Contains(term))))
             .OrderBy(c => c.LastName)
             .ThenBy(c => c.FirstName)
             .Take(limit)
@@ -1238,6 +1286,167 @@ public partial class ContactService : IContactService
             .ToListAsync(ct);
 
         return _mapper.Map<List<ContactUserShareDto>>(shares);
+    }
+
+    #endregion
+
+    #region Email Management
+
+    /// <inheritdoc />
+    public async Task<ContactEmailAddressDto> AddEmailAsync(Guid contactId, AddEmailRequest request, CancellationToken ct = default)
+    {
+        var contact = await _context.Contacts.FindAsync(new object[] { contactId }, ct)
+            ?? throw new EntityNotFoundException(nameof(Contact), contactId);
+
+        // If setting as primary, clear other primaries
+        if (request.IsPrimary)
+        {
+            var existingPrimaries = await _context.ContactEmailAddresses
+                .Where(e => e.ContactId == contactId && e.IsPrimary)
+                .ToListAsync(ct);
+            foreach (var existing in existingPrimaries)
+            {
+                existing.IsPrimary = false;
+            }
+        }
+
+        var email = new ContactEmailAddress
+        {
+            Id = Guid.NewGuid(),
+            TenantId = contact.TenantId,
+            ContactId = contactId,
+            Email = request.Email,
+            NormalizedEmail = request.Email?.Trim().ToLowerInvariant(),
+            Tag = request.Tag,
+            IsPrimary = request.IsPrimary,
+            Label = request.Label
+        };
+
+        _context.ContactEmailAddresses.Add(email);
+        await _context.SaveChangesAsync(ct);
+
+        await LogAuditAsync(contactId, ContactAuditAction.EmailAdded, null,
+            JsonSerializer.Serialize(new { Email = request.Email, Tag = request.Tag.ToString() }),
+            "Email address added", ct);
+
+        return _mapper.Map<ContactEmailAddressDto>(email);
+    }
+
+    /// <inheritdoc />
+    public async Task<ContactEmailAddressDto> UpdateEmailAsync(Guid emailId, AddEmailRequest request, CancellationToken ct = default)
+    {
+        var email = await _context.ContactEmailAddresses.FindAsync(new object[] { emailId }, ct)
+            ?? throw new EntityNotFoundException(nameof(ContactEmailAddress), emailId);
+
+        email.Email = request.Email;
+        email.NormalizedEmail = request.Email?.Trim().ToLowerInvariant();
+        email.Tag = request.Tag;
+        email.Label = request.Label;
+
+        // Handle primary change
+        if (request.IsPrimary && !email.IsPrimary)
+        {
+            var existingPrimaries = await _context.ContactEmailAddresses
+                .Where(e => e.ContactId == email.ContactId && e.IsPrimary && e.Id != emailId)
+                .ToListAsync(ct);
+            foreach (var existing in existingPrimaries)
+            {
+                existing.IsPrimary = false;
+            }
+        }
+        email.IsPrimary = request.IsPrimary;
+
+        await _context.SaveChangesAsync(ct);
+
+        await LogAuditAsync(email.ContactId, ContactAuditAction.EmailUpdated, null,
+            JsonSerializer.Serialize(new { Email = request.Email, Tag = request.Tag.ToString() }),
+            "Email address updated", ct);
+
+        return _mapper.Map<ContactEmailAddressDto>(email);
+    }
+
+    /// <inheritdoc />
+    public async Task RemoveEmailAsync(Guid emailId, CancellationToken ct = default)
+    {
+        var email = await _context.ContactEmailAddresses.FindAsync(new object[] { emailId }, ct)
+            ?? throw new EntityNotFoundException(nameof(ContactEmailAddress), emailId);
+
+        var contactId = email.ContactId;
+        _context.ContactEmailAddresses.Remove(email);
+        await _context.SaveChangesAsync(ct);
+
+        await LogAuditAsync(contactId, ContactAuditAction.EmailRemoved, null, null, "Email address removed", ct);
+    }
+
+    /// <inheritdoc />
+    public async Task SetPrimaryEmailAsync(Guid contactId, Guid emailId, CancellationToken ct = default)
+    {
+        var emails = await _context.ContactEmailAddresses
+            .Where(e => e.ContactId == contactId)
+            .ToListAsync(ct);
+
+        var targetEmail = emails.FirstOrDefault(e => e.Id == emailId)
+            ?? throw new EntityNotFoundException(nameof(ContactEmailAddress), emailId);
+
+        foreach (var email in emails)
+        {
+            email.IsPrimary = email.Id == emailId;
+        }
+
+        await _context.SaveChangesAsync(ct);
+
+        await LogAuditAsync(contactId, ContactAuditAction.PrimaryEmailChanged, null,
+            JsonSerializer.Serialize(new { EmailId = emailId }),
+            "Primary email changed", ct);
+    }
+
+    #endregion
+
+    #region Profile Image Management
+
+    /// <inheritdoc />
+    public async Task<string> UploadProfileImageAsync(Guid contactId, Stream imageStream, string fileName, CancellationToken ct = default)
+    {
+        var contact = await _context.Contacts.FindAsync(new object[] { contactId }, ct)
+            ?? throw new EntityNotFoundException(nameof(Contact), contactId);
+
+        // Delete old profile image if exists
+        if (!string.IsNullOrEmpty(contact.ProfileImageFileName))
+        {
+            await _fileStorageService.DeleteContactProfileImageAsync(contactId, contact.ProfileImageFileName, ct);
+        }
+
+        // Save new image
+        var storedFileName = await _fileStorageService.SaveContactProfileImageAsync(contactId, imageStream, fileName, ct);
+
+        contact.ProfileImageFileName = storedFileName;
+        await _context.SaveChangesAsync(ct);
+
+        await LogAuditAsync(contactId, ContactAuditAction.ProfileImageUpdated, null, null, "Profile image updated", ct);
+
+        return _fileStorageService.GetContactProfileImageUrl(contactId);
+    }
+
+    /// <inheritdoc />
+    public async Task DeleteProfileImageAsync(Guid contactId, CancellationToken ct = default)
+    {
+        var contact = await _context.Contacts.FindAsync(new object[] { contactId }, ct)
+            ?? throw new EntityNotFoundException(nameof(Contact), contactId);
+
+        if (!string.IsNullOrEmpty(contact.ProfileImageFileName))
+        {
+            await _fileStorageService.DeleteContactProfileImageAsync(contactId, contact.ProfileImageFileName, ct);
+            contact.ProfileImageFileName = null;
+            await _context.SaveChangesAsync(ct);
+
+            await LogAuditAsync(contactId, ContactAuditAction.ProfileImageRemoved, null, null, "Profile image removed", ct);
+        }
+    }
+
+    /// <inheritdoc />
+    public string? GetProfileImageUrl(Guid contactId)
+    {
+        return _fileStorageService.GetContactProfileImageUrl(contactId);
     }
 
     #endregion

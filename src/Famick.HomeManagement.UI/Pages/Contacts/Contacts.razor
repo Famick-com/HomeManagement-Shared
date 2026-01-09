@@ -141,7 +141,7 @@
                             </MudStack>
                         </CellTemplate>
                     </TemplateColumn>
-                    <PropertyColumn Property="x => x.Email" Title="@L["common.email"]" />
+                    <PropertyColumn Property="x => x.PrimaryEmail" Title="@L["common.email"]" />
                     <PropertyColumn Property="x => x.PrimaryPhone" Title="@L["contacts.phone"]" />
                     <TemplateColumn Title="@L["contacts.tags"]">
                         <CellTemplate>
@@ -182,9 +182,9 @@
                                             <MudIcon Icon="@Icons.Material.Filled.AccountCircle" Size="Size.Small" Color="Color.Info" />
                                         }
                                     </MudStack>
-                                    @if (!string.IsNullOrEmpty(contact.Email))
+                                    @if (!string.IsNullOrEmpty(contact.PrimaryEmail))
                                     {
-                                        <MudText Typo="Typo.body2" Color="Color.Secondary">@contact.Email</MudText>
+                                        <MudText Typo="Typo.body2" Color="Color.Secondary">@contact.PrimaryEmail</MudText>
                                     }
                                     @if (!string.IsNullOrEmpty(contact.PrimaryPhone))
                                     {

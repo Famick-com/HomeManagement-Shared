@@ -92,6 +92,7 @@ public class HomeManagementDbContext : DbContext
     public DbSet<Contact> Contacts => Set<Contact>();
     public DbSet<ContactAddress> ContactAddresses => Set<ContactAddress>();
     public DbSet<ContactPhoneNumber> ContactPhoneNumbers => Set<ContactPhoneNumber>();
+    public DbSet<ContactEmailAddress> ContactEmailAddresses => Set<ContactEmailAddress>();
     public DbSet<ContactSocialMedia> ContactSocialMedia => Set<ContactSocialMedia>();
     public DbSet<ContactRelationship> ContactRelationships => Set<ContactRelationship>();
     public DbSet<ContactTag> ContactTags => Set<ContactTag>();

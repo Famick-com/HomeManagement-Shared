@@ -33,6 +33,15 @@ else
         <MudTabPanel Text="@L["contacts.basicInfo"]" Icon="@Icons.Material.Filled.Person">
             <MudForm @ref="_form">
                 <MudGrid Spacing="3">
+                    @if (!IsNew)
+                    {
+                        <MudItem xs="12">
+                            <ContactProfileImage ContactId="@(Id ?? Guid.Empty)"
+                                                 ProfileImageUrl="@_contact?.ProfileImageUrl"
+                                                 ReadOnly="@(!CanEdit)"
+                                                 OnImageChanged="OnProfileImageChanged" />
+                        </MudItem>
+                    }
                     <MudItem xs="12" md="6">
                         <MudStack Spacing="3">
                             <MudText Typo="Typo.h6">@L["contacts.name"]</MudText>
@@ -41,8 +50,6 @@ else
                                 <MudItem xs="12" md="6">
                                     <MudTextField @bind-Value="_model.FirstName"
                                                   Label="@L["common.firstName"]"
-                                                  Required="true"
-                                                  RequiredError="@L["validation.required"]"
                                                   Variant="Variant.Outlined"
                                                   ReadOnly="@(!CanEdit)" />
                                 </MudItem>
@@ -58,8 +65,6 @@ else
                                 <MudItem xs="12" md="6">
                                     <MudTextField @bind-Value="_model.LastName"
                                                   Label="@L["common.lastName"]"
-                                                  Required="true"
-                                                  RequiredError="@L["validation.required"]"
                                                   Variant="Variant.Outlined"
                                                   ReadOnly="@(!CanEdit)" />
                                 </MudItem>
@@ -72,11 +77,24 @@ else
                                 </MudItem>
                             </MudGrid>
 
-                            <MudTextField @bind-Value="_model.Email"
-                                          Label="@L["common.email"]"
-                                          InputType="InputType.Email"
-                                          Variant="Variant.Outlined"
-                                          ReadOnly="@(!CanEdit)" />
+                            <MudText Typo="Typo.h6" Class="mt-4">@L["contacts.company"]</MudText>
+
+                            <MudGrid>
+                                <MudItem xs="12" md="6">
+                                    <MudTextField @bind-Value="_model.CompanyName"
+                                                  Label="@L["contacts.companyName"]"
+                                                  Variant="Variant.Outlined"
+                                                  ReadOnly="@(!CanEdit)" />
+                                </MudItem>
+                                <MudItem xs="12" md="6">
+                                    <MudTextField @bind-Value="_model.Title"
+                                                  Label="@L["contacts.title"]"
+                                                  Variant="Variant.Outlined"
+                                                  ReadOnly="@(!CanEdit)" />
+                                </MudItem>
+                            </MudGrid>
+
+                            <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mt-2">@L["contacts.nameOrCompanyRequired"]</MudText>
 
                             <MudSelect T="Gender" @bind-Value="_model.Gender"
                                        Label="@L["contacts.gender"]"
@@ -182,6 +200,12 @@ else
                               ReadOnly="@(!CanEdit)" />
         </MudTabPanel>
 
+        @* Emails Tab *@
+        <MudTabPanel Text="@L["contacts.emails"]" Icon="@Icons.Material.Filled.Email" Disabled="@IsNew">
+            <ContactEmailList ContactId="@(Id ?? Guid.Empty)"
+                              ReadOnly="@(!CanEdit)" />
+        </MudTabPanel>
+
         @* Social Media Tab *@
         <MudTabPanel Text="@L["contacts.socialMedia"]" Icon="@Icons.Material.Filled.Share" Disabled="@IsNew">
             <ContactSocialMediaList ContactId="@(Id ?? Guid.Empty)"
@@ -240,7 +264,8 @@ else
                         MiddleName = _contact.MiddleName,
                         LastName = _contact.LastName,
                         PreferredName = _contact.PreferredName,
-                        Email = _contact.Email,
+                        CompanyName = _contact.CompanyName,
+                        Title = _contact.Title,
                         Gender = _contact.Gender,
                         BirthYear = _contact.BirthYear,
                         BirthMonth = _contact.BirthMonth,
@@ -284,11 +309,12 @@ else
             {
                 var request = new CreateContactRequest
                 {
-                    FirstName = _model.FirstName!,
+                    FirstName = _model.FirstName,
                     MiddleName = _model.MiddleName,
-                    LastName = _model.LastName!,
+                    LastName = _model.LastName,
                     PreferredName = _model.PreferredName,
-                    Email = _model.Email,
+                    CompanyName = _model.CompanyName,
+                    Title = _model.Title,
                     Gender = _model.Gender,
                     BirthYear = _model.BirthYear,
                     BirthMonth = _model.BirthMonth,
@@ -316,11 +342,12 @@ else
             {
                 var request = new UpdateContactRequest
                 {
-                    FirstName = _model.FirstName!,
+                    FirstName = _model.FirstName,
                     MiddleName = _model.MiddleName,
-                    LastName = _model.LastName!,
+                    LastName = _model.LastName,
                     PreferredName = _model.PreferredName,
-                    Email = _model.Email,
+                    CompanyName = _model.CompanyName,
+                    Title = _model.Title,
                     Gender = _model.Gender,
                     BirthYear = _model.BirthYear,
                     BirthMonth = _model.BirthMonth,
@@ -389,6 +416,12 @@ else
         _selectedTagIds = tagIds;
     }
 
+    private async Task OnProfileImageChanged(string? newImageUrl)
+    {
+        // Reload the contact to get the updated profile image URL
+        await LoadDataAsync();
+    }
+
     private void NavigateBack()
     {
         Navigation.NavigateTo("/contacts");
@@ -400,7 +433,8 @@ else
         public string? MiddleName { get; set; }
         public string? LastName { get; set; }
         public string? PreferredName { get; set; }
-        public string? Email { get; set; }
+        public string? CompanyName { get; set; }
+        public string? Title { get; set; }
         public Gender Gender { get; set; } = Gender.Unknown;
         public int? BirthYear { get; set; }
         public int? BirthMonth { get; set; }
