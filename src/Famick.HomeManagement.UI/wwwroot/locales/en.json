@@ -66,7 +66,8 @@
     "primary": "Primary",
     "loadMore": "Load More",
     "openInNewTab": "Open in new tab",
-    "upload": "Upload"
+    "upload": "Upload",
+    "remove": "Remove"
   },
 
   "auth": {
@@ -749,7 +750,20 @@
     "nextItem": "Next Item",
     "enterBarcode": "Enter Barcode",
     "barcode": "Barcode",
-    "enterBarcodeHint": "Type or paste barcode number"
+    "enterBarcodeHint": "Type or paste barcode number",
+    "addBulk": "Add as batch (same date)",
+    "addIndividualDates": "Track each item's date separately",
+    "addIndividualDatesHint": "Add items one at a time. Each will be tracked individually.",
+    "addItem": "Add Item",
+    "itemsAdded": "{0} items added",
+    "noDate": "No expiry date",
+    "selectItemToConsume": "Select Item to Consume",
+    "selectItemToConsumeHint": "Choose which specific item to consume:",
+    "noExpiryDate": "No expiry date set",
+    "consumeOptions": "Consume Options",
+    "consumeOptionsMessage": "This product has multiple stock entries. How would you like to consume?",
+    "consumeThisItem": "Consume This Item",
+    "selectManually": "Select Manually"
   },
 
   "equipment": {

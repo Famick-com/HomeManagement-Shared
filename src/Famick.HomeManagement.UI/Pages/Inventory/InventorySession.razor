@@ -471,7 +471,7 @@
     {
         if (_foundProduct == null || !_selectedLocationId.HasValue) return;
 
-        var parameters = new DialogParameters<AddStockDialog>
+        var parameters = new DialogParameters<AddStockWithDatesDialog>
         {
             { x => x.Product, _foundProduct },
             { x => x.LocationId, _selectedLocationId.Value }
@@ -485,12 +485,12 @@
             BackdropClick = false
         };
 
-        var dialog = await DialogService.ShowAsync<AddStockDialog>(L["inventory.addStock"], parameters, options);
+        var dialog = await DialogService.ShowAsync<AddStockWithDatesDialog>(L["inventory.addStock"], parameters, options);
         var result = await dialog.Result;
 
-        if (result != null && !result.Canceled && result.Data is AddStockRequest request)
+        if (result != null && !result.Canceled && result.Data is AddStockBatchRequest request)
         {
-            var apiResult = await ApiClient.PostAsync<AddStockRequest, StockEntryDto>("api/v1/stock", request);
+            var apiResult = await ApiClient.PostAsync<AddStockBatchRequest, List<StockEntryDto>>("api/v1/stock/batch", request);
             if (apiResult.IsSuccess)
             {
                 Snackbar.Add(L["inventory.stockAdded"], Severity.Success);
@@ -572,6 +572,54 @@
     }
 
     private async Task ShowConsumeDialog(StockEntryDto entry)
+    {
+        // If multiple entries exist, offer manual selection option
+        if (_stockEntries.Count > 1)
+        {
+            var choice = await DialogService.ShowMessageBox(
+                L["inventory.consumeOptions"],
+                L["inventory.consumeOptionsMessage"],
+                yesText: L["inventory.consumeThisItem"],
+                cancelText: L["inventory.selectManually"]);
+
+            if (choice == null) // User clicked "Select Manually"
+            {
+                await ShowSelectStockEntryDialog();
+                return;
+            }
+            // If choice == true, continue with the passed entry
+        }
+
+        await ShowConsumeDialogForEntry(entry);
+    }
+
+    private async Task ShowSelectStockEntryDialog()
+    {
+        var parameters = new DialogParameters<SelectStockEntryDialog>
+        {
+            { x => x.Entries, _stockEntries }
+        };
+
+        var options = new DialogOptions
+        {
+            MaxWidth = MaxWidth.Small,
+            FullWidth = true,
+            CloseOnEscapeKey = true,
+            BackdropClick = false
+        };
+
+        var dialog = await DialogService.ShowAsync<SelectStockEntryDialog>(
+            L["inventory.selectItemToConsume"], parameters, options);
+        var result = await dialog.Result;
+
+        if (result != null && !result.Canceled && result.Data is StockEntryDto selectedEntry)
+        {
+            // Show the consume dialog for the selected entry
+            await ShowConsumeDialogForEntry(selectedEntry);
+        }
+    }
+
+    private async Task ShowConsumeDialogForEntry(StockEntryDto entry)
     {
         var parameters = new DialogParameters<ConsumeStockDialog>
         {

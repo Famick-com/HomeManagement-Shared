@@ -74,6 +74,104 @@ public class StockService : IStockService
             ?? throw new InvalidOperationException("Failed to retrieve created stock entry");
     }
 
+    public async Task<List<StockEntryDto>> AddStockBatchAsync(AddStockBatchRequest request, CancellationToken cancellationToken = default)
+    {
+        // Validate product exists
+        var product = await _context.Products
+            .Include(p => p.QuantityUnitStock)
+            .Include(p => p.Barcodes)
+            .FirstOrDefaultAsync(p => p.Id == request.ProductId, cancellationToken);
+
+        if (product == null)
+        {
+            throw new EntityNotFoundException(nameof(Product), request.ProductId);
+        }
+
+        // Validate location if provided
+        if (request.LocationId.HasValue)
+        {
+            var locationExists = await _context.Locations
+                .AnyAsync(l => l.Id == request.LocationId.Value, cancellationToken);
+            if (!locationExists)
+            {
+                throw new EntityNotFoundException(nameof(Location), request.LocationId.Value);
+            }
+        }
+
+        var tenantId = _tenantProvider.TenantId ?? throw new InvalidOperationException("Tenant ID not set");
+        var purchasedDate = request.PurchasedDate ?? DateTime.UtcNow;
+        var locationId = request.LocationId ?? product.LocationId;
+        var entries = new List<StockEntry>();
+
+        // Create individual entries (Amount=1 each)
+        if (request.IndividualItems?.Count > 0)
+        {
+            foreach (var item in request.IndividualItems)
+            {
+                var entry = new StockEntry
+                {
+                    Id = Guid.NewGuid(),
+                    TenantId = tenantId,
+                    ProductId = request.ProductId,
+                    Amount = 1,
+                    BestBeforeDate = item.BestBeforeDate,
+                    PurchasedDate = purchasedDate,
+                    StockId = Guid.NewGuid().ToString(),
+                    Price = request.Price,
+                    Open = false,
+                    LocationId = locationId,
+                    ShoppingLocationId = request.ShoppingLocationId,
+                    Note = item.Note ?? request.Note
+                };
+
+                entries.Add(entry);
+                _context.Stock.Add(entry);
+
+                var log = CreateStockLog(entry, "purchase", 1);
+                _context.StockLog.Add(log);
+            }
+        }
+
+        // Create bulk entry if specified
+        if (request.BulkAmount.HasValue && request.BulkAmount > 0)
+        {
+            var entry = new StockEntry
+            {
+                Id = Guid.NewGuid(),
+                TenantId = tenantId,
+                ProductId = request.ProductId,
+                Amount = request.BulkAmount.Value,
+                BestBeforeDate = request.BulkBestBeforeDate,
+                PurchasedDate = purchasedDate,
+                StockId = Guid.NewGuid().ToString(),
+                Price = request.Price,
+                Open = false,
+                LocationId = locationId,
+                ShoppingLocationId = request.ShoppingLocationId,
+                Note = request.Note
+            };
+
+            entries.Add(entry);
+            _context.Stock.Add(entry);
+
+            var log = CreateStockLog(entry, "purchase", request.BulkAmount.Value);
+            _context.StockLog.Add(log);
+        }
+
+        await _context.SaveChangesAsync(cancellationToken);
+
+        // Return the created entries with full product info
+        var createdIds = entries.Select(e => e.Id).ToList();
+        var result = new List<StockEntryDto>();
+        foreach (var id in createdIds)
+        {
+            var dto = await GetByIdAsync(id, cancellationToken);
+            if (dto != null) result.Add(dto);
+        }
+
+        return result;
+    }
+
     public async Task<StockEntryDto?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
         var entry = await _context.Stock
