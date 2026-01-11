@@ -36,6 +36,8 @@ public class ProductDto
     public string? ProductGroupName { get; set; }
     public Guid? ShoppingLocationId { get; set; }
     public string? ShoppingLocationName { get; set; }
+    public Guid? ProductCommonNameId { get; set; }
+    public string? ProductCommonNameName { get; set; }
 
     // Stock summary
     /// <summary>

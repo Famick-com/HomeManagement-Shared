@@ -20,4 +20,5 @@ public class CreateProductRequest
     // Phase 2 properties
     public Guid? ProductGroupId { get; set; }
     public Guid? ShoppingLocationId { get; set; }
+    public Guid? ProductCommonNameId { get; set; }
 }

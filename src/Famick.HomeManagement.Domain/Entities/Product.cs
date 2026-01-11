@@ -24,6 +24,9 @@ public class Product : BaseTenantEntity
     public Guid? ProductGroupId { get; set; }
     public Guid? ShoppingLocationId { get; set; }
 
+    // Common name for recipe matching and generic searches
+    public Guid? ProductCommonNameId { get; set; }
+
     // Navigation properties
     public Location Location { get; set; } = null!;
     public QuantityUnit QuantityUnitPurchase { get; set; } = null!;
@@ -34,6 +37,7 @@ public class Product : BaseTenantEntity
     // Phase 2 navigation properties
     public ProductGroup? ProductGroup { get; set; }
     public ShoppingLocation? ShoppingLocation { get; set; }
+    public ProductCommonName? ProductCommonName { get; set; }
 
     // Nutrition data (optional, populated from external sources)
     public ProductNutrition? Nutrition { get; set; }

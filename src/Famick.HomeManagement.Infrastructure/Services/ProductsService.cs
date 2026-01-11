@@ -64,6 +64,7 @@ public class ProductsService : IProductsService
             .Include(p => p.QuantityUnitStock)
             .Include(p => p.ProductGroup)
             .Include(p => p.ShoppingLocation)
+            .Include(p => p.ProductCommonName)
             .Include(p => p.Barcodes)
             .Include(p => p.Images.OrderBy(i => i.SortOrder))
             .FirstOrDefaultAsync(p => p.Id == id, cancellationToken);
@@ -86,6 +87,7 @@ public class ProductsService : IProductsService
             .Include(p => p.QuantityUnitStock)
             .Include(p => p.ProductGroup)
             .Include(p => p.ShoppingLocation)
+            .Include(p => p.ProductCommonName)
             .Include(p => p.Barcodes)
             .Include(p => p.Images)
             .AsQueryable();
@@ -320,6 +322,8 @@ public class ProductsService : IProductsService
             .Include(pb => pb.Product)
                 .ThenInclude(p => p.ShoppingLocation)
             .Include(pb => pb.Product)
+                .ThenInclude(p => p.ProductCommonName)
+            .Include(pb => pb.Product)
                 .ThenInclude(p => p.Barcodes)
             .Include(pb => pb.Product)
                 .ThenInclude(p => p.Images)
@@ -539,6 +543,7 @@ public class ProductsService : IProductsService
             .Include(p => p.QuantityUnitStock)
             .Include(p => p.ProductGroup)
             .Include(p => p.ShoppingLocation)
+            .Include(p => p.ProductCommonName)
             .Include(p => p.Barcodes)
             .Where(p => lowStockProductIds.Contains(p.Id))
             .OrderBy(p => p.Name)
@@ -563,6 +568,7 @@ public class ProductsService : IProductsService
             .Include(p => p.QuantityUnitStock)
             .Include(p => p.ProductGroup)
             .Include(p => p.ShoppingLocation)
+            .Include(p => p.ProductCommonName)
             .Include(p => p.Barcodes)
             .Include(p => p.Images)
             .Where(p =>
