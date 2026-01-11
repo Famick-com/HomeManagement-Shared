@@ -23,7 +23,17 @@ namespace Famick.HomeManagement.Domain.Entities
         /// </summary>
         public string? Description { get; set; }
 
+        /// <summary>
+        /// The store this shopping list is associated with
+        /// </summary>
+        public Guid ShoppingLocationId { get; set; }
+
         // Navigation properties
+
+        /// <summary>
+        /// The store this shopping list is associated with
+        /// </summary>
+        public virtual ShoppingLocation? ShoppingLocation { get; set; }
         /// <summary>
         /// Items in this shopping list
         /// </summary>

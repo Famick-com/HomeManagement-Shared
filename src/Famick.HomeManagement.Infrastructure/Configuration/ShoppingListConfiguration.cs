@@ -32,6 +32,11 @@ namespace Famick.HomeManagement.Infrastructure.Configuration
                 .HasColumnName("description")
                 .HasColumnType("text");
 
+            builder.Property(sl => sl.ShoppingLocationId)
+                .HasColumnName("shopping_location_id")
+                .HasColumnType("uuid")
+                .IsRequired();
+
             builder.Property(sl => sl.CreatedAt)
                 .HasColumnName("created_at")
                 .HasColumnType("timestamp with time zone")
@@ -48,12 +53,21 @@ namespace Famick.HomeManagement.Infrastructure.Configuration
             builder.HasIndex(sl => sl.TenantId)
                 .HasDatabaseName("ix_shopping_lists_tenant_id");
 
-            // Unique constraint on (TenantId, Name) for multi-tenancy
-            builder.HasIndex(sl => new { sl.TenantId, sl.Name })
+            builder.HasIndex(sl => sl.ShoppingLocationId)
+                .HasDatabaseName("ix_shopping_lists_shopping_location_id");
+
+            // Unique constraint on (TenantId, ShoppingLocationId, Name) for multi-tenancy
+            builder.HasIndex(sl => new { sl.TenantId, sl.ShoppingLocationId, sl.Name })
                 .IsUnique()
-                .HasDatabaseName("ux_shopping_lists_tenant_name");
+                .HasDatabaseName("ux_shopping_lists_tenant_location_name");
 
             // Navigation properties
+            builder.HasOne(sl => sl.ShoppingLocation)
+                .WithMany()
+                .HasForeignKey(sl => sl.ShoppingLocationId)
+                .OnDelete(DeleteBehavior.Restrict)
+                .HasConstraintName("fk_shopping_lists_shopping_locations");
+
             builder.HasMany(sl => sl.Items)
                 .WithOne(sli => sli.ShoppingList)
                 .HasForeignKey(sli => sli.ShoppingListId)

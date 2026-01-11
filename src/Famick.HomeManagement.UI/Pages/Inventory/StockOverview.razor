@@ -3,6 +3,7 @@
 @using Famick.HomeManagement.Core.DTOs.Stock
 @using Famick.HomeManagement.UI.Services
 @using Famick.HomeManagement.UI.Components.Inventory
+@using Famick.HomeManagement.UI.Components.Shopping
 @inject IApiClient ApiClient
 @inject NavigationManager Navigation
 @inject IDialogService DialogService
@@ -85,7 +86,7 @@
     <MudDataGrid T="StockOverviewItemDto" Items="@_items" Dense="true" Hover="true"
                  SortMode="SortMode.Single" Filterable="false">
         <Columns>
-            <TemplateColumn T="StockOverviewItemDto" Title="" Sortable="false" CellStyle="width: 140px;">
+            <TemplateColumn T="StockOverviewItemDto" Title="" Sortable="false" CellStyle="width: 180px;">
                 <CellTemplate>
                     <MudStack Row="true" Spacing="1">
                         <MudTooltip Text="@(CanEdit ? L["stock.consumeOne"] : L["common.viewerNoPermission"])">
@@ -104,6 +105,12 @@
                             <MudIconButton Icon="@Icons.Material.Filled.AddCircle" Size="Size.Small"
                                            Color="Color.Success"
                                            OnClick="@(() => QuickAdd(context.Item))"
+                                           Disabled="@(!CanEdit)" />
+                        </MudTooltip>
+                        <MudTooltip Text="@(CanEdit ? L["stock.addToShoppingList"] : L["common.viewerNoPermission"])">
+                            <MudIconButton Icon="@Icons.Material.Filled.AddShoppingCart" Size="Size.Small"
+                                           Color="Color.Info"
+                                           OnClick="@(() => OpenAddToShoppingListDialog(context.Item))"
                                            Disabled="@(!CanEdit)" />
                         </MudTooltip>
                     </MudStack>
@@ -363,5 +370,17 @@ else if (!_isLoading)
         if (days < 30) return $"in {days} days";
         if (days < 365) return $"in {days / 30} month(s)";
         return $"in {days / 365} year(s)";
+    }
+
+    private async Task OpenAddToShoppingListDialog(StockOverviewItemDto item)
+    {
+        var parameters = new DialogParameters<AddToShoppingListDialog>
+        {
+            { x => x.ProductId, item.ProductId },
+            { x => x.ProductName, item.ProductName }
+        };
+
+        var options = new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true };
+        await DialogService.ShowAsync<AddToShoppingListDialog>(L["shopping.addToList"], parameters, options);
     }
 }
