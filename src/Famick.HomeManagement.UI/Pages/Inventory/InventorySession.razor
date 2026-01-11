@@ -203,9 +203,9 @@
                 <MudTooltip Text="@(CanEdit ? null : L["common.viewerNoPermission"])" Disabled="@CanEdit">
                     <MudButton Variant="Variant.Filled" Color="Color.Primary"
                                StartIcon="@Icons.Material.Filled.Add"
-                               OnClick="NavigateToCreateProduct" FullWidth="true"
+                               OnClick="OpenQuickCreateDialog" FullWidth="true"
                                Disabled="@(!CanEdit)">
-                        @L["inventory.createProduct"]
+                        @L["inventory.addProduct"]
                     </MudButton>
                 </MudTooltip>
             }
@@ -422,14 +422,38 @@
         }
     }
 
-    private void NavigateToCreateProduct()
+    private async Task OpenQuickCreateDialog()
     {
-        var url = $"/products/new";
-        if (IsBarcode(_searchQuery))
+        var barcode = IsBarcode(_searchQuery) ? _searchQuery.Trim() : null;
+
+        var parameters = new DialogParameters<QuickCreateProductDialog>
         {
-            url += $"?barcode={Uri.EscapeDataString(_searchQuery)}";
+            { x => x.Barcode, barcode },
+            { x => x.DefaultLocationId, _selectedLocationId }
+        };
+
+        var options = new DialogOptions
+        {
+            MaxWidth = MaxWidth.Small,
+            FullWidth = true,
+            CloseOnEscapeKey = true
+        };
+
+        var dialog = await DialogService.ShowAsync<QuickCreateProductDialog>(
+            L["inventory.quickCreate"], parameters, options);
+        var dialogResult = await dialog.Result;
+
+        if (dialogResult != null && !dialogResult.Canceled && dialogResult.Data is ProductDto newProduct)
+        {
+            // Product created successfully - now show add stock dialog
+            _foundProduct = newProduct;
+            _lookupResults.Clear();
+            _stockEntries.Clear();
+            StateHasChanged();
+
+            // Automatically open the add stock dialog
+            await ShowAddStockDialog();
         }
-        NavigationManager.NavigateTo(url);
     }
 
     private async Task ShowAddStockDialog()
