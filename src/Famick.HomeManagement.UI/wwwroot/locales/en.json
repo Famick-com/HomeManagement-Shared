@@ -436,6 +436,13 @@
     "confirmDeleteImage": "Are you sure you want to delete this image?",
     "invalidImageType": "Only image files (JPG, PNG, GIF, WebP) are allowed",
     "imageTooLarge": "Image file is too large (max 5MB)",
+    "commonName": "Common Name",
+    "commonNameHint": "Generic product name (e.g., 'Ground Cinnamon')",
+    "createCommonName": "Create",
+    "commonNameCreated": "Common name created",
+    "groupBy": "Group by",
+    "groupByNone": "None",
+    "ungrouped": "Ungrouped",
     "stores": {
       "title": "Store Prices",
       "add": "Add Store",

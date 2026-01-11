@@ -19,6 +19,8 @@ public class ProductMappingProfile : Profile
                 opt => opt.MapFrom(src => src.ProductGroup != null ? src.ProductGroup.Name : null))
             .ForMember(dest => dest.ShoppingLocationName,
                 opt => opt.MapFrom(src => src.ShoppingLocation != null ? src.ShoppingLocation.Name : null))
+            .ForMember(dest => dest.ProductCommonNameName,
+                opt => opt.MapFrom(src => src.ProductCommonName != null ? src.ProductCommonName.Name : null))
             .ForMember(dest => dest.Barcodes,
                 opt => opt.MapFrom(src => src.Barcodes))
             .ForMember(dest => dest.Images,
@@ -34,6 +36,7 @@ public class ProductMappingProfile : Profile
             .ForMember(dest => dest.QuantityUnitStock, opt => opt.Ignore())
             .ForMember(dest => dest.ProductGroup, opt => opt.Ignore())
             .ForMember(dest => dest.ShoppingLocation, opt => opt.Ignore())
+            .ForMember(dest => dest.ProductCommonName, opt => opt.Ignore())
             .ForMember(dest => dest.Barcodes, opt => opt.Ignore())
             .ForMember(dest => dest.Images, opt => opt.Ignore());
 
@@ -47,6 +50,7 @@ public class ProductMappingProfile : Profile
             .ForMember(dest => dest.QuantityUnitStock, opt => opt.Ignore())
             .ForMember(dest => dest.ProductGroup, opt => opt.Ignore())
             .ForMember(dest => dest.ShoppingLocation, opt => opt.Ignore())
+            .ForMember(dest => dest.ProductCommonName, opt => opt.Ignore())
             .ForMember(dest => dest.Barcodes, opt => opt.Ignore())
             .ForMember(dest => dest.Images, opt => opt.Ignore());
 

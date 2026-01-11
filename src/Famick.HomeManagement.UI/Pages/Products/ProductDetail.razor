@@ -8,6 +8,7 @@
 @inject ILocalizer L
 @using Famick.HomeManagement.UI.Components.Products
 @using Famick.HomeManagement.Core.DTOs.Products
+@using Famick.HomeManagement.Core.DTOs.ProductCommonNames
 @using Famick.HomeManagement.Core.DTOs.Locations
 @using Famick.HomeManagement.Core.DTOs.QuantityUnits
 @using Famick.HomeManagement.Core.DTOs.ProductLookup
@@ -61,6 +62,9 @@ else
                                       Variant="Variant.Outlined"
                                       ReadOnly="@(!CanEdit)"
                                       Lines="3" />
+
+                        <ProductCommonNameAutocomplete @bind-SelectedCommonName="_selectedCommonName"
+                                                       CanEdit="@CanEdit" />
 
                         <MudSelect T="Guid" @bind-Value="_locationId"
                                    Label="@L["products.location"]"
@@ -385,6 +389,7 @@ else
     // Form fields
     private string _name = string.Empty;
     private string? _description;
+    private ProductCommonNameDto? _selectedCommonName;
     private Guid _locationId;
     private Guid _purchaseUnitId;
     private Guid _stockUnitId;
@@ -480,6 +485,17 @@ else
                 _images = product.Images ?? new();
                 _stockUnitName = product.QuantityUnitStockName;
 
+                // Load common name if present
+                if (product.ProductCommonNameId.HasValue)
+                {
+                    var commonNameResult = await ApiClient.GetAsync<ProductCommonNameDto>(
+                        $"api/v1/productcommonnames/{product.ProductCommonNameId}");
+                    if (commonNameResult.IsSuccess && commonNameResult.Data != null)
+                    {
+                        _selectedCommonName = commonNameResult.Data;
+                    }
+                }
+
                 // Load additional data
                 await Task.WhenAll(LoadNutritionAsync(), LoadStockAsync());
             }
@@ -527,7 +543,8 @@ else
                     IsActive = _isActive,
                     ServingSize = _servingSize,
                     ServingUnit = _servingUnit,
-                    ServingsPerContainer = _servingsPerContainer
+                    ServingsPerContainer = _servingsPerContainer,
+                    ProductCommonNameId = _selectedCommonName?.Id
                 };
 
                 var result = await ApiClient.PostAsync<CreateProductRequest, ProductDto>("api/v1/products", request);
@@ -557,7 +574,8 @@ else
                     IsActive = _isActive,
                     ServingSize = _servingSize,
                     ServingUnit = _servingUnit,
-                    ServingsPerContainer = _servingsPerContainer
+                    ServingsPerContainer = _servingsPerContainer,
+                    ProductCommonNameId = _selectedCommonName?.Id
                 };
 
                 var result = await ApiClient.PutAsync<UpdateProductRequest, ProductDto>($"api/v1/products/{Id}", request);
@@ -1113,7 +1131,8 @@ else
                     IsActive = _isActive,
                     ServingSize = _servingSize,
                     ServingUnit = _servingUnit,
-                    ServingsPerContainer = _servingsPerContainer
+                    ServingsPerContainer = _servingsPerContainer,
+                    ProductCommonNameId = _selectedCommonName?.Id
                 };
 
                 var result = await ApiClient.PostAsync<CreateProductRequest, ProductDto>("api/v1/products", request);
@@ -1145,7 +1164,8 @@ else
                     IsActive = _isActive,
                     ServingSize = _servingSize,
                     ServingUnit = _servingUnit,
-                    ServingsPerContainer = _servingsPerContainer
+                    ServingsPerContainer = _servingsPerContainer,
+                    ProductCommonNameId = _selectedCommonName?.Id
                 };
 
                 var result = await ApiClient.PutAsync<UpdateProductRequest, ProductDto>($"api/v1/products/{Id}", request);

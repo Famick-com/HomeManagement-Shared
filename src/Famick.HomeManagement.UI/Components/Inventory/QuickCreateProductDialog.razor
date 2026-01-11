@@ -1,6 +1,8 @@
 @using Famick.HomeManagement.Core.DTOs.Products
+@using Famick.HomeManagement.Core.DTOs.ProductCommonNames
 @using Famick.HomeManagement.Core.DTOs.Locations
 @using Famick.HomeManagement.Core.DTOs.QuantityUnits
+@using Famick.HomeManagement.UI.Components.Products
 @using Microsoft.AspNetCore.Components.Forms
 @inject IApiClient ApiClient
 @inject ISnackbar Snackbar
@@ -26,6 +28,9 @@
                                   Required="true"
                                   RequiredError="@L["products.nameRequired"]"
                                   Immediate="true" />
+
+                    @* Common Name (optional) *@
+                    <ProductCommonNameAutocomplete @bind-SelectedCommonName="_selectedCommonName" />
 
                     @* Barcode (read-only if provided) *@
                     @if (!string.IsNullOrEmpty(Barcode))
@@ -135,6 +140,7 @@
     private bool _isSaving;
 
     private string _name = string.Empty;
+    private ProductCommonNameDto? _selectedCommonName;
     private Guid? _locationId;
     private Guid? _quantityUnitId;
 
@@ -241,7 +247,8 @@
                 QuantityUnitFactorPurchaseToStock = 1.0m,
                 MinStockAmount = 0,
                 DefaultBestBeforeDays = 0,
-                IsActive = true
+                IsActive = true,
+                ProductCommonNameId = _selectedCommonName?.Id
             };
 
             var result = await ApiClient.PostAsync<CreateProductRequest, ProductDto>("api/v1/products", request);

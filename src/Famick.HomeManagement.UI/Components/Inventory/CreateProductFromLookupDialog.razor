@@ -1,8 +1,10 @@
 @using Famick.HomeManagement.Core.DTOs.Products
+@using Famick.HomeManagement.Core.DTOs.ProductCommonNames
 @using Famick.HomeManagement.Core.DTOs.ProductLookup
 @using Famick.HomeManagement.Core.DTOs.Locations
 @using Famick.HomeManagement.Core.DTOs.QuantityUnits
 @using Famick.HomeManagement.Core.Interfaces.Plugins
+@using Famick.HomeManagement.UI.Components.Products
 @inject IApiClient ApiClient
 @inject ISnackbar Snackbar
 @inject ILocalizer L
@@ -90,6 +92,9 @@
                                   Label="@L["common.description"]"
                                   Variant="Variant.Outlined"
                                   Lines="2" />
+
+                    @* Common Name (optional) *@
+                    <ProductCommonNameAutocomplete @bind-SelectedCommonName="_selectedCommonName" />
 
                     @* Barcode (read-only if from lookup) *@
                     @if (!string.IsNullOrEmpty(_barcode))
@@ -186,6 +191,7 @@
 
     private string _name = string.Empty;
     private string? _description;
+    private ProductCommonNameDto? _selectedCommonName;
     private string? _barcode;
     private Guid? _locationId;
     private Guid? _quantityUnitIdStock;
@@ -276,7 +282,8 @@
                 IsActive = true,
                 ServingSize = LookupResult.Nutrition?.ServingSize,
                 ServingUnit = LookupResult.Nutrition?.ServingUnit,
-                ServingsPerContainer = LookupResult.Nutrition?.ServingsPerContainer
+                ServingsPerContainer = LookupResult.Nutrition?.ServingsPerContainer,
+                ProductCommonNameId = _selectedCommonName?.Id
             };
 
             var result = await ApiClient.PostAsync<CreateProductRequest, ProductDto>("api/v1/products", request);
