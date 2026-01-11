@@ -742,7 +742,10 @@ public class KrogerStorePlugin : IStoreIntegrationPlugin, IProductLookupPlugin
 
         foreach(var product in products)
         {
-            var resultItem = context.Results.FirstOrDefault(r => r.Barcode == product.Barcode);
+            // Use normalized barcode matching to handle different formats (UPC-A, EAN-13, Kroger internal)
+            var resultItem = !string.IsNullOrEmpty(product.Barcode)
+                ? context.FindMatchingResult(barcode: product.Barcode)
+                : null;
             var isNewResult = resultItem == null;
 
             if (isNewResult)
