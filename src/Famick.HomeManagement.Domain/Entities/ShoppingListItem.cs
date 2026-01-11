@@ -34,6 +34,36 @@ namespace Famick.HomeManagement.Domain.Entities
         /// </summary>
         public string? Note { get; set; }
 
+        /// <summary>
+        /// Whether this item has been purchased (future feature)
+        /// </summary>
+        public bool IsPurchased { get; set; } = false;
+
+        /// <summary>
+        /// When the item was marked as purchased
+        /// </summary>
+        public DateTime? PurchasedAt { get; set; }
+
+        /// <summary>
+        /// Aisle location from store integration (number only if contains "aisle")
+        /// </summary>
+        public string? Aisle { get; set; }
+
+        /// <summary>
+        /// Shelf location from store integration
+        /// </summary>
+        public string? Shelf { get; set; }
+
+        /// <summary>
+        /// Department from store integration
+        /// </summary>
+        public string? Department { get; set; }
+
+        /// <summary>
+        /// External product ID from store integration (for cart push)
+        /// </summary>
+        public string? ExternalProductId { get; set; }
+
         // Navigation properties
         /// <summary>
         /// The shopping list this item belongs to

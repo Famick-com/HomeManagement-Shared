@@ -41,6 +41,36 @@ namespace Famick.HomeManagement.Infrastructure.Configuration
                 .HasColumnName("note")
                 .HasColumnType("text");
 
+            builder.Property(sli => sli.IsPurchased)
+                .HasColumnName("is_purchased")
+                .HasColumnType("boolean")
+                .IsRequired()
+                .HasDefaultValue(false);
+
+            builder.Property(sli => sli.PurchasedAt)
+                .HasColumnName("purchased_at")
+                .HasColumnType("timestamp with time zone");
+
+            builder.Property(sli => sli.Aisle)
+                .HasColumnName("aisle")
+                .HasColumnType("character varying(50)")
+                .HasMaxLength(50);
+
+            builder.Property(sli => sli.Shelf)
+                .HasColumnName("shelf")
+                .HasColumnType("character varying(50)")
+                .HasMaxLength(50);
+
+            builder.Property(sli => sli.Department)
+                .HasColumnName("department")
+                .HasColumnType("character varying(100)")
+                .HasMaxLength(100);
+
+            builder.Property(sli => sli.ExternalProductId)
+                .HasColumnName("external_product_id")
+                .HasColumnType("character varying(100)")
+                .HasMaxLength(100);
+
             builder.Property(sli => sli.CreatedAt)
                 .HasColumnName("created_at")
                 .HasColumnType("timestamp with time zone")
@@ -62,6 +92,10 @@ namespace Famick.HomeManagement.Infrastructure.Configuration
 
             builder.HasIndex(sli => sli.ProductId)
                 .HasDatabaseName("ix_shopping_list_product_id");
+
+            // Index for purchased filter
+            builder.HasIndex(sli => new { sli.ShoppingListId, sli.IsPurchased })
+                .HasDatabaseName("ix_shopping_list_purchased");
 
             // Foreign keys
             builder.HasOne(sli => sli.ShoppingList)

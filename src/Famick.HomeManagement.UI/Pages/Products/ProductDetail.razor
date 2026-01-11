@@ -858,15 +858,15 @@ else
 
         var result = await dialog.Result;
 
-        if (result != null && !result.Canceled && result.Data is ProductLookupResult lookupResult)
+        if (result != null && !result.Canceled && result.Data is ProductLookupResultDto lookupResult)
         {
             // Apply the selected result to the form
             _name = lookupResult.Name;
 
             // If brand info is available, set as description
-            if (!string.IsNullOrEmpty(lookupResult.BrandName) || !string.IsNullOrEmpty(lookupResult.BrandOwner))
+            if (!string.IsNullOrEmpty(lookupResult.Brand) || !string.IsNullOrEmpty(lookupResult.BrandOwner))
             {
-                var brand = lookupResult.BrandName ?? lookupResult.BrandOwner;
+                var brand = lookupResult.Brand ?? lookupResult.BrandOwner;
                 if (string.IsNullOrEmpty(_description))
                 {
                     _description = brand;
@@ -881,7 +881,7 @@ else
             if (savedProductId.HasValue)
             {
                 // Apply lookup result (saves nutrition data and adds barcode)
-                await ApplyLookupResultAsync(savedProductId.Value, lookupResult);
+                await ApplyLookupResultDtoAsync(savedProductId.Value, lookupResult);
 
                 // Update serving state variables from lookup result
                 if (lookupResult.Nutrition != null)
@@ -965,6 +965,83 @@ else
                     DataSource = dataSource,
                     ExternalId = externalId,
                     BrandName = lookupResult.BrandName,
+                    BrandOwner = lookupResult.BrandOwner,
+                    Ingredients = lookupResult.Ingredients,
+                    ServingSizeDescription = lookupResult.ServingSizeDescription
+                } : null
+            };
+
+            await ApiClient.PostAsync<ApplyLookupResultRequest, ProductNutritionDto>(
+                $"api/v1/products/{productId}/apply-lookup",
+                request);
+        }
+        catch (Exception ex)
+        {
+            // Log but don't fail - nutrition is optional
+            Console.WriteLine($"Failed to apply lookup result: {ex.Message}");
+        }
+    }
+
+    private async Task ApplyLookupResultDtoAsync(Guid productId, ProductLookupResultDto lookupResult)
+    {
+        try
+        {
+            // Build DataSources dictionary from the DTO
+            var dataSources = new Dictionary<string, string>();
+            if (!string.IsNullOrEmpty(lookupResult.PluginDisplayName) && !string.IsNullOrEmpty(lookupResult.ExternalId))
+            {
+                dataSources[lookupResult.PluginDisplayName] = lookupResult.ExternalId;
+            }
+
+            // Create the request with nutrition data and images
+            var request = new ApplyLookupResultRequest
+            {
+                DataSources = dataSources,
+                Name = lookupResult.Name,
+                BrandName = lookupResult.Brand,
+                BrandOwner = lookupResult.BrandOwner,
+                Barcode = lookupResult.Barcode,
+                ServingSizeDescription = lookupResult.ServingSizeDescription,
+                Ingredients = lookupResult.Ingredients,
+                ImageUrl = lookupResult.ImageUrl,
+                ThumbnailUrl = lookupResult.ThumbnailUrl,
+                UpdateName = false, // Already updated
+                AddBarcode = true,  // Let backend handle barcode
+                Nutrition = lookupResult.Nutrition != null ? new ProductNutritionDto
+                {
+                    ServingSize = lookupResult.Nutrition.ServingSize,
+                    ServingUnit = lookupResult.Nutrition.ServingUnit,
+                    Calories = lookupResult.Nutrition.Calories,
+                    TotalFat = lookupResult.Nutrition.TotalFat,
+                    SaturatedFat = lookupResult.Nutrition.SaturatedFat,
+                    TransFat = lookupResult.Nutrition.TransFat,
+                    Cholesterol = lookupResult.Nutrition.Cholesterol,
+                    Sodium = lookupResult.Nutrition.Sodium,
+                    TotalCarbohydrates = lookupResult.Nutrition.TotalCarbohydrates,
+                    DietaryFiber = lookupResult.Nutrition.DietaryFiber,
+                    TotalSugars = lookupResult.Nutrition.TotalSugars,
+                    AddedSugars = lookupResult.Nutrition.AddedSugars,
+                    Protein = lookupResult.Nutrition.Protein,
+                    VitaminA = lookupResult.Nutrition.VitaminA,
+                    VitaminC = lookupResult.Nutrition.VitaminC,
+                    VitaminD = lookupResult.Nutrition.VitaminD,
+                    VitaminE = lookupResult.Nutrition.VitaminE,
+                    VitaminK = lookupResult.Nutrition.VitaminK,
+                    Thiamin = lookupResult.Nutrition.Thiamin,
+                    Riboflavin = lookupResult.Nutrition.Riboflavin,
+                    Niacin = lookupResult.Nutrition.Niacin,
+                    VitaminB6 = lookupResult.Nutrition.VitaminB6,
+                    Folate = lookupResult.Nutrition.Folate,
+                    VitaminB12 = lookupResult.Nutrition.VitaminB12,
+                    Calcium = lookupResult.Nutrition.Calcium,
+                    Iron = lookupResult.Nutrition.Iron,
+                    Magnesium = lookupResult.Nutrition.Magnesium,
+                    Phosphorus = lookupResult.Nutrition.Phosphorus,
+                    Potassium = lookupResult.Nutrition.Potassium,
+                    Zinc = lookupResult.Nutrition.Zinc,
+                    DataSource = lookupResult.PluginDisplayName,
+                    ExternalId = lookupResult.ExternalId,
+                    BrandName = lookupResult.Brand,
                     BrandOwner = lookupResult.BrandOwner,
                     Ingredients = lookupResult.Ingredients,
                     ServingSizeDescription = lookupResult.ServingSizeDescription

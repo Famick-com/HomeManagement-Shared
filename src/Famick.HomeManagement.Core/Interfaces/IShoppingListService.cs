@@ -20,6 +20,13 @@ public interface IShoppingListService
     Task<List<ShoppingListSummaryDto>> ListAllAsync(
         CancellationToken cancellationToken = default);
 
+    Task<List<ShoppingListSummaryDto>> ListByStoreAsync(
+        Guid shoppingLocationId,
+        CancellationToken cancellationToken = default);
+
+    Task<ShoppingListDashboardDto> GetDashboardSummaryAsync(
+        CancellationToken cancellationToken = default);
+
     Task<ShoppingListDto> UpdateListAsync(
         Guid id,
         UpdateShoppingListRequest request,
@@ -51,6 +58,26 @@ public interface IShoppingListService
 
     Task ClearPurchasedItemsAsync(
         Guid listId,
+        CancellationToken cancellationToken = default);
+
+    // Quick add from Stock Overview or barcode scan
+    Task<ShoppingListItemDto> QuickAddItemAsync(
+        AddToShoppingListRequest request,
+        CancellationToken cancellationToken = default);
+
+    // Store integration
+    Task<ShoppingListItemDto> LookupItemInStoreAsync(
+        Guid itemId,
+        CancellationToken cancellationToken = default);
+
+    Task<SendToCartResult> SendToCartAsync(
+        Guid listId,
+        SendToCartRequest request,
+        CancellationToken cancellationToken = default);
+
+    // Toggle purchased status
+    Task<ShoppingListItemDto> TogglePurchasedAsync(
+        Guid itemId,
         CancellationToken cancellationToken = default);
 
     // Smart features

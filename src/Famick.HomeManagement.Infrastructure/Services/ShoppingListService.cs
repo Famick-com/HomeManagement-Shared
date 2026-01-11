@@ -1,29 +1,42 @@
+using System.Text.RegularExpressions;
 using AutoMapper;
 using Famick.HomeManagement.Core.DTOs.ShoppingLists;
+using Famick.HomeManagement.Core.DTOs.StoreIntegrations;
 using Famick.HomeManagement.Core.Exceptions;
 using Famick.HomeManagement.Core.Interfaces;
+using Famick.HomeManagement.Core.Interfaces.Plugins;
 using Famick.HomeManagement.Domain.Entities;
 using Famick.HomeManagement.Infrastructure.Data;
+using Famick.HomeManagement.Infrastructure.Plugins;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
 namespace Famick.HomeManagement.Infrastructure.Services;
 
-public class ShoppingListService : IShoppingListService
+public partial class ShoppingListService : IShoppingListService
 {
     private readonly HomeManagementDbContext _context;
     private readonly IMapper _mapper;
     private readonly ILogger<ShoppingListService> _logger;
+    private readonly IStoreIntegrationService _storeIntegrationService;
+    private readonly IPluginLoader _pluginLoader;
 
     public ShoppingListService(
         HomeManagementDbContext context,
         IMapper mapper,
-        ILogger<ShoppingListService> logger)
+        ILogger<ShoppingListService> logger,
+        IStoreIntegrationService storeIntegrationService,
+        IPluginLoader pluginLoader)
     {
         _context = context;
         _mapper = mapper;
         _logger = logger;
+        _storeIntegrationService = storeIntegrationService;
+        _pluginLoader = pluginLoader;
     }
+
+    [GeneratedRegex(@"aisle\s*[-:]?\s*(\w+)", RegexOptions.IgnoreCase)]
+    private static partial Regex AisleRegex();
 
     // List management
     public async Task<ShoppingListDto> CreateListAsync(
@@ -48,14 +61,16 @@ public class ShoppingListService : IShoppingListService
         bool includeItems = true,
         CancellationToken cancellationToken = default)
     {
-        var query = _context.ShoppingLists.AsQueryable();
+        var query = _context.ShoppingLists
+            .Include(sl => sl.ShoppingLocation)
+            .AsQueryable();
 
         if (includeItems)
         {
             query = query
                 .Include(sl => sl.Items!)
                     .ThenInclude(i => i.Product)
-                        .ThenInclude(p => p!.ShoppingLocation);
+                        .ThenInclude(p => p!.QuantityUnitPurchase);
         }
 
         var shoppingList = await query.FirstOrDefaultAsync(sl => sl.Id == id, cancellationToken);
@@ -67,11 +82,61 @@ public class ShoppingListService : IShoppingListService
         CancellationToken cancellationToken = default)
     {
         var shoppingLists = await _context.ShoppingLists
+            .Include(sl => sl.ShoppingLocation)
             .Include(sl => sl.Items)
             .OrderByDescending(sl => sl.UpdatedAt)
             .ToListAsync(cancellationToken);
 
         return _mapper.Map<List<ShoppingListSummaryDto>>(shoppingLists);
+    }
+
+    public async Task<List<ShoppingListSummaryDto>> ListByStoreAsync(
+        Guid shoppingLocationId,
+        CancellationToken cancellationToken = default)
+    {
+        var shoppingLists = await _context.ShoppingLists
+            .Include(sl => sl.ShoppingLocation)
+            .Include(sl => sl.Items)
+            .Where(sl => sl.ShoppingLocationId == shoppingLocationId)
+            .OrderByDescending(sl => sl.UpdatedAt)
+            .ToListAsync(cancellationToken);
+
+        return _mapper.Map<List<ShoppingListSummaryDto>>(shoppingLists);
+    }
+
+    public async Task<ShoppingListDashboardDto> GetDashboardSummaryAsync(
+        CancellationToken cancellationToken = default)
+    {
+        var shoppingLists = await _context.ShoppingLists
+            .Include(sl => sl.ShoppingLocation)
+            .Include(sl => sl.Items)
+            .OrderBy(sl => sl.ShoppingLocation!.Name)
+            .ThenByDescending(sl => sl.UpdatedAt)
+            .ToListAsync(cancellationToken);
+
+        var grouped = shoppingLists
+            .GroupBy(sl => new
+            {
+                sl.ShoppingLocationId,
+                LocationName = sl.ShoppingLocation?.Name ?? "Unknown",
+                HasIntegration = sl.ShoppingLocation != null && !string.IsNullOrEmpty(sl.ShoppingLocation.IntegrationType)
+            })
+            .Select(g => new StoreShoppingListSummary
+            {
+                ShoppingLocationId = g.Key.ShoppingLocationId,
+                ShoppingLocationName = g.Key.LocationName,
+                HasIntegration = g.Key.HasIntegration,
+                Lists = _mapper.Map<List<ShoppingListSummaryDto>>(g.ToList()),
+                TotalItems = g.Sum(sl => sl.Items?.Count ?? 0)
+            })
+            .ToList();
+
+        return new ShoppingListDashboardDto
+        {
+            StoresSummary = grouped,
+            TotalItems = grouped.Sum(g => g.TotalItems),
+            TotalLists = shoppingLists.Count
+        };
     }
 
     public async Task<ShoppingListDto> UpdateListAsync(
@@ -357,5 +422,346 @@ public class ShoppingListService : IShoppingListService
             items.Count, grouped.Count);
 
         return result;
+    }
+
+    // Quick add from Stock Overview or barcode scan
+    public async Task<ShoppingListItemDto> QuickAddItemAsync(
+        AddToShoppingListRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        _logger.LogInformation("Quick adding item to shopping list: {ListId}", request.ShoppingListId);
+
+        // Verify list exists and get its ShoppingLocation
+        var list = await _context.ShoppingLists
+            .Include(sl => sl.ShoppingLocation)
+            .FirstOrDefaultAsync(sl => sl.Id == request.ShoppingListId, cancellationToken);
+
+        if (list == null)
+        {
+            throw new EntityNotFoundException(nameof(ShoppingList), request.ShoppingListId);
+        }
+
+        Guid? productId = request.ProductId;
+
+        // If barcode provided, look up product
+        if (!productId.HasValue && !string.IsNullOrWhiteSpace(request.Barcode))
+        {
+            var productByBarcode = await _context.ProductBarcodes
+                .Include(pb => pb.Product)
+                .FirstOrDefaultAsync(pb => pb.Barcode == request.Barcode, cancellationToken);
+
+            if (productByBarcode != null)
+            {
+                productId = productByBarcode.ProductId;
+            }
+            else
+            {
+                _logger.LogWarning("Product not found for barcode: {Barcode}", request.Barcode);
+                throw new DomainException($"No product found with barcode: {request.Barcode}");
+            }
+        }
+
+        if (!productId.HasValue)
+        {
+            throw new DomainException("Either ProductId or valid Barcode must be provided");
+        }
+
+        // Create the item
+        var item = new ShoppingListItem
+        {
+            Id = Guid.NewGuid(),
+            ShoppingListId = request.ShoppingListId,
+            ProductId = productId,
+            Amount = request.Amount,
+            Note = request.Note,
+            IsPurchased = false
+        };
+
+        // If store has integration and lookup is requested, look up product in store
+        if (request.LookupInStore && list.ShoppingLocation?.IntegrationType != null)
+        {
+            await TryPopulateStoreInfoAsync(item, list.ShoppingLocation, cancellationToken);
+        }
+
+        _context.ShoppingListItems.Add(item);
+        await _context.SaveChangesAsync(cancellationToken);
+
+        _logger.LogInformation("Quick added item: {Id} to shopping list: {ListId}", item.Id, request.ShoppingListId);
+
+        // Reload with navigation properties
+        item = await _context.ShoppingListItems
+            .Include(i => i.Product)
+                .ThenInclude(p => p!.QuantityUnitPurchase)
+            .FirstAsync(i => i.Id == item.Id, cancellationToken);
+
+        return _mapper.Map<ShoppingListItemDto>(item);
+    }
+
+    public async Task<ShoppingListItemDto> LookupItemInStoreAsync(
+        Guid itemId,
+        CancellationToken cancellationToken = default)
+    {
+        _logger.LogInformation("Looking up item in store: {ItemId}", itemId);
+
+        var item = await _context.ShoppingListItems
+            .Include(i => i.ShoppingList)
+                .ThenInclude(sl => sl!.ShoppingLocation)
+            .Include(i => i.Product)
+                .ThenInclude(p => p!.QuantityUnitPurchase)
+            .FirstOrDefaultAsync(i => i.Id == itemId, cancellationToken);
+
+        if (item == null)
+        {
+            throw new EntityNotFoundException(nameof(ShoppingListItem), itemId);
+        }
+
+        var shoppingLocation = item.ShoppingList?.ShoppingLocation;
+        if (shoppingLocation?.IntegrationType == null)
+        {
+            throw new DomainException("Shopping list is not associated with a store integration");
+        }
+
+        await TryPopulateStoreInfoAsync(item, shoppingLocation, cancellationToken);
+        await _context.SaveChangesAsync(cancellationToken);
+
+        return _mapper.Map<ShoppingListItemDto>(item);
+    }
+
+    public async Task<SendToCartResult> SendToCartAsync(
+        Guid listId,
+        SendToCartRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        _logger.LogInformation("Sending items to cart for list: {ListId}", listId);
+
+        var list = await _context.ShoppingLists
+            .Include(sl => sl.ShoppingLocation)
+            .Include(sl => sl.Items!)
+                .ThenInclude(i => i.Product)
+            .FirstOrDefaultAsync(sl => sl.Id == listId, cancellationToken);
+
+        if (list == null)
+        {
+            throw new EntityNotFoundException(nameof(ShoppingList), listId);
+        }
+
+        var shoppingLocation = list.ShoppingLocation;
+        if (shoppingLocation?.IntegrationType == null)
+        {
+            throw new DomainException("Shopping list is not associated with a store integration");
+        }
+
+        // Get the plugin
+        var plugin = _pluginLoader.GetPlugin<IStoreIntegrationPlugin>(shoppingLocation.IntegrationType);
+        if (plugin == null || !plugin.Capabilities.HasShoppingCart)
+        {
+            throw new DomainException("Store integration does not support shopping cart");
+        }
+
+        // Determine which items to send
+        var itemsToSend = list.Items?
+            .Where(i => !i.IsPurchased && !string.IsNullOrEmpty(i.ExternalProductId))
+            .ToList() ?? new List<ShoppingListItem>();
+
+        if (request.ItemIds.Count > 0)
+        {
+            itemsToSend = itemsToSend.Where(i => request.ItemIds.Contains(i.Id)).ToList();
+        }
+
+        var result = new SendToCartResult
+        {
+            Success = true,
+            Details = new List<SendToCartItemResult>()
+        };
+
+        // Get access token
+        var accessToken = await _storeIntegrationService.GetAccessTokenAsync(
+            shoppingLocation.IntegrationType, cancellationToken);
+
+        if (string.IsNullOrEmpty(accessToken))
+        {
+            return new SendToCartResult
+            {
+                Success = false,
+                ItemsFailed = itemsToSend.Count,
+                Details = itemsToSend.Select(i => new SendToCartItemResult
+                {
+                    ItemId = i.Id,
+                    ProductName = i.Product?.Name ?? "Unknown",
+                    Success = false,
+                    ErrorMessage = "Failed to get access token for store integration"
+                }).ToList()
+            };
+        }
+
+        // Build the cart items list
+        var cartItems = itemsToSend.Select(i => new CartItemRequest
+        {
+            ExternalProductId = i.ExternalProductId!,
+            Quantity = (int)Math.Ceiling(i.Amount)
+        }).ToList();
+
+        try
+        {
+            var cartResult = await plugin.AddToCartAsync(
+                accessToken,
+                shoppingLocation.ExternalLocationId!,
+                cartItems,
+                cancellationToken);
+
+            if (cartResult != null)
+            {
+                // All items were sent successfully
+                foreach (var item in itemsToSend)
+                {
+                    result.ItemsSent++;
+                    result.Details.Add(new SendToCartItemResult
+                    {
+                        ItemId = item.Id,
+                        ProductName = item.Product?.Name ?? "Unknown",
+                        Success = true
+                    });
+                }
+            }
+            else
+            {
+                // Failed to add to cart
+                foreach (var item in itemsToSend)
+                {
+                    result.ItemsFailed++;
+                    result.Details.Add(new SendToCartItemResult
+                    {
+                        ItemId = item.Id,
+                        ProductName = item.Product?.Name ?? "Unknown",
+                        Success = false,
+                        ErrorMessage = "Failed to add to cart"
+                    });
+                }
+                result.Success = false;
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error adding items to cart");
+            foreach (var item in itemsToSend)
+            {
+                result.ItemsFailed++;
+                result.Details.Add(new SendToCartItemResult
+                {
+                    ItemId = item.Id,
+                    ProductName = item.Product?.Name ?? "Unknown",
+                    Success = false,
+                    ErrorMessage = ex.Message
+                });
+            }
+            result.Success = false;
+        }
+
+        _logger.LogInformation("Sent {Sent} items to cart, {Failed} failed", result.ItemsSent, result.ItemsFailed);
+
+        return result;
+    }
+
+    public async Task<ShoppingListItemDto> TogglePurchasedAsync(
+        Guid itemId,
+        CancellationToken cancellationToken = default)
+    {
+        _logger.LogInformation("Toggling purchased status for item: {ItemId}", itemId);
+
+        var item = await _context.ShoppingListItems
+            .Include(i => i.Product)
+                .ThenInclude(p => p!.QuantityUnitPurchase)
+            .FirstOrDefaultAsync(i => i.Id == itemId, cancellationToken);
+
+        if (item == null)
+        {
+            throw new EntityNotFoundException(nameof(ShoppingListItem), itemId);
+        }
+
+        item.IsPurchased = !item.IsPurchased;
+        item.PurchasedAt = item.IsPurchased ? DateTime.UtcNow : null;
+
+        await _context.SaveChangesAsync(cancellationToken);
+
+        _logger.LogInformation("Toggled purchased status for item: {ItemId} to {IsPurchased}",
+            itemId, item.IsPurchased);
+
+        return _mapper.Map<ShoppingListItemDto>(item);
+    }
+
+    private async Task TryPopulateStoreInfoAsync(
+        ShoppingListItem item,
+        ShoppingLocation shoppingLocation,
+        CancellationToken cancellationToken)
+    {
+        if (item.Product == null || shoppingLocation.IntegrationType == null)
+        {
+            return;
+        }
+
+        try
+        {
+            // First check if we already have metadata for this product/store combo
+            var existingMetadata = await _context.Set<ProductStoreMetadata>()
+                .FirstOrDefaultAsync(m =>
+                    m.ProductId == item.ProductId &&
+                    m.ShoppingLocationId == shoppingLocation.Id,
+                    cancellationToken);
+
+            if (existingMetadata != null)
+            {
+                item.Aisle = NormalizeAisle(existingMetadata.Aisle);
+                item.Shelf = existingMetadata.Shelf;
+                item.Department = existingMetadata.Department;
+                item.ExternalProductId = existingMetadata.ExternalProductId;
+                return;
+            }
+
+            // Try to look up in store integration
+            var product = await _context.Products
+                .Include(p => p.Barcodes)
+                .FirstOrDefaultAsync(p => p.Id == item.ProductId, cancellationToken);
+
+            if (product == null) return;
+
+            var searchQuery = product.Barcodes?.FirstOrDefault()?.Barcode ?? product.Name;
+
+            var searchRequest = new StoreProductSearchRequest
+            {
+                Query = searchQuery,
+                MaxResults = 5
+            };
+
+            var searchResults = await _storeIntegrationService.SearchProductsAtStoreAsync(
+                shoppingLocation.Id,
+                searchRequest,
+                cancellationToken);
+
+            if (searchResults.Count > 0)
+            {
+                var bestMatch = searchResults.First();
+                item.Aisle = NormalizeAisle(bestMatch.Aisle);
+                item.Shelf = bestMatch.Shelf;
+                item.Department = bestMatch.Department;
+                item.ExternalProductId = bestMatch.ExternalProductId;
+
+                _logger.LogInformation(
+                    "Found store info for product {ProductId}: Aisle={Aisle}, Dept={Department}",
+                    item.ProductId, item.Aisle, item.Department);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to look up store info for product: {ProductId}", item.ProductId);
+        }
+    }
+
+    private static string? NormalizeAisle(string? rawAisle)
+    {
+        if (string.IsNullOrWhiteSpace(rawAisle)) return null;
+
+        // If aisle contains "aisle", extract just the number/identifier
+        var match = AisleRegex().Match(rawAisle);
+        return match.Success ? match.Groups[1].Value : rawAisle;
     }
 }
