@@ -91,7 +91,10 @@ public class UsdaFoodDataPlugin : IProductLookupPlugin
 
             foreach(var result in results)
             {
-                var existingResult = context.Results.FirstOrDefault(r => r.Barcode == result.Barcode);
+                // Use normalized barcode matching to handle different formats (UPC-A, EAN-13, etc.)
+                var existingResult = !string.IsNullOrEmpty(result.Barcode)
+                    ? context.FindMatchingResult(barcode: result.Barcode)
+                    : null;
                 if (existingResult == null)
                 {
                     context.Results.Add(result);
