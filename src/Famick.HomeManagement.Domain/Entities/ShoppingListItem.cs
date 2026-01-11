@@ -29,6 +29,11 @@ namespace Famick.HomeManagement.Domain.Entities
         public decimal Amount { get; set; } = 0;
 
         /// <summary>
+        /// Product name (used when ProductId is null, e.g., items from store integrations not in local DB)
+        /// </summary>
+        public string? ProductName { get; set; }
+
+        /// <summary>
         /// Optional note (can be used for products not in the system or special instructions)
         /// Example: "Get the organic version", "Check for sales", "Generic bread"
         /// </summary>
