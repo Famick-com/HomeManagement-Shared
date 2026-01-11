@@ -25,7 +25,8 @@
         @* Search/scan input *@
         <MudPaper Elevation="1" Class="pa-3">
             <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
-                <MudTextField @bind-Value="_searchQuery"
+                <MudTextField @ref="_searchField"
+                              @bind-Value="_searchQuery"
                               Label="@L["inventory.scanOrSearch"]"
                               Variant="Variant.Outlined"
                               Adornment="Adornment.End"
@@ -227,6 +228,8 @@
     private List<StockEntryDto> _stockEntries = new();
     private List<ProductLookupResultDto> _lookupResults = new();
 
+    private MudTextField<string>? _searchField;
+
     private void OnLocationChanged(LocationDto? location)
     {
         _selectedLocation = location;
@@ -237,7 +240,7 @@
         }
     }
 
-    private void PrepareNextItem()
+    private async Task PrepareNextItem()
     {
         // Clear search state and prepare for next item
         _searchQuery = string.Empty;
@@ -246,6 +249,12 @@
         _stockEntries.Clear();
         _lookupResults.Clear();
         StateHasChanged();
+
+        // Focus the search field for quick entry
+        if (_searchField != null)
+        {
+            await _searchField.FocusAsync();
+        }
     }
 
     private async Task HandleKeyDown(KeyboardEventArgs e)
@@ -402,7 +411,8 @@
         {
             MaxWidth = MaxWidth.Small,
             FullWidth = true,
-            CloseOnEscapeKey = true
+            CloseOnEscapeKey = true,
+            BackdropClick = false
         };
 
         var dialog = await DialogService.ShowAsync<CreateProductFromLookupDialog>(
@@ -436,7 +446,8 @@
         {
             MaxWidth = MaxWidth.Small,
             FullWidth = true,
-            CloseOnEscapeKey = true
+            CloseOnEscapeKey = true,
+            BackdropClick = false
         };
 
         var dialog = await DialogService.ShowAsync<QuickCreateProductDialog>(
@@ -466,7 +477,15 @@
             { x => x.LocationId, _selectedLocationId.Value }
         };
 
-        var dialog = await DialogService.ShowAsync<AddStockDialog>(L["inventory.addStock"], parameters);
+        var options = new DialogOptions
+        {
+            MaxWidth = MaxWidth.Small,
+            FullWidth = true,
+            CloseOnEscapeKey = true,
+            BackdropClick = false
+        };
+
+        var dialog = await DialogService.ShowAsync<AddStockDialog>(L["inventory.addStock"], parameters, options);
         var result = await dialog.Result;
 
         if (result != null && !result.Canceled && result.Data is AddStockRequest request)
@@ -491,7 +510,15 @@
             { x => x.Entry, entry }
         };
 
-        var dialog = await DialogService.ShowAsync<OpenProductDialog>(L["inventory.markOpen"], parameters);
+        var options = new DialogOptions
+        {
+            MaxWidth = MaxWidth.Small,
+            FullWidth = true,
+            CloseOnEscapeKey = true,
+            BackdropClick = false
+        };
+
+        var dialog = await DialogService.ShowAsync<OpenProductDialog>(L["inventory.markOpen"], parameters, options);
         var result = await dialog.Result;
 
         if (result != null && !result.Canceled && result.Data is OpenProductRequest request)
@@ -517,7 +544,15 @@
             { x => x.Entry, entry }
         };
 
-        var dialog = await DialogService.ShowAsync<AdjustStockDialog>(L["inventory.adjustQuantity"], parameters);
+        var options = new DialogOptions
+        {
+            MaxWidth = MaxWidth.Small,
+            FullWidth = true,
+            CloseOnEscapeKey = true,
+            BackdropClick = false
+        };
+
+        var dialog = await DialogService.ShowAsync<AdjustStockDialog>(L["inventory.adjustQuantity"], parameters, options);
         var result = await dialog.Result;
 
         if (result != null && !result.Canceled && result.Data is AdjustStockRequest request)
@@ -543,7 +578,15 @@
             { x => x.Entry, entry }
         };
 
-        var dialog = await DialogService.ShowAsync<ConsumeStockDialog>(L["inventory.consume"], parameters);
+        var options = new DialogOptions
+        {
+            MaxWidth = MaxWidth.Small,
+            FullWidth = true,
+            CloseOnEscapeKey = true,
+            BackdropClick = false
+        };
+
+        var dialog = await DialogService.ShowAsync<ConsumeStockDialog>(L["inventory.consume"], parameters, options);
         var result = await dialog.Result;
 
         if (result != null && !result.Canceled && result.Data is ConsumeStockRequest request)
