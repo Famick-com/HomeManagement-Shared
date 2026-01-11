@@ -13,6 +13,12 @@ public interface IStockService
     Task<StockEntryDto> AddStockAsync(AddStockRequest request, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Add multiple stock entries in a batch.
+    /// Supports both individual items with unique dates and bulk items.
+    /// </summary>
+    Task<List<StockEntryDto>> AddStockBatchAsync(AddStockBatchRequest request, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Get a stock entry by ID.
     /// </summary>
     Task<StockEntryDto?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
