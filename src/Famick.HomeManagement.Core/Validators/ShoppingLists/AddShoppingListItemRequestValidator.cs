@@ -14,9 +14,16 @@ public class AddShoppingListItemRequestValidator : AbstractValidator<AddShopping
             .MaximumLength(500).WithMessage("Note cannot exceed 500 characters")
             .When(x => !string.IsNullOrEmpty(x.Note));
 
-        // Either ProductId OR Note must be provided (or both)
+        // ProductId, ProductName, Barcode, or Note must be provided
+        // - ProductId: for products in local database
+        // - ProductName: for products from store integrations not in local DB
+        // - Barcode: for barcode-based lookup
+        // - Note: for free-text items
         RuleFor(x => x)
-            .Must(x => x.ProductId.HasValue || !string.IsNullOrWhiteSpace(x.Note))
-            .WithMessage("Either ProductId or Note must be provided");
+            .Must(x => x.ProductId.HasValue ||
+                       !string.IsNullOrWhiteSpace(x.ProductName) ||
+                       !string.IsNullOrWhiteSpace(x.Barcode) ||
+                       !string.IsNullOrWhiteSpace(x.Note))
+            .WithMessage("ProductId, ProductName, Barcode, or Note must be provided");
     }
 }

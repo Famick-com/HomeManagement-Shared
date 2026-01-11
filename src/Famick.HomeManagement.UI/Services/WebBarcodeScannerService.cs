@@ -1,25 +1,71 @@
 using Famick.HomeManagement.Core.Interfaces;
+using Microsoft.JSInterop;
 
 namespace Famick.HomeManagement.UI.Services;
 
 /// <summary>
-/// Web/WASM implementation of barcode scanner (not available - camera access not supported in web).
-/// For mobile devices, use MauiBarcodeScannerService instead.
+/// Web/WASM implementation of barcode scanner using html5-qrcode library.
+/// Uses camera access via JavaScript interop.
 /// </summary>
 public class WebBarcodeScannerService : IBarcodeScannerService
 {
-    /// <summary>
-    /// Always returns false for web platform.
-    /// Camera-based barcode scanning is only available on mobile (MAUI).
-    /// </summary>
-    public bool IsAvailable => false;
+    private readonly IJSRuntime _jsRuntime;
+    private bool? _isAvailable;
+
+    public WebBarcodeScannerService(IJSRuntime jsRuntime)
+    {
+        _jsRuntime = jsRuntime;
+    }
 
     /// <summary>
-    /// Not implemented for web platform.
+    /// Returns true if the browser supports camera access for barcode scanning.
     /// </summary>
-    public Task<string?> ScanBarcodeAsync(CancellationToken ct = default)
+    public bool IsAvailable
     {
-        // Camera-based barcode scanning is not available on web
-        return Task.FromResult<string?>(null);
+        get
+        {
+            // Check synchronously if we've already determined availability
+            if (_isAvailable.HasValue)
+                return _isAvailable.Value;
+
+            // Default to true for web - actual check happens async
+            // The JS will verify camera access is available
+            return true;
+        }
+    }
+
+    /// <summary>
+    /// Scans a barcode using the device camera via JavaScript.
+    /// </summary>
+    public async Task<string?> ScanBarcodeAsync(CancellationToken ct = default)
+    {
+        try
+        {
+            // Check if scanning is available
+            _isAvailable = await _jsRuntime.InvokeAsync<bool>("barcodeScannerIsAvailable", ct);
+            if (!_isAvailable.Value)
+            {
+                return null;
+            }
+
+            // Start the scanner and wait for a result
+            var result = await _jsRuntime.InvokeAsync<string?>("barcodeScannerStart", ct);
+            return result;
+        }
+        catch (JSException ex)
+        {
+            Console.WriteLine($"Barcode scanner JS error: {ex.Message}");
+            throw new Exception($"Camera access failed: {ex.Message}");
+        }
+        catch (TaskCanceledException)
+        {
+            // User cancelled or timeout - stop the scanner
+            try
+            {
+                await _jsRuntime.InvokeVoidAsync("barcodeScannerStop");
+            }
+            catch { }
+            return null;
+        }
     }
 }

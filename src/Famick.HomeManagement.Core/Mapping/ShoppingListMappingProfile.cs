@@ -32,7 +32,7 @@ public class ShoppingListMappingProfile : Profile
 
         CreateMap<ShoppingListItem, ShoppingListItemDto>()
             .ForMember(dest => dest.ProductName,
-                opt => opt.MapFrom(src => src.Product != null ? src.Product.Name : null))
+                opt => opt.MapFrom(src => src.Product != null ? src.Product.Name : src.ProductName))
             .ForMember(dest => dest.ProductImageUrl, opt => opt.Ignore()) // Set manually in service
             .ForMember(dest => dest.QuantityUnitName,
                 opt => opt.MapFrom(src => src.Product != null && src.Product.QuantityUnitPurchase != null
@@ -72,6 +72,7 @@ public class ShoppingListMappingProfile : Profile
             .ForMember(dest => dest.TenantId, opt => opt.Ignore())
             .ForMember(dest => dest.ShoppingListId, opt => opt.Ignore())
             .ForMember(dest => dest.ProductId, opt => opt.Ignore())
+            .ForMember(dest => dest.ProductName, opt => opt.Ignore())
             .ForMember(dest => dest.CreatedAt, opt => opt.Ignore())
             .ForMember(dest => dest.UpdatedAt, opt => opt.Ignore())
             .ForMember(dest => dest.ShoppingList, opt => opt.Ignore())
