@@ -36,8 +36,12 @@ public class ProductDto
     public string? ProductGroupName { get; set; }
     public Guid? ShoppingLocationId { get; set; }
     public string? ShoppingLocationName { get; set; }
-    public Guid? ProductCommonNameId { get; set; }
-    public string? ProductCommonNameName { get; set; }
+
+    // Parent-child hierarchy (product variants)
+    public Guid? ParentProductId { get; set; }
+    public string? ParentProductName { get; set; }
+    public int ChildProductCount { get; set; }
+    public bool IsParentProduct { get; set; }
 
     // Stock summary
     /// <summary>

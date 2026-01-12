@@ -75,4 +75,19 @@ public class StockOverviewItemDto
     /// Number of individual stock entries for this product.
     /// </summary>
     public int StockEntryCount { get; set; }
+
+    /// <summary>
+    /// True if this is a parent product with child variants.
+    /// </summary>
+    public bool IsParentProduct { get; set; }
+
+    /// <summary>
+    /// Number of child product variants (only populated for parent products).
+    /// </summary>
+    public int ChildProductCount { get; set; }
+
+    /// <summary>
+    /// Child product stock information (only populated for parent products when expanded).
+    /// </summary>
+    public List<StockOverviewChildDto>? ChildProducts { get; set; }
 }

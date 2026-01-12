@@ -8,7 +8,6 @@
 @inject ILocalizer L
 @using Famick.HomeManagement.UI.Components.Products
 @using Famick.HomeManagement.Core.DTOs.Products
-@using Famick.HomeManagement.Core.DTOs.ProductCommonNames
 @using Famick.HomeManagement.Core.DTOs.Locations
 @using Famick.HomeManagement.Core.DTOs.QuantityUnits
 @using Famick.HomeManagement.Core.DTOs.ProductLookup
@@ -63,8 +62,13 @@ else
                                       ReadOnly="@(!CanEdit)"
                                       Lines="3" />
 
-                        <ProductCommonNameAutocomplete @bind-SelectedCommonName="_selectedCommonName"
-                                                       CanEdit="@CanEdit" />
+                        <ParentProductAutocomplete @bind-SelectedParentProduct="_selectedParentProduct"
+                                                   CurrentProductId="@Id"
+                                                   IsParentProduct="@_isParentProduct"
+                                                   CanEdit="@CanEdit"
+                                                   InheritedLocationId="@_locationId"
+                                                   InheritedQuantityUnitIdStock="@_stockUnitId"
+                                                   InheritedQuantityUnitIdPurchase="@_purchaseUnitId" />
 
                         <MudSelect T="Guid" @bind-Value="_locationId"
                                    Label="@L["products.location"]"
@@ -389,7 +393,8 @@ else
     // Form fields
     private string _name = string.Empty;
     private string? _description;
-    private ProductCommonNameDto? _selectedCommonName;
+    private ProductDto? _selectedParentProduct;
+    private bool _isParentProduct;
     private Guid _locationId;
     private Guid _purchaseUnitId;
     private Guid _stockUnitId;
@@ -485,14 +490,17 @@ else
                 _images = product.Images ?? new();
                 _stockUnitName = product.QuantityUnitStockName;
 
-                // Load common name if present
-                if (product.ProductCommonNameId.HasValue)
+                // Check if this product has children (is a parent product)
+                _isParentProduct = product.IsParentProduct;
+
+                // Load parent product if present
+                if (product.ParentProductId.HasValue)
                 {
-                    var commonNameResult = await ApiClient.GetAsync<ProductCommonNameDto>(
-                        $"api/v1/productcommonnames/{product.ProductCommonNameId}");
-                    if (commonNameResult.IsSuccess && commonNameResult.Data != null)
+                    var parentResult = await ApiClient.GetAsync<ProductDto>(
+                        $"api/v1/products/{product.ParentProductId}");
+                    if (parentResult.IsSuccess && parentResult.Data != null)
                     {
-                        _selectedCommonName = commonNameResult.Data;
+                        _selectedParentProduct = parentResult.Data;
                     }
                 }
 
@@ -544,7 +552,7 @@ else
                     ServingSize = _servingSize,
                     ServingUnit = _servingUnit,
                     ServingsPerContainer = _servingsPerContainer,
-                    ProductCommonNameId = _selectedCommonName?.Id
+                    ParentProductId = _selectedParentProduct?.Id
                 };
 
                 var result = await ApiClient.PostAsync<CreateProductRequest, ProductDto>("api/v1/products", request);
@@ -575,7 +583,7 @@ else
                     ServingSize = _servingSize,
                     ServingUnit = _servingUnit,
                     ServingsPerContainer = _servingsPerContainer,
-                    ProductCommonNameId = _selectedCommonName?.Id
+                    ParentProductId = _selectedParentProduct?.Id
                 };
 
                 var result = await ApiClient.PutAsync<UpdateProductRequest, ProductDto>($"api/v1/products/{Id}", request);
@@ -1132,7 +1140,7 @@ else
                     ServingSize = _servingSize,
                     ServingUnit = _servingUnit,
                     ServingsPerContainer = _servingsPerContainer,
-                    ProductCommonNameId = _selectedCommonName?.Id
+                    ParentProductId = _selectedParentProduct?.Id
                 };
 
                 var result = await ApiClient.PostAsync<CreateProductRequest, ProductDto>("api/v1/products", request);
@@ -1165,7 +1173,7 @@ else
                     ServingSize = _servingSize,
                     ServingUnit = _servingUnit,
                     ServingsPerContainer = _servingsPerContainer,
-                    ProductCommonNameId = _selectedCommonName?.Id
+                    ParentProductId = _selectedParentProduct?.Id
                 };
 
                 var result = await ApiClient.PutAsync<UpdateProductRequest, ProductDto>($"api/v1/products/{Id}", request);

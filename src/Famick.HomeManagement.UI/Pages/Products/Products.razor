@@ -41,7 +41,7 @@
                        Margin="Margin.Dense"
                        Style="max-width: 180px;">
                 <MudSelectItem Value="@("none")">@L["products.groupByNone"]</MudSelectItem>
-                <MudSelectItem Value="@("commonName")">@L["products.commonName"]</MudSelectItem>
+                <MudSelectItem Value="@("parentProduct")">@L["products.parentProduct"]</MudSelectItem>
             </MudSelect>
 
             <MudSpacer />
@@ -97,7 +97,7 @@
                            Margin="Margin.Dense"
                            FullWidth="true">
                     <MudSelectItem Value="@("none")">@L["products.groupByNone"]</MudSelectItem>
-                    <MudSelectItem Value="@("commonName")">@L["products.commonName"]</MudSelectItem>
+                    <MudSelectItem Value="@("parentProduct")">@L["products.parentProduct"]</MudSelectItem>
                 </MudSelect>
             </MudStack>
         </MudStack>
@@ -115,14 +115,14 @@
     {
         @* Desktop: Full DataGrid *@
         <MudHidden Breakpoint="Breakpoint.SmAndDown">
-            @if (_groupBy == "commonName")
+            @if (_groupBy == "parentProduct")
             {
                 <MudExpansionPanels MultiExpansion="true">
                     @foreach (var group in _groupedProducts)
                     {
                         <MudExpansionPanel IsInitiallyExpanded="false" Class="mb-2">
                             <TitleContent>
-                                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Class="flex-grow-1">
                                     <MudIcon Icon="@Icons.Material.Filled.Category" Size="Size.Small" Color="Color.Primary" />
                                     <MudText Typo="Typo.subtitle1" Style="font-weight: 600;">
                                         @(string.IsNullOrEmpty(group.Key) ? L["products.ungrouped"] : group.Key)
@@ -130,6 +130,18 @@
                                     <MudChip T="string" Size="Size.Small" Color="Color.Default" Variant="Variant.Text">
                                         @group.Count() @(group.Count() == 1 ? "product" : "products")
                                     </MudChip>
+                                    <MudSpacer />
+                                    @if (!string.IsNullOrEmpty(group.Key) && group.FirstOrDefault()?.ParentProductId.HasValue == true)
+                                    {
+                                        <span @onclick:stopPropagation="true">
+                                            <MudTooltip Text="@L["products.editParent"]">
+                                                <MudIconButton Icon="@Icons.Material.Filled.Edit"
+                                                               Size="Size.Small"
+                                                               Color="Color.Primary"
+                                                               OnClick="@(() => NavigateToProduct(group.First().ParentProductId!.Value))" />
+                                            </MudTooltip>
+                                        </span>
+                                    }
                                 </MudStack>
                             </TitleContent>
                             <ChildContent>
@@ -334,14 +346,14 @@
 
         @* Mobile: Compact list view *@
         <MudHidden Breakpoint="Breakpoint.MdAndUp">
-            @if (_groupBy == "commonName")
+            @if (_groupBy == "parentProduct")
             {
                 <MudExpansionPanels MultiExpansion="true">
                     @foreach (var group in _groupedProducts)
                     {
                         <MudExpansionPanel IsInitiallyExpanded="false" Class="mb-2">
                             <TitleContent>
-                                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Class="flex-grow-1">
                                     <MudIcon Icon="@Icons.Material.Filled.Category" Size="Size.Small" Color="Color.Primary" />
                                     <MudText Typo="Typo.subtitle2" Style="font-weight: 600;">
                                         @(string.IsNullOrEmpty(group.Key) ? L["products.ungrouped"] : group.Key)
@@ -349,6 +361,16 @@
                                     <MudChip T="string" Size="Size.Small" Color="Color.Default" Variant="Variant.Text">
                                         @group.Count()
                                     </MudChip>
+                                    <MudSpacer />
+                                    @if (!string.IsNullOrEmpty(group.Key) && group.FirstOrDefault()?.ParentProductId.HasValue == true)
+                                    {
+                                        <span @onclick:stopPropagation="true">
+                                            <MudIconButton Icon="@Icons.Material.Filled.Edit"
+                                                           Size="Size.Small"
+                                                           Color="Color.Primary"
+                                                           OnClick="@(() => NavigateToProduct(group.First().ParentProductId!.Value))" />
+                                        </span>
+                                    }
                                 </MudStack>
                             </TitleContent>
                             <ChildContent>
@@ -487,8 +509,8 @@
                     (_statusFilter == "inactive" && !p.IsActive));
 
     private IEnumerable<IGrouping<string, ProductDto>> _groupedProducts => _filteredProducts
-        .GroupBy(p => p.ProductCommonNameName ?? "")
-        .OrderBy(g => string.IsNullOrEmpty(g.Key) ? 1 : 0) // Groups with names first
+        .GroupBy(p => p.ParentProductName ?? "")
+        .OrderBy(g => string.IsNullOrEmpty(g.Key) ? 1 : 0) // Groups with parent products first
         .ThenBy(g => g.Key);
 
     protected override async Task OnInitializedAsync()

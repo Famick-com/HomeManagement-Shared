@@ -24,8 +24,8 @@ public class Product : BaseTenantEntity
     public Guid? ProductGroupId { get; set; }
     public Guid? ShoppingLocationId { get; set; }
 
-    // Common name for recipe matching and generic searches
-    public Guid? ProductCommonNameId { get; set; }
+    // Parent-child hierarchy (for product variants/grouping)
+    public Guid? ParentProductId { get; set; }
 
     // Navigation properties
     public Location Location { get; set; } = null!;
@@ -37,7 +37,10 @@ public class Product : BaseTenantEntity
     // Phase 2 navigation properties
     public ProductGroup? ProductGroup { get; set; }
     public ShoppingLocation? ShoppingLocation { get; set; }
-    public ProductCommonName? ProductCommonName { get; set; }
+
+    // Parent-child hierarchy navigation
+    public Product? ParentProduct { get; set; }
+    public ICollection<Product> ChildProducts { get; set; } = new List<Product>();
 
     // Nutrition data (optional, populated from external sources)
     public ProductNutrition? Nutrition { get; set; }

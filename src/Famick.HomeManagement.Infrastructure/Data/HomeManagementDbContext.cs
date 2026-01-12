@@ -57,7 +57,6 @@ public class HomeManagementDbContext : DbContext
 
     // Phase 2 - Product categorization and shopping
     public DbSet<ProductGroup> ProductGroups => Set<ProductGroup>();
-    public DbSet<ProductCommonName> ProductCommonNames => Set<ProductCommonName>();
     public DbSet<ShoppingLocation> ShoppingLocations => Set<ShoppingLocation>();
     public DbSet<ShoppingList> ShoppingLists => Set<ShoppingList>();
     public DbSet<ShoppingListItem> ShoppingListItems => Set<ShoppingListItem>();
