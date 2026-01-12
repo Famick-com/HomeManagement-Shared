@@ -293,7 +293,7 @@
 
                 if (result.IsSuccess)
                 {
-                    Snackbar.Add(L["shopping.listCreated"], Severity.Success);
+                    Snackbar.Add(L["shopping.listCreated", _formName], Severity.Success);
                     CloseDialog();
                     await LoadDashboardAsync();
                 }

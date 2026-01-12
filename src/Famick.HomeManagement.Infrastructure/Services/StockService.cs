@@ -447,10 +447,46 @@ public class StockService : IStockService
         // Get all stock entries with product info for statistics
         var stockEntries = await _context.Stock
             .Include(s => s.Product)
+                .ThenInclude(p => p!.ParentProduct)
             .ToListAsync(cancellationToken);
 
-        // Group by product to get unique product counts
-        var productGroups = stockEntries
+        // Get all parent products (products with children)
+        var parentProducts = await _context.Products
+            .Include(p => p.ChildProducts)
+            .Where(p => p.ChildProducts.Any())
+            .ToListAsync(cancellationToken);
+
+        var parentProductIds = parentProducts.Select(p => p.Id).ToHashSet();
+        var childProductIds = stockEntries
+            .Where(s => s.Product?.ParentProductId != null)
+            .Select(s => s.ProductId)
+            .Distinct()
+            .ToHashSet();
+
+        // Count for parent products (aggregate child stock)
+        var parentStats = parentProducts.Select(parent =>
+        {
+            var childIds = parent.ChildProducts.Select(c => c.Id).ToList();
+            var childStock = stockEntries.Where(s => childIds.Contains(s.ProductId)).ToList();
+
+            if (childStock.Count == 0)
+                return (Counted: false, HasExpired: false, IsDueSoon: false, IsBelowMin: false, TotalValue: 0m);
+
+            var totalAmount = childStock.Sum(s => s.Amount);
+            var minStock = parent.MinStockAmount;
+
+            return (
+                Counted: true,
+                HasExpired: childStock.Any(s => s.BestBeforeDate.HasValue && s.BestBeforeDate.Value < today),
+                IsDueSoon: childStock.Any(s => s.BestBeforeDate.HasValue && s.BestBeforeDate.Value >= today && s.BestBeforeDate.Value <= dueSoonDate),
+                IsBelowMin: minStock > 0 && totalAmount < minStock,
+                TotalValue: childStock.Sum(s => (s.Price ?? 0) * s.Amount)
+            );
+        }).Where(x => x.Counted).ToList();
+
+        // Count for standalone products (not a child, not a parent)
+        var standaloneGroups = stockEntries
+            .Where(s => !childProductIds.Contains(s.ProductId) && !parentProductIds.Contains(s.ProductId))
             .GroupBy(s => s.ProductId)
             .Select(g => new
             {
@@ -458,20 +494,26 @@ public class StockService : IStockService
                 TotalAmount = g.Sum(s => s.Amount),
                 TotalValue = g.Sum(s => (s.Price ?? 0) * s.Amount),
                 MinStockAmount = g.First().Product?.MinStockAmount ?? 0,
-                EarliestExpiry = g.Min(s => s.BestBeforeDate),
                 HasExpired = g.Any(s => s.BestBeforeDate.HasValue && s.BestBeforeDate.Value < today),
                 IsDueSoon = g.Any(s => s.BestBeforeDate.HasValue && s.BestBeforeDate.Value >= today && s.BestBeforeDate.Value <= dueSoonDate)
             })
             .ToList();
 
+        // Combine counts
+        var totalProductCount = parentStats.Count + standaloneGroups.Count;
+        var totalStockValue = parentStats.Sum(p => p.TotalValue) + standaloneGroups.Sum(p => p.TotalValue);
+        var expiredCount = parentStats.Count(p => p.HasExpired) + standaloneGroups.Count(p => p.HasExpired);
+        var dueSoonCount = parentStats.Count(p => p.IsDueSoon && !p.HasExpired) + standaloneGroups.Count(p => p.IsDueSoon && !p.HasExpired);
+        var belowMinCount = parentStats.Count(p => p.IsBelowMin) + standaloneGroups.Count(p => p.MinStockAmount > 0 && p.TotalAmount < p.MinStockAmount);
+
         return new StockStatisticsDto
         {
-            TotalProductCount = productGroups.Count,
-            TotalStockValue = productGroups.Sum(p => p.TotalValue),
-            ExpiredCount = productGroups.Count(p => p.HasExpired),
+            TotalProductCount = totalProductCount,
+            TotalStockValue = totalStockValue,
+            ExpiredCount = expiredCount,
             OverdueCount = 0, // TODO: Implement based on product's DefaultConsumeWithinDays
-            DueSoonCount = productGroups.Count(p => p.IsDueSoon && !p.HasExpired),
-            BelowMinStockCount = productGroups.Count(p => p.MinStockAmount > 0 && p.TotalAmount < p.MinStockAmount)
+            DueSoonCount = dueSoonCount,
+            BelowMinStockCount = belowMinCount
         };
     }
 
@@ -485,6 +527,10 @@ public class StockService : IStockService
                 .ThenInclude(p => p!.QuantityUnitStock)
             .Include(s => s.Product)
                 .ThenInclude(p => p!.ProductGroup)
+            .Include(s => s.Product)
+                .ThenInclude(p => p!.ParentProduct)
+            .Include(s => s.Product)
+                .ThenInclude(p => p!.ChildProducts)
             .Include(s => s.Location)
             .AsQueryable();
 
@@ -505,12 +551,107 @@ public class StockService : IStockService
 
         var entries = await query.ToListAsync(cancellationToken);
 
-        // Group by product
-        var productGroups = entries
+        // Get all products that are parents (have children with stock)
+        var productsWithChildren = await _context.Products
+            .Include(p => p.ChildProducts)
+            .Include(p => p.QuantityUnitStock)
+            .Include(p => p.ProductGroup)
+            .Where(p => p.ChildProducts.Any())
+            .ToListAsync(cancellationToken);
+
+        // Get child product IDs that have a parent
+        var childProductIds = entries
+            .Where(s => s.Product?.ParentProductId != null)
+            .Select(s => s.ProductId)
+            .Distinct()
+            .ToHashSet();
+
+        // Group stock entries by product
+        var stockByProduct = entries
+            .GroupBy(s => s.ProductId)
+            .ToDictionary(g => g.Key, g => g.ToList());
+
+        var result = new List<StockOverviewItemDto>();
+
+        // Process parent products (aggregate stock from children)
+        foreach (var parent in productsWithChildren)
+        {
+            // Get all child product IDs for this parent
+            var childIds = parent.ChildProducts.Select(c => c.Id).ToList();
+
+            // Get all stock entries for children
+            var childStockEntries = entries.Where(s => childIds.Contains(s.ProductId)).ToList();
+
+            if (childStockEntries.Count == 0)
+                continue; // No stock in children, skip
+
+            // Aggregate child stock
+            var totalAmount = childStockEntries.Sum(s => s.Amount);
+            var earliestExpiry = childStockEntries.Min(s => s.BestBeforeDate);
+            var hasExpired = childStockEntries.Any(s => s.BestBeforeDate.HasValue && s.BestBeforeDate.Value < today);
+            var isDueSoon = earliestExpiry.HasValue && earliestExpiry.Value >= today && earliestExpiry.Value <= dueSoonDate;
+            var minStock = parent.MinStockAmount;
+
+            // Build child product list for expandable view
+            var childProducts = childStockEntries
+                .GroupBy(s => s.ProductId)
+                .Select(cg =>
+                {
+                    var childProduct = cg.First().Product;
+                    var childEarliestExpiry = cg.Min(s => s.BestBeforeDate);
+                    var childHasExpired = cg.Any(s => s.BestBeforeDate.HasValue && s.BestBeforeDate.Value < today);
+                    var childIsDueSoon = childEarliestExpiry.HasValue && childEarliestExpiry.Value >= today && childEarliestExpiry.Value <= dueSoonDate;
+
+                    return new StockOverviewChildDto
+                    {
+                        ProductId = cg.Key,
+                        ProductName = childProduct?.Name ?? string.Empty,
+                        TotalAmount = cg.Sum(s => s.Amount),
+                        QuantityUnitName = childProduct?.QuantityUnitStock?.Name ?? string.Empty,
+                        NextDueDate = childEarliestExpiry,
+                        DaysUntilDue = childEarliestExpiry.HasValue ? (int)(childEarliestExpiry.Value - today).TotalDays : null,
+                        IsExpired = childHasExpired,
+                        IsDueSoon = childIsDueSoon && !childHasExpired
+                    };
+                })
+                .OrderBy(c => c.NextDueDate ?? DateTime.MaxValue)
+                .ThenBy(c => c.ProductName)
+                .ToList();
+
+            result.Add(new StockOverviewItemDto
+            {
+                ProductId = parent.Id,
+                ProductName = parent.Name,
+                ProductGroupId = parent.ProductGroupId,
+                ProductGroupName = parent.ProductGroup?.Name,
+                TotalAmount = totalAmount,
+                QuantityUnitName = parent.QuantityUnitStock?.Name ?? string.Empty,
+                NextDueDate = earliestExpiry,
+                DaysUntilDue = earliestExpiry.HasValue ? (int)(earliestExpiry.Value - today).TotalDays : null,
+                TotalValue = childStockEntries.Sum(s => (s.Price ?? 0) * s.Amount),
+                MinStockAmount = minStock,
+                IsBelowMinStock = minStock > 0 && totalAmount < minStock,
+                IsExpired = hasExpired,
+                IsDueSoon = isDueSoon && !hasExpired,
+                StockEntryCount = childStockEntries.Count,
+                IsParentProduct = true,
+                ChildProductCount = childProducts.Count,
+                ChildProducts = childProducts
+            });
+        }
+
+        // Process standalone products (not a child of any parent)
+        var standaloneProductGroups = entries
+            .Where(s => !childProductIds.Contains(s.ProductId))
             .GroupBy(s => s.ProductId)
             .Select(g =>
             {
                 var product = g.First().Product;
+
+                // Skip if this product is a parent (already processed above)
+                if (productsWithChildren.Any(p => p.Id == g.Key))
+                    return null;
+
                 var totalAmount = g.Sum(s => s.Amount);
                 var minStock = product?.MinStockAmount ?? 0;
                 var earliestExpiry = g.Min(s => s.BestBeforeDate);
@@ -532,34 +673,41 @@ public class StockService : IStockService
                     IsBelowMinStock = minStock > 0 && totalAmount < minStock,
                     IsExpired = hasExpired,
                     IsDueSoon = isDueSoon && !hasExpired,
-                    StockEntryCount = g.Count()
+                    StockEntryCount = g.Count(),
+                    IsParentProduct = false,
+                    ChildProductCount = 0,
+                    ChildProducts = null
                 };
             })
+            .Where(x => x != null)
+            .Cast<StockOverviewItemDto>()
             .ToList();
+
+        result.AddRange(standaloneProductGroups);
 
         // Apply status filter
         if (!string.IsNullOrWhiteSpace(filter?.Status))
         {
-            productGroups = filter.Status.ToLower() switch
+            result = filter.Status.ToLower() switch
             {
-                "expired" => productGroups.Where(p => p.IsExpired).ToList(),
-                "duesoon" => productGroups.Where(p => p.IsDueSoon).ToList(),
-                "belowminstock" => productGroups.Where(p => p.IsBelowMinStock).ToList(),
-                _ => productGroups
+                "expired" => result.Where(p => p.IsExpired).ToList(),
+                "duesoon" => result.Where(p => p.IsDueSoon).ToList(),
+                "belowminstock" => result.Where(p => p.IsBelowMinStock).ToList(),
+                _ => result
             };
         }
 
         // Apply sorting
-        productGroups = filter?.SortBy?.ToLower() switch
+        result = filter?.SortBy?.ToLower() switch
         {
-            "productname" => filter.Descending ? productGroups.OrderByDescending(p => p.ProductName).ToList() : productGroups.OrderBy(p => p.ProductName).ToList(),
-            "amount" => filter.Descending ? productGroups.OrderByDescending(p => p.TotalAmount).ToList() : productGroups.OrderBy(p => p.TotalAmount).ToList(),
-            "nextduedate" => filter.Descending ? productGroups.OrderByDescending(p => p.NextDueDate).ToList() : productGroups.OrderBy(p => p.NextDueDate).ToList(),
-            "value" => filter.Descending ? productGroups.OrderByDescending(p => p.TotalValue).ToList() : productGroups.OrderBy(p => p.TotalValue).ToList(),
-            _ => productGroups.OrderBy(p => p.NextDueDate ?? DateTime.MaxValue).ThenBy(p => p.ProductName).ToList()
+            "productname" => filter.Descending ? result.OrderByDescending(p => p.ProductName).ToList() : result.OrderBy(p => p.ProductName).ToList(),
+            "amount" => filter.Descending ? result.OrderByDescending(p => p.TotalAmount).ToList() : result.OrderBy(p => p.TotalAmount).ToList(),
+            "nextduedate" => filter.Descending ? result.OrderByDescending(p => p.NextDueDate).ToList() : result.OrderBy(p => p.NextDueDate).ToList(),
+            "value" => filter.Descending ? result.OrderByDescending(p => p.TotalValue).ToList() : result.OrderBy(p => p.TotalValue).ToList(),
+            _ => result.OrderBy(p => p.NextDueDate ?? DateTime.MaxValue).ThenBy(p => p.ProductName).ToList()
         };
 
-        return productGroups;
+        return result;
     }
 
     public async Task<List<StockLogDto>> GetLogAsync(int? limit = 50, CancellationToken cancellationToken = default)

@@ -1,5 +1,4 @@
 @using Famick.HomeManagement.Core.DTOs.Products
-@using Famick.HomeManagement.Core.DTOs.ProductCommonNames
 @using Famick.HomeManagement.Core.DTOs.ProductLookup
 @using Famick.HomeManagement.Core.DTOs.Locations
 @using Famick.HomeManagement.Core.DTOs.QuantityUnits
@@ -93,8 +92,12 @@
                                   Variant="Variant.Outlined"
                                   Lines="2" />
 
-                    @* Common Name (optional) *@
-                    <ProductCommonNameAutocomplete @bind-SelectedCommonName="_selectedCommonName" />
+                    @* Parent Product (optional - for variants) *@
+                    <ParentProductAutocomplete @bind-SelectedParentProduct="_selectedParentProduct"
+                                               CanEdit="true"
+                                               InheritedLocationId="@_locationId"
+                                               InheritedQuantityUnitIdStock="@_quantityUnitIdStock"
+                                               InheritedQuantityUnitIdPurchase="@_quantityUnitIdPurchase" />
 
                     @* Barcode (read-only if from lookup) *@
                     @if (!string.IsNullOrEmpty(_barcode))
@@ -191,7 +194,7 @@
 
     private string _name = string.Empty;
     private string? _description;
-    private ProductCommonNameDto? _selectedCommonName;
+    private ProductDto? _selectedParentProduct;
     private string? _barcode;
     private Guid? _locationId;
     private Guid? _quantityUnitIdStock;
@@ -283,7 +286,7 @@
                 ServingSize = LookupResult.Nutrition?.ServingSize,
                 ServingUnit = LookupResult.Nutrition?.ServingUnit,
                 ServingsPerContainer = LookupResult.Nutrition?.ServingsPerContainer,
-                ProductCommonNameId = _selectedCommonName?.Id
+                ParentProductId = _selectedParentProduct?.Id
             };
 
             var result = await ApiClient.PostAsync<CreateProductRequest, ProductDto>("api/v1/products", request);

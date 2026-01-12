@@ -77,5 +77,15 @@ public class ProductConfiguration : IEntityTypeConfiguration<Product>
             .WithOne(pb => pb.Product)
             .HasForeignKey(pb => pb.ProductId)
             .OnDelete(DeleteBehavior.Cascade);
+
+        // Self-referential FK for parent-child hierarchy (product variants)
+        builder.HasIndex(p => p.ParentProductId)
+            .HasDatabaseName("ix_products_parent_product_id");
+
+        builder.HasOne(p => p.ParentProduct)
+            .WithMany(p => p.ChildProducts)
+            .HasForeignKey(p => p.ParentProductId)
+            .OnDelete(DeleteBehavior.SetNull)
+            .HasConstraintName("fk_products_parent_product");
     }
 }

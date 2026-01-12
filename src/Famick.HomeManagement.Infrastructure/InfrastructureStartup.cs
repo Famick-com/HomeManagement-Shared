@@ -41,7 +41,6 @@ public static class InfrastructureStartup
 
         // Register business services (from homemanagement-shared)
         services.AddScoped<IProductGroupService, ProductGroupService>();
-        services.AddScoped<IProductCommonNameService, ProductCommonNameService>();
         services.AddScoped<IShoppingLocationService, ShoppingLocationService>();
         services.AddScoped<IShoppingListService, ShoppingListService>();
         services.AddScoped<IRecipeService, RecipeService>();

@@ -1,5 +1,4 @@
 @using Famick.HomeManagement.Core.DTOs.Products
-@using Famick.HomeManagement.Core.DTOs.ProductCommonNames
 @using Famick.HomeManagement.Core.DTOs.Locations
 @using Famick.HomeManagement.Core.DTOs.QuantityUnits
 @using Famick.HomeManagement.UI.Components.Products
@@ -29,8 +28,12 @@
                                   RequiredError="@L["products.nameRequired"]"
                                   Immediate="true" />
 
-                    @* Common Name (optional) *@
-                    <ProductCommonNameAutocomplete @bind-SelectedCommonName="_selectedCommonName" />
+                    @* Parent Product (optional - for variants) *@
+                    <ParentProductAutocomplete @bind-SelectedParentProduct="_selectedParentProduct"
+                                               CanEdit="true"
+                                               InheritedLocationId="@_locationId"
+                                               InheritedQuantityUnitIdStock="@_quantityUnitId"
+                                               InheritedQuantityUnitIdPurchase="@_quantityUnitId" />
 
                     @* Barcode (read-only if provided) *@
                     @if (!string.IsNullOrEmpty(Barcode))
@@ -140,7 +143,7 @@
     private bool _isSaving;
 
     private string _name = string.Empty;
-    private ProductCommonNameDto? _selectedCommonName;
+    private ProductDto? _selectedParentProduct;
     private Guid? _locationId;
     private Guid? _quantityUnitId;
 
@@ -248,7 +251,7 @@
                 MinStockAmount = 0,
                 DefaultBestBeforeDays = 0,
                 IsActive = true,
-                ProductCommonNameId = _selectedCommonName?.Id
+                ParentProductId = _selectedParentProduct?.Id
             };
 
             var result = await ApiClient.PostAsync<CreateProductRequest, ProductDto>("api/v1/products", request);
