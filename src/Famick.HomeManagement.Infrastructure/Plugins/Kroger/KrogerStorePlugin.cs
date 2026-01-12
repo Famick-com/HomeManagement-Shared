@@ -740,8 +740,34 @@ public class KrogerStorePlugin : IStoreIntegrationPlugin, IProductLookupPlugin
     {
         var products = await SearchProductsAsync(null, null, context.Query, context.MaxResults, ct);
 
+        // For barcode searches, normalize the search query for comparison
+        string? normalizedSearchBarcode = null;
+        if (context.SearchType == ProductLookupSearchType.Barcode)
+        {
+            normalizedSearchBarcode = ProductLookupPipelineContext.NormalizeBarcode(context.Query);
+        }
+
         foreach(var product in products)
         {
+            // For barcode searches, only include products whose normalized barcode matches the search
+            // This filters out fuzzy/partial matches that Kroger's API may return
+            if (context.SearchType == ProductLookupSearchType.Barcode &&
+                !string.IsNullOrEmpty(normalizedSearchBarcode))
+            {
+                var productNormalizedBarcode = !string.IsNullOrEmpty(product.Barcode)
+                    ? ProductLookupPipelineContext.NormalizeBarcode(product.Barcode)
+                    : null;
+
+                if (string.IsNullOrEmpty(productNormalizedBarcode) ||
+                    !productNormalizedBarcode.Equals(normalizedSearchBarcode, StringComparison.OrdinalIgnoreCase))
+                {
+                    _logger.LogDebug(
+                        "Skipping Kroger product with non-matching barcode. Search: {SearchBarcode} (normalized: {NormalizedSearch}), Product: {ProductBarcode} (normalized: {NormalizedProduct})",
+                        context.Query, normalizedSearchBarcode, product.Barcode, productNormalizedBarcode);
+                    continue; // Skip products that don't match the searched barcode
+                }
+            }
+
             // Use normalized barcode matching to handle different formats (UPC-A, EAN-13, Kroger internal)
             var resultItem = !string.IsNullOrEmpty(product.Barcode)
                 ? context.FindMatchingResult(barcode: product.Barcode)
