@@ -67,7 +67,8 @@
     "loadMore": "Load More",
     "openInNewTab": "Open in new tab",
     "upload": "Upload",
-    "remove": "Remove"
+    "remove": "Remove",
+    "discard": "Discard"
   },
 
   "auth": {
@@ -615,7 +616,8 @@
     "deleteTitle": "Confirm Delete",
     "disconnectTitle": "Confirm Disconnect",
     "unlinkTitle": "Confirm Unlink",
-    "unsavedChanges": "You have unsaved changes. Are you sure you want to leave?",
+    "unsavedChanges": "You have unsaved changes. What would you like to do?",
+    "unsavedChangesTitle": "Unsaved Changes",
     "logout": "Are you sure you want to log out?"
   },
 

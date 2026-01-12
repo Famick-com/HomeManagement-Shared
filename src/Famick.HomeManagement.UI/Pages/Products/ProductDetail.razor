@@ -7,6 +7,7 @@
 @inject ISnackbar Snackbar
 @inject ILocalizer L
 @using Famick.HomeManagement.UI.Components.Products
+@using Famick.HomeManagement.UI.Components.Common
 @using Famick.HomeManagement.Core.DTOs.Products
 @using Famick.HomeManagement.Core.DTOs.Locations
 @using Famick.HomeManagement.Core.DTOs.QuantityUnits
@@ -14,6 +15,9 @@
 @using Famick.HomeManagement.Core.DTOs.Stock
 @using Famick.HomeManagement.Core.Interfaces.Plugins
 @using Microsoft.AspNetCore.Components.Forms
+@using Microsoft.AspNetCore.Components.Routing
+
+<NavigationLock OnBeforeInternalNavigation="OnBeforeInternalNavigation" ConfirmExternalNavigation="@IsDirty" />
 
 @* Desktop title *@
 <MudHidden Breakpoint="Breakpoint.SmAndDown">
@@ -175,6 +179,34 @@ else
                                    Disabled="@(!CanEdit)" />
                     </MudStack>
                 </MudPaper>
+
+                @* Child Products Section *@
+                @if (!IsNew && _isParentProduct && _childProducts.Any())
+                {
+                    <MudPaper Elevation="1" Class="pa-3 mt-3">
+                        <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="mb-2">
+                            <MudText Typo="Typo.h6">@L["products.childProducts"]</MudText>
+                            <MudChip T="string" Size="Size.Small" Color="Color.Default" Variant="Variant.Text">
+                                @_childProducts.Count
+                            </MudChip>
+                        </MudStack>
+                        <MudList T="ProductChildSummaryDto" Dense="true" Class="py-0">
+                            @foreach (var child in _childProducts)
+                            {
+                                <MudListItem T="ProductChildSummaryDto"
+                                             Class="cursor-pointer rounded mb-1"
+                                             OnClick="() => NavigateToChildProduct(child.Id)">
+                                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                        <MudIcon Icon="@Icons.Material.Outlined.Inventory2" Size="Size.Small" />
+                                        <MudText Typo="Typo.body2">@child.Name</MudText>
+                                        <MudSpacer />
+                                        <MudIcon Icon="@Icons.Material.Filled.ChevronRight" Size="Size.Small" Color="Color.Default" />
+                                    </MudStack>
+                                </MudListItem>
+                            }
+                        </MudList>
+                    </MudPaper>
+                }
             </MudItem>
 
             <MudItem xs="12" md="4">
@@ -418,6 +450,42 @@ else
     private List<LocationDto> _locations = new();
     private List<QuantityUnitDto> _quantityUnits = new();
 
+    // Child products
+    private List<ProductChildSummaryDto> _childProducts = new();
+
+    // Original values for dirty tracking
+    private string _originalName = string.Empty;
+    private string? _originalDescription;
+    private Guid _originalLocationId;
+    private Guid _originalPurchaseUnitId;
+    private Guid _originalStockUnitId;
+    private decimal _originalConversionFactor;
+    private decimal _originalMinStockAmount;
+    private int _originalDefaultBestBeforeDays;
+    private bool _originalIsActive;
+    private decimal? _originalServingSize;
+    private string? _originalServingUnit;
+    private decimal? _originalServingsPerContainer;
+    private Guid? _originalParentProductId;
+
+    private bool IsDirty => !IsNew && (
+        _name != _originalName ||
+        _description != _originalDescription ||
+        _locationId != _originalLocationId ||
+        _purchaseUnitId != _originalPurchaseUnitId ||
+        _stockUnitId != _originalStockUnitId ||
+        _conversionFactor != _originalConversionFactor ||
+        _minStockAmount != _originalMinStockAmount ||
+        _defaultBestBeforeDays != _originalDefaultBestBeforeDays ||
+        _isActive != _originalIsActive ||
+        _servingSize != _originalServingSize ||
+        _servingUnit != _originalServingUnit ||
+        _servingsPerContainer != _originalServingsPerContainer ||
+        _selectedParentProduct?.Id != _originalParentProductId);
+
+    // Track last loaded Id to detect navigation to different product
+    private Guid? _lastLoadedId;
+
     protected override async Task OnInitializedAsync()
     {
         await LoadLookupsAsync();
@@ -425,6 +493,7 @@ else
         if (!IsNew)
         {
             await LoadProductAsync();
+            _lastLoadedId = Id;
         }
         else
         {
@@ -437,6 +506,19 @@ else
                 _stockUnitId = _quantityUnits.First().Id;
             }
             _isLoading = false;
+        }
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        // Detect navigation to a different product (same component, different Id)
+        if (!IsNew && Id != _lastLoadedId && _lastLoadedId.HasValue)
+        {
+            _isLoading = true;
+            StateHasChanged();
+
+            await LoadProductAsync();
+            _lastLoadedId = Id;
         }
     }
 
@@ -493,6 +575,9 @@ else
                 // Check if this product has children (is a parent product)
                 _isParentProduct = product.IsParentProduct;
 
+                // Load child products
+                _childProducts = product.ChildProducts ?? new();
+
                 // Load parent product if present
                 if (product.ParentProductId.HasValue)
                 {
@@ -506,6 +591,9 @@ else
 
                 // Load additional data
                 await Task.WhenAll(LoadNutritionAsync(), LoadStockAsync());
+
+                // Capture original state for dirty tracking
+                CaptureOriginalState();
             }
             else
             {
@@ -591,6 +679,8 @@ else
                 if (result.IsSuccess)
                 {
                     Snackbar.Add(L["products.productSaved"], Severity.Success);
+                    // Re-capture original state after successful save
+                    CaptureOriginalState();
                 }
                 else
                 {
@@ -1198,6 +1288,59 @@ else
         {
             _isSaving = false;
             StateHasChanged();
+        }
+    }
+
+    private void CaptureOriginalState()
+    {
+        _originalName = _name;
+        _originalDescription = _description;
+        _originalLocationId = _locationId;
+        _originalPurchaseUnitId = _purchaseUnitId;
+        _originalStockUnitId = _stockUnitId;
+        _originalConversionFactor = _conversionFactor;
+        _originalMinStockAmount = _minStockAmount;
+        _originalDefaultBestBeforeDays = _defaultBestBeforeDays;
+        _originalIsActive = _isActive;
+        _originalServingSize = _servingSize;
+        _originalServingUnit = _servingUnit;
+        _originalServingsPerContainer = _servingsPerContainer;
+        _originalParentProductId = _selectedParentProduct?.Id;
+    }
+
+    private void NavigateToChildProduct(Guid childId)
+    {
+        Navigation.NavigateTo($"/products/{childId}");
+    }
+
+    private async Task OnBeforeInternalNavigation(LocationChangingContext context)
+    {
+        if (!IsDirty || _isSaving) return;
+
+        var options = new DialogOptions { CloseOnEscapeKey = true, MaxWidth = MaxWidth.Small };
+        var dialog = await DialogService.ShowAsync<UnsavedChangesDialog>(
+            L["confirmations.unsavedChangesTitle"], options);
+        var result = await dialog.Result;
+
+        if (result == null || result.Canceled)
+        {
+            context.PreventNavigation();
+            return;
+        }
+
+        var choice = (UnsavedChangesDialog.UnsavedChangesResult)result.Data!;
+
+        switch (choice)
+        {
+            case UnsavedChangesDialog.UnsavedChangesResult.Save:
+                await HandleSave();
+                break;
+            case UnsavedChangesDialog.UnsavedChangesResult.Discard:
+                // Allow navigation
+                break;
+            case UnsavedChangesDialog.UnsavedChangesResult.Cancel:
+                context.PreventNavigation();
+                break;
         }
     }
 }

@@ -25,6 +25,18 @@ public class ProductMappingProfile : Profile
                 opt => opt.MapFrom(src => src.ChildProducts != null ? src.ChildProducts.Count : 0))
             .ForMember(dest => dest.IsParentProduct,
                 opt => opt.MapFrom(src => src.ChildProducts != null && src.ChildProducts.Any()))
+            .ForMember(dest => dest.ChildProducts,
+                opt => opt.MapFrom(src => src.ChildProducts != null
+                    ? src.ChildProducts.Select(c => new ProductChildSummaryDto
+                    {
+                        Id = c.Id,
+                        Name = c.Name,
+                        Description = c.Description,
+                        TotalStockAmount = 0,
+                        QuantityUnitStockName = c.QuantityUnitStock != null ? c.QuantityUnitStock.Name : string.Empty,
+                        PrimaryImageUrl = null
+                    }).ToList()
+                    : new List<ProductChildSummaryDto>()))
             .ForMember(dest => dest.Barcodes,
                 opt => opt.MapFrom(src => src.Barcodes))
             .ForMember(dest => dest.Images,
