@@ -42,6 +42,7 @@ public class ProductDto
     public string? ParentProductName { get; set; }
     public int ChildProductCount { get; set; }
     public bool IsParentProduct { get; set; }
+    public List<ProductChildSummaryDto> ChildProducts { get; set; } = new();
 
     // Stock summary
     /// <summary>
