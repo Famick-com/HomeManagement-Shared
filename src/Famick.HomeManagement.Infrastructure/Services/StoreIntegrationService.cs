@@ -440,6 +440,54 @@ public class StoreIntegrationService : IStoreIntegrationService
             ct);
     }
 
+    public async Task<StoreProductResult?> GetProductAtStoreAsync(
+        Guid shoppingLocationId,
+        string externalProductId,
+        CancellationToken ct = default)
+    {
+        var location = await _dbContext.ShoppingLocations
+            .FirstOrDefaultAsync(sl => sl.Id == shoppingLocationId, ct);
+
+        if (location == null)
+        {
+            _logger.LogWarning("Shopping location {ShoppingLocationId} not found", shoppingLocationId);
+            return null;
+        }
+
+        if (string.IsNullOrEmpty(location.IntegrationType))
+        {
+            _logger.LogWarning("Shopping location {ShoppingLocationId} has no store integration", shoppingLocationId);
+            return null;
+        }
+
+        if (string.IsNullOrEmpty(location.ExternalLocationId))
+        {
+            _logger.LogWarning("Shopping location {ShoppingLocationId} has no external location ID", shoppingLocationId);
+            return null;
+        }
+
+        // Get access token (auto-refreshes if needed)
+        var accessToken = await GetAccessTokenAsync(location.IntegrationType, ct);
+        if (accessToken == null)
+        {
+            _logger.LogWarning("Unable to get access token for plugin {PluginId}", location.IntegrationType);
+            return null;
+        }
+
+        var plugin = _pluginLoader.GetPlugin<IStoreIntegrationPlugin>(location.IntegrationType);
+        if (plugin == null)
+        {
+            _logger.LogWarning("Plugin {PluginId} not found", location.IntegrationType);
+            return null;
+        }
+
+        return await plugin.GetProductAsync(
+            accessToken,
+            location.ExternalLocationId,
+            externalProductId,
+            ct);
+    }
+
     public async Task<ProductStoreMetadataDto?> LinkProductToStoreAsync(
         Guid productId,
         Guid shoppingLocationId,

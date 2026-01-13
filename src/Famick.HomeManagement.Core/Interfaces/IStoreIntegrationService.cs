@@ -152,6 +152,18 @@ public interface IStoreIntegrationService
         CancellationToken ct = default);
 
     /// <summary>
+    /// Get a single product by its external product ID from a linked store
+    /// </summary>
+    /// <param name="shoppingLocationId">Shopping location ID</param>
+    /// <param name="externalProductId">External product identifier from the store</param>
+    /// <param name="ct">Cancellation token</param>
+    /// <returns>Product details or null if not found</returns>
+    Task<StoreProductResult?> GetProductAtStoreAsync(
+        Guid shoppingLocationId,
+        string externalProductId,
+        CancellationToken ct = default);
+
+    /// <summary>
     /// Link a product to a store product
     /// </summary>
     /// <param name="productId">Product ID</param>
