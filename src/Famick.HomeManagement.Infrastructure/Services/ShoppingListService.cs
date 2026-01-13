@@ -694,65 +694,94 @@ public partial class ShoppingListService : IShoppingListService
         ShoppingLocation shoppingLocation,
         CancellationToken cancellationToken)
     {
-        if (item.Product == null || shoppingLocation.IntegrationType == null)
+        // Only require store integration, not a local product
+        if (shoppingLocation.IntegrationType == null)
         {
             return;
         }
 
         try
         {
-            // First check if we already have metadata for this product/store combo
-            var existingMetadata = await _context.Set<ProductStoreMetadata>()
-                .FirstOrDefaultAsync(m =>
-                    m.ProductId == item.ProductId &&
-                    m.ShoppingLocationId == shoppingLocation.Id,
-                    cancellationToken);
-
-            if (existingMetadata != null)
+            // First check if we already have metadata for this product/store combo (only if we have a ProductId)
+            if (item.ProductId.HasValue)
             {
-                item.Aisle = NormalizeAisle(existingMetadata.Aisle);
-                item.Shelf = existingMetadata.Shelf;
-                item.Department = existingMetadata.Department;
-                item.ExternalProductId = existingMetadata.ExternalProductId;
-                return;
+                var existingMetadata = await _context.Set<ProductStoreMetadata>()
+                    .FirstOrDefaultAsync(m =>
+                        m.ProductId == item.ProductId &&
+                        m.ShoppingLocationId == shoppingLocation.Id,
+                        cancellationToken);
+
+                if (existingMetadata != null)
+                {
+                    item.Aisle = NormalizeAisle(existingMetadata.Aisle);
+                    item.Shelf = existingMetadata.Shelf;
+                    item.Department = existingMetadata.Department;
+                    item.ExternalProductId = existingMetadata.ExternalProductId;
+                    return;
+                }
             }
 
-            // Try to look up in store integration
-            var product = await _context.Products
-                .Include(p => p.Barcodes)
-                .FirstOrDefaultAsync(p => p.Id == item.ProductId, cancellationToken);
-
-            if (product == null) return;
-
-            var searchQuery = product.Barcodes?.FirstOrDefault()?.Barcode ?? product.Name;
-
-            var searchRequest = new StoreProductSearchRequest
+            // If item already has an ExternalProductId, use it directly to get updated store info
+            if (!string.IsNullOrEmpty(item.ExternalProductId))
             {
-                Query = searchQuery,
-                MaxResults = 5
-            };
+                var productInfo = await _storeIntegrationService.GetProductAtStoreAsync(
+                    shoppingLocation.Id,
+                    item.ExternalProductId,
+                    cancellationToken);
 
-            var searchResults = await _storeIntegrationService.SearchProductsAtStoreAsync(
-                shoppingLocation.Id,
-                searchRequest,
-                cancellationToken);
+                if (productInfo != null)
+                {
+                    item.Aisle = NormalizeAisle(productInfo.Aisle);
+                    item.Shelf = productInfo.Shelf;
+                    item.Department = productInfo.Department;
 
-            if (searchResults.Count > 0)
+                    _logger.LogInformation(
+                        "Found store info for item via ExternalProductId {ExternalProductId}: Aisle={Aisle}, Dept={Department}",
+                        item.ExternalProductId, item.Aisle, item.Department);
+                    return;
+                }
+            }
+
+            // Fall back to search by barcode/name only if we have a local product
+            if (item.ProductId.HasValue)
             {
-                var bestMatch = searchResults.First();
-                item.Aisle = NormalizeAisle(bestMatch.Aisle);
-                item.Shelf = bestMatch.Shelf;
-                item.Department = bestMatch.Department;
-                item.ExternalProductId = bestMatch.ExternalProductId;
+                var product = await _context.Products
+                    .Include(p => p.Barcodes)
+                    .FirstOrDefaultAsync(p => p.Id == item.ProductId, cancellationToken);
 
-                _logger.LogInformation(
-                    "Found store info for product {ProductId}: Aisle={Aisle}, Dept={Department}",
-                    item.ProductId, item.Aisle, item.Department);
+                if (product == null) return;
+
+                var searchQuery = product.Barcodes?.FirstOrDefault()?.Barcode ?? product.Name;
+
+                var searchRequest = new StoreProductSearchRequest
+                {
+                    Query = searchQuery,
+                    MaxResults = 5
+                };
+
+                var searchResults = await _storeIntegrationService.SearchProductsAtStoreAsync(
+                    shoppingLocation.Id,
+                    searchRequest,
+                    cancellationToken);
+
+                if (searchResults.Count > 0)
+                {
+                    var bestMatch = searchResults.First();
+                    item.Aisle = NormalizeAisle(bestMatch.Aisle);
+                    item.Shelf = bestMatch.Shelf;
+                    item.Department = bestMatch.Department;
+                    item.ExternalProductId = bestMatch.ExternalProductId;
+
+                    _logger.LogInformation(
+                        "Found store info for product {ProductId}: Aisle={Aisle}, Dept={Department}",
+                        item.ProductId, item.Aisle, item.Department);
+                }
             }
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Failed to look up store info for product: {ProductId}", item.ProductId);
+            _logger.LogWarning(ex, "Failed to look up store info for item: ProductId={ProductId}, ExternalProductId={ExternalProductId}",
+                item.ProductId, item.ExternalProductId);
         }
     }
 
