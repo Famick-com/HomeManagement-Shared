@@ -1,11 +1,15 @@
+using System.Text.Json;
 using System.Text.RegularExpressions;
 using AutoMapper;
 using Famick.HomeManagement.Core.DTOs.ShoppingLists;
+using Famick.HomeManagement.Core.DTOs.Stock;
 using Famick.HomeManagement.Core.DTOs.StoreIntegrations;
+using Famick.HomeManagement.Core.DTOs.TodoItems;
 using Famick.HomeManagement.Core.Exceptions;
 using Famick.HomeManagement.Core.Interfaces;
 using Famick.HomeManagement.Core.Interfaces.Plugins;
 using Famick.HomeManagement.Domain.Entities;
+using Famick.HomeManagement.Domain.Enums;
 using Famick.HomeManagement.Infrastructure.Data;
 using Famick.HomeManagement.Infrastructure.Plugins;
 using Microsoft.EntityFrameworkCore;
@@ -20,19 +24,25 @@ public partial class ShoppingListService : IShoppingListService
     private readonly ILogger<ShoppingListService> _logger;
     private readonly IStoreIntegrationService _storeIntegrationService;
     private readonly IPluginLoader _pluginLoader;
+    private readonly IStockService _stockService;
+    private readonly ITodoItemService _todoItemService;
 
     public ShoppingListService(
         HomeManagementDbContext context,
         IMapper mapper,
         ILogger<ShoppingListService> logger,
         IStoreIntegrationService storeIntegrationService,
-        IPluginLoader pluginLoader)
+        IPluginLoader pluginLoader,
+        IStockService stockService,
+        ITodoItemService todoItemService)
     {
         _context = context;
         _mapper = mapper;
         _logger = logger;
         _storeIntegrationService = storeIntegrationService;
         _pluginLoader = pluginLoader;
+        _stockService = stockService;
+        _todoItemService = todoItemService;
     }
 
     [GeneratedRegex(@"aisle\s*[-:]?\s*(\w+)", RegexOptions.IgnoreCase)]
@@ -461,9 +471,10 @@ public partial class ShoppingListService : IShoppingListService
             }
         }
 
-        if (!productId.HasValue)
+        // If no product found but ProductName provided, allow ad-hoc item
+        if (!productId.HasValue && string.IsNullOrWhiteSpace(request.ProductName))
         {
-            throw new DomainException("Either ProductId or valid Barcode must be provided");
+            throw new DomainException("Either ProductId, valid Barcode, or ProductName must be provided");
         }
 
         // Create the item
@@ -472,9 +483,11 @@ public partial class ShoppingListService : IShoppingListService
             Id = Guid.NewGuid(),
             ShoppingListId = request.ShoppingListId,
             ProductId = productId,
+            ProductName = request.ProductName,
             Amount = request.Amount,
             Note = request.Note,
-            IsPurchased = false
+            IsPurchased = request.IsPurchased,
+            PurchasedAt = request.IsPurchased ? DateTime.UtcNow : null
         };
 
         // If store has integration and lookup is requested, look up product in store
@@ -792,5 +805,96 @@ public partial class ShoppingListService : IShoppingListService
         // If aisle contains "aisle", extract just the number/identifier
         var match = AisleRegex().Match(rawAisle);
         return match.Success ? match.Groups[1].Value : rawAisle;
+    }
+
+    public async Task<MoveToInventoryResponse> MoveToInventoryAsync(
+        MoveToInventoryRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        _logger.LogInformation("Moving {Count} items to inventory from shopping list {ListId}",
+            request.Items.Count, request.ShoppingListId);
+
+        var response = new MoveToInventoryResponse();
+        var itemIdsToRemove = new List<Guid>();
+
+        foreach (var item in request.Items)
+        {
+            try
+            {
+                if (item.ProductId.HasValue)
+                {
+                    // Item has a product - add to stock
+                    var addStockRequest = new AddStockRequest
+                    {
+                        ProductId = item.ProductId.Value,
+                        Amount = item.Amount,
+                        Price = item.Price,
+                        PurchasedDate = DateTime.UtcNow
+                    };
+
+                    var stockEntry = await _stockService.AddStockAsync(addStockRequest, cancellationToken);
+                    response.StockEntryIds.Add(stockEntry.Id);
+                    response.ItemsAddedToStock++;
+
+                    _logger.LogInformation("Added stock entry {StockEntryId} for product {ProductId}",
+                        stockEntry.Id, item.ProductId);
+                }
+                else
+                {
+                    // Item has no product - create a TODO item for inventory setup
+                    var additionalData = JsonSerializer.Serialize(new
+                    {
+                        Amount = item.Amount,
+                        Price = item.Price,
+                        Barcode = item.Barcode,
+                        ShoppingListId = request.ShoppingListId,
+                        ShoppingListItemId = item.ShoppingListItemId
+                    });
+
+                    var todoRequest = new CreateTodoItemRequest
+                    {
+                        TaskType = TaskType.Inventory,
+                        Reason = "New product from shopping - needs setup",
+                        Description = item.ProductName ?? "Unknown product",
+                        AdditionalData = additionalData
+                    };
+
+                    var todoItem = await _todoItemService.CreateAsync(todoRequest, cancellationToken);
+                    response.TodoItemIds.Add(todoItem.Id);
+                    response.TodoItemsCreated++;
+
+                    _logger.LogInformation("Created TODO item {TodoItemId} for product '{ProductName}'",
+                        todoItem.Id, item.ProductName);
+                }
+
+                // Mark item for removal from shopping list
+                itemIdsToRemove.Add(item.ShoppingListItemId);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error processing item {ShoppingListItemId}: {ProductName}",
+                    item.ShoppingListItemId, item.ProductName);
+                response.Errors.Add($"Failed to process '{item.ProductName}': {ex.Message}");
+            }
+        }
+
+        // Remove processed items from the shopping list
+        if (itemIdsToRemove.Count > 0)
+        {
+            var itemsToRemove = await _context.ShoppingListItems
+                .Where(i => itemIdsToRemove.Contains(i.Id))
+                .ToListAsync(cancellationToken);
+
+            _context.ShoppingListItems.RemoveRange(itemsToRemove);
+            await _context.SaveChangesAsync(cancellationToken);
+
+            _logger.LogInformation("Removed {Count} items from shopping list {ListId}",
+                itemsToRemove.Count, request.ShoppingListId);
+        }
+
+        _logger.LogInformation("Move to inventory complete: {StockCount} added to stock, {TodoCount} TODO items created, {ErrorCount} errors",
+            response.ItemsAddedToStock, response.TodoItemsCreated, response.Errors.Count);
+
+        return response;
     }
 }
