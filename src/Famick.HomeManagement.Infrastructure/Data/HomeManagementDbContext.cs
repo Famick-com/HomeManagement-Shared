@@ -102,6 +102,9 @@ public class HomeManagementDbContext : DbContext
     public DbSet<ContactUserShare> ContactUserShares => Set<ContactUserShare>();
     public DbSet<ContactAuditLog> ContactAuditLogs => Set<ContactAuditLog>();
 
+    // TODO Items
+    public DbSet<TodoItem> TodoItems => Set<TodoItem>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);

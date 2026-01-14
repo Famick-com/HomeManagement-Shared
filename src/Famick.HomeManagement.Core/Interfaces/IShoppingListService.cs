@@ -88,4 +88,9 @@ public interface IShoppingListService
     Task<ShoppingListByLocationDto> GroupItemsByLocationAsync(
         Guid listId,
         CancellationToken cancellationToken = default);
+
+    // Move to inventory
+    Task<MoveToInventoryResponse> MoveToInventoryAsync(
+        MoveToInventoryRequest request,
+        CancellationToken cancellationToken = default);
 }

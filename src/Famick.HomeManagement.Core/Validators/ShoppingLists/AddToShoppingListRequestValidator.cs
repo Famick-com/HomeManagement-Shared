@@ -14,8 +14,8 @@ public class AddToShoppingListRequestValidator : AbstractValidator<AddToShopping
             .GreaterThan(0).WithMessage("Amount must be greater than 0");
 
         RuleFor(x => x)
-            .Must(x => x.ProductId.HasValue || !string.IsNullOrWhiteSpace(x.Barcode))
-            .WithMessage("Either ProductId or Barcode must be provided");
+            .Must(x => x.ProductId.HasValue || !string.IsNullOrWhiteSpace(x.Barcode) || !string.IsNullOrWhiteSpace(x.ProductName))
+            .WithMessage("Either ProductId, Barcode, or ProductName must be provided");
 
         RuleFor(x => x.Note)
             .MaximumLength(500).WithMessage("Note cannot exceed 500 characters")
