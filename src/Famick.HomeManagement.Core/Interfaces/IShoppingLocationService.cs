@@ -50,4 +50,33 @@ public interface IShoppingLocationService
     Task<List<ProductSummaryDto>> GetProductsAtLocationAsync(
         Guid locationId,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Gets the aisle order configuration for a store, including all known aisles
+    /// </summary>
+    Task<AisleOrderDto> GetAisleOrderAsync(
+        Guid locationId,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Updates the custom aisle order for a store
+    /// </summary>
+    Task<AisleOrderDto> UpdateAisleOrderAsync(
+        Guid locationId,
+        UpdateAisleOrderRequest request,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Clears the custom aisle order for a store (reverts to default ordering)
+    /// </summary>
+    Task ClearAisleOrderAsync(
+        Guid locationId,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Gets all known aisles for a store from ProductStoreMetadata
+    /// </summary>
+    Task<List<string>> GetKnownAislesAsync(
+        Guid locationId,
+        CancellationToken cancellationToken = default);
 }

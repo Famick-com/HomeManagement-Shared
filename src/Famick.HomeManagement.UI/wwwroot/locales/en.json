@@ -545,7 +545,13 @@
     "editItem": "Edit Item",
     "addItem": "Add item",
     "addItemHint": "Search for products to add to this list",
-    "searchProducts": "Search Products"
+    "searchProducts": "Search Products",
+    "editAisleOrder": "Edit Aisle Order",
+    "aisleOrderHint": "Reorder aisles to match your walking path through the store. Items will be sorted by this order.",
+    "aisleOrderSaved": "Aisle order saved",
+    "aisleOrderReset": "Aisle order reset to default",
+    "resetAisleOrder": "Reset to Default",
+    "noAislesFound": "No aisles found. Add products with aisle information to this store to customize the order."
   },
 
   "chores": {
