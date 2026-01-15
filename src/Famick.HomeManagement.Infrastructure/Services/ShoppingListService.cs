@@ -85,7 +85,21 @@ public partial class ShoppingListService : IShoppingListService
 
         var shoppingList = await query.FirstOrDefaultAsync(sl => sl.Id == id, cancellationToken);
 
-        return shoppingList != null ? _mapper.Map<ShoppingListDto>(shoppingList) : null;
+        if (shoppingList == null)
+            return null;
+
+        var dto = _mapper.Map<ShoppingListDto>(shoppingList);
+
+        // Apply custom aisle ordering if items exist
+        if (dto.Items != null && dto.Items.Count > 0 && shoppingList.ShoppingLocationId != Guid.Empty)
+        {
+            dto.Items = await SortItemsByAisleOrderAsync(
+                dto.Items,
+                shoppingList.ShoppingLocationId,
+                cancellationToken);
+        }
+
+        return dto;
     }
 
     public async Task<List<ShoppingListSummaryDto>> ListAllAsync(
@@ -487,11 +501,19 @@ public partial class ShoppingListService : IShoppingListService
             Amount = request.Amount,
             Note = request.Note,
             IsPurchased = request.IsPurchased,
-            PurchasedAt = request.IsPurchased ? DateTime.UtcNow : null
+            PurchasedAt = request.IsPurchased ? DateTime.UtcNow : null,
+            // Use provided store info if available
+            Aisle = request.Aisle,
+            Department = request.Department,
+            ExternalProductId = request.ExternalProductId
         };
 
-        // If store has integration and lookup is requested, look up product in store
-        if (request.LookupInStore && list.ShoppingLocation?.IntegrationType != null)
+        // If store info not provided and lookup is requested, look up product in store
+        var hasStoreInfo = !string.IsNullOrEmpty(request.Aisle) ||
+                           !string.IsNullOrEmpty(request.Department) ||
+                           !string.IsNullOrEmpty(request.ExternalProductId);
+
+        if (!hasStoreInfo && request.LookupInStore && list.ShoppingLocation?.IntegrationType != null)
         {
             await TryPopulateStoreInfoAsync(item, list.ShoppingLocation, cancellationToken);
         }
@@ -805,6 +827,68 @@ public partial class ShoppingListService : IShoppingListService
         // If aisle contains "aisle", extract just the number/identifier
         var match = AisleRegex().Match(rawAisle);
         return match.Success ? match.Groups[1].Value : rawAisle;
+    }
+
+    /// <summary>
+    /// Sorts shopping list items by the store's custom aisle order, or default order if not configured.
+    /// </summary>
+    private async Task<List<ShoppingListItemDto>> SortItemsByAisleOrderAsync(
+        List<ShoppingListItemDto> items,
+        Guid shoppingLocationId,
+        CancellationToken cancellationToken)
+    {
+        var location = await _context.ShoppingLocations
+            .FirstOrDefaultAsync(sl => sl.Id == shoppingLocationId, cancellationToken);
+
+        if (location?.AisleOrder == null || location.AisleOrder.Count == 0)
+        {
+            // Default sorting: numeric then alphabetical, unknown last
+            return items
+                .OrderBy(i => GetDefaultAisleSortKey(i.Aisle))
+                .ThenBy(i => i.Department)
+                .ThenBy(i => i.ProductName)
+                .ToList();
+        }
+
+        // Custom sorting based on AisleOrder
+        var aisleOrderMap = location.AisleOrder
+            .Select((aisle, index) => new { aisle, index })
+            .ToDictionary(x => x.aisle, x => x.index);
+
+        return items
+            .OrderBy(i => GetCustomAisleSortKey(i.Aisle, aisleOrderMap))
+            .ThenBy(i => i.Department)
+            .ThenBy(i => i.ProductName)
+            .ToList();
+    }
+
+    /// <summary>
+    /// Returns a sort key for default aisle ordering: numeric first (by value), then named, then unknown.
+    /// </summary>
+    private static (int priority, int numericValue, string text) GetDefaultAisleSortKey(string? aisle)
+    {
+        if (string.IsNullOrEmpty(aisle))
+            return (2, 0, ""); // Unknown aisles last
+
+        if (int.TryParse(aisle, out int num))
+            return (0, num, ""); // Numeric aisles first
+
+        return (1, 0, aisle); // Named aisles second
+    }
+
+    /// <summary>
+    /// Returns a sort key for custom aisle ordering based on the configured order map.
+    /// </summary>
+    private static int GetCustomAisleSortKey(string? aisle, Dictionary<string, int> aisleOrderMap)
+    {
+        if (string.IsNullOrEmpty(aisle))
+            return int.MaxValue; // Unknown aisles last
+
+        if (aisleOrderMap.TryGetValue(aisle, out int order))
+            return order;
+
+        // Aisles not in custom order go after ordered ones
+        return int.MaxValue - 1;
     }
 
     public async Task<MoveToInventoryResponse> MoveToInventoryAsync(

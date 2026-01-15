@@ -22,4 +22,24 @@ public class AddToShoppingListRequest
     /// If true, mark the item as purchased immediately (for shopping mode app)
     /// </summary>
     public bool IsPurchased { get; set; }
+
+    /// <summary>
+    /// Aisle location from store integration (provided by mobile app when already looked up)
+    /// </summary>
+    public string? Aisle { get; set; }
+
+    /// <summary>
+    /// Department from store integration
+    /// </summary>
+    public string? Department { get; set; }
+
+    /// <summary>
+    /// External product ID from store integration (for cart push)
+    /// </summary>
+    public string? ExternalProductId { get; set; }
+
+    /// <summary>
+    /// Price from store integration
+    /// </summary>
+    public decimal? Price { get; set; }
 }

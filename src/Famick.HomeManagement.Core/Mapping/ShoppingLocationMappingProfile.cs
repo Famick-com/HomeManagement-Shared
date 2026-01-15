@@ -34,7 +34,9 @@ public class ShoppingLocationMappingProfile : Profile
             // Ignore OAuth fields (handled by OAuth flow)
             .ForMember(dest => dest.OAuthAccessToken, opt => opt.Ignore())
             .ForMember(dest => dest.OAuthRefreshToken, opt => opt.Ignore())
-            .ForMember(dest => dest.OAuthTokenExpiresAt, opt => opt.Ignore());
+            .ForMember(dest => dest.OAuthTokenExpiresAt, opt => opt.Ignore())
+            // Ignore AisleOrder (handled by separate API endpoint)
+            .ForMember(dest => dest.AisleOrder, opt => opt.Ignore());
 
         CreateMap<UpdateShoppingLocationRequest, ShoppingLocation>()
             .ForMember(dest => dest.Id, opt => opt.Ignore())
@@ -54,6 +56,8 @@ public class ShoppingLocationMappingProfile : Profile
             .ForMember(dest => dest.ExternalChainId, opt => opt.Ignore())
             .ForMember(dest => dest.OAuthAccessToken, opt => opt.Ignore())
             .ForMember(dest => dest.OAuthRefreshToken, opt => opt.Ignore())
-            .ForMember(dest => dest.OAuthTokenExpiresAt, opt => opt.Ignore());
+            .ForMember(dest => dest.OAuthTokenExpiresAt, opt => opt.Ignore())
+            // Ignore AisleOrder (handled by separate API endpoint)
+            .ForMember(dest => dest.AisleOrder, opt => opt.Ignore());
     }
 }

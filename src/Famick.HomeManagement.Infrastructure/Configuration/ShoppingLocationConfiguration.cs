@@ -73,6 +73,10 @@ namespace Famick.HomeManagement.Infrastructure.Configuration
                 .HasColumnName("longitude")
                 .HasColumnType("double precision");
 
+            builder.Property(sl => sl.AisleOrder)
+                .HasColumnName("aisle_order")
+                .HasColumnType("jsonb");
+
             builder.Property(sl => sl.CreatedAt)
                 .HasColumnName("created_at")
                 .HasColumnType("timestamp with time zone")

@@ -75,6 +75,12 @@ namespace Famick.HomeManagement.Domain.Entities
         /// </summary>
         public double? Longitude { get; set; }
 
+        /// <summary>
+        /// Custom aisle ordering for this store. Aisles stored in walking order.
+        /// When null/empty, default numeric-then-alphabetical order is used.
+        /// </summary>
+        public List<string>? AisleOrder { get; set; }
+
         // Navigation properties
         /// <summary>
         /// Products that have this as their default shopping location

@@ -54,4 +54,14 @@ public class ShoppingLocationDto
     /// Store longitude
     /// </summary>
     public double? Longitude { get; set; }
+
+    /// <summary>
+    /// Custom aisle order for this store, or null for default ordering
+    /// </summary>
+    public List<string>? AisleOrder { get; set; }
+
+    /// <summary>
+    /// Whether this store has a custom aisle order configured
+    /// </summary>
+    public bool HasCustomAisleOrder => AisleOrder != null && AisleOrder.Count > 0;
 }

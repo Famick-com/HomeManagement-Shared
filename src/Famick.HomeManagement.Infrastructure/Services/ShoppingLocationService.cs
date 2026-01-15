@@ -188,6 +188,200 @@ public class ShoppingLocationService : IShoppingLocationService
         return _mapper.Map<List<ProductSummaryDto>>(products);
     }
 
+    public async Task<List<string>> GetKnownAislesAsync(
+        Guid locationId,
+        CancellationToken cancellationToken = default)
+    {
+        _logger.LogInformation("GetKnownAislesAsync called for location: {LocationId}", locationId);
+
+        // Query distinct non-null aisles from ProductStoreMetadata for this location
+        var metadataAisles = await _context.ProductStoreMetadata
+            .Where(psm => psm.ShoppingLocationId == locationId && psm.Aisle != null)
+            .Select(psm => psm.Aisle!)
+            .Distinct()
+            .ToListAsync(cancellationToken);
+
+        _logger.LogInformation("Found {Count} aisles from ProductStoreMetadata: {Aisles}",
+            metadataAisles.Count, string.Join(", ", metadataAisles));
+
+        // Also include aisles from shopping list items at this location
+        // First get all shopping list IDs for this location
+        var listIdsAtLocation = await _context.ShoppingLists
+            .Where(sl => sl.ShoppingLocationId == locationId)
+            .Select(sl => sl.Id)
+            .ToListAsync(cancellationToken);
+
+        _logger.LogInformation("Found {Count} shopping lists at location {LocationId}: {ListIds}",
+            listIdsAtLocation.Count, locationId, string.Join(", ", listIdsAtLocation));
+
+        var shoppingListAisles = await _context.ShoppingListItems
+            .Where(sli => listIdsAtLocation.Contains(sli.ShoppingListId) && sli.Aisle != null && sli.Aisle != "")
+            .Select(sli => sli.Aisle!)
+            .Distinct()
+            .ToListAsync(cancellationToken);
+
+        _logger.LogInformation("Found {Count} aisles from ShoppingListItems: {Aisles}",
+            shoppingListAisles.Count, string.Join(", ", shoppingListAisles));
+
+        // Combine and deduplicate
+        var allAisles = metadataAisles.Union(shoppingListAisles).Distinct().ToList();
+
+        _logger.LogInformation("Combined {Count} unique aisles: {Aisles}",
+            allAisles.Count, string.Join(", ", allAisles));
+
+        // Sort using natural ordering (numeric first, then alphabetical)
+        return SortAislesNaturally(allAisles);
+    }
+
+    public async Task<AisleOrderDto> GetAisleOrderAsync(
+        Guid locationId,
+        CancellationToken cancellationToken = default)
+    {
+        var location = await _context.ShoppingLocations
+            .FindAsync(new object[] { locationId }, cancellationToken);
+
+        if (location == null)
+            throw new EntityNotFoundException(nameof(ShoppingLocation), locationId);
+
+        var knownAisles = await GetKnownAislesAsync(locationId, cancellationToken);
+
+        return new AisleOrderDto
+        {
+            OrderedAisles = location.AisleOrder ?? new List<string>(),
+            KnownAisles = knownAisles
+        };
+    }
+
+    public async Task<AisleOrderDto> UpdateAisleOrderAsync(
+        Guid locationId,
+        UpdateAisleOrderRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        _logger.LogInformation("Updating aisle order for shopping location: {LocationId}", locationId);
+
+        var location = await _context.ShoppingLocations
+            .FindAsync(new object[] { locationId }, cancellationToken);
+
+        if (location == null)
+            throw new EntityNotFoundException(nameof(ShoppingLocation), locationId);
+
+        // Handle gaps: if user orders [1, 5, 10], we fill in [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+        location.AisleOrder = request.OrderedAisles != null && request.OrderedAisles.Count > 0
+            ? FillAisleGaps(request.OrderedAisles)
+            : null;
+
+        await _context.SaveChangesAsync(cancellationToken);
+
+        _logger.LogInformation("Updated aisle order for shopping location: {LocationId}", locationId);
+
+        return await GetAisleOrderAsync(locationId, cancellationToken);
+    }
+
+    public async Task ClearAisleOrderAsync(
+        Guid locationId,
+        CancellationToken cancellationToken = default)
+    {
+        _logger.LogInformation("Clearing aisle order for shopping location: {LocationId}", locationId);
+
+        var location = await _context.ShoppingLocations
+            .FindAsync(new object[] { locationId }, cancellationToken);
+
+        if (location == null)
+            throw new EntityNotFoundException(nameof(ShoppingLocation), locationId);
+
+        location.AisleOrder = null;
+        await _context.SaveChangesAsync(cancellationToken);
+
+        _logger.LogInformation("Cleared aisle order for shopping location: {LocationId}", locationId);
+    }
+
+    /// <summary>
+    /// Fills gaps in numeric aisle sequences. For example, [1, 5, 10] becomes [1, 2, 3, 4, 5, 6, 7, 8, 9, 10].
+    /// Named aisles (non-numeric) are preserved in their original order at the end.
+    /// </summary>
+    private static List<string> FillAisleGaps(List<string> orderedAisles)
+    {
+        var result = new List<string>();
+        var numericAisles = new List<int>();
+        var namedAisles = new List<(string name, int originalIndex)>();
+
+        for (int i = 0; i < orderedAisles.Count; i++)
+        {
+            if (int.TryParse(orderedAisles[i], out int num))
+                numericAisles.Add(num);
+            else
+                namedAisles.Add((orderedAisles[i], i));
+        }
+
+        // Fill numeric gaps - preserve ordering direction
+        if (numericAisles.Count > 0)
+        {
+            var min = numericAisles.Min();
+            var max = numericAisles.Max();
+
+            // Check if user ordered descending (first numeric > last numeric)
+            var firstNumericIndex = orderedAisles.FindIndex(a => int.TryParse(a, out _));
+            var lastNumericIndex = orderedAisles.FindLastIndex(a => int.TryParse(a, out _));
+
+            if (firstNumericIndex >= 0 && lastNumericIndex >= 0 && firstNumericIndex != lastNumericIndex)
+            {
+                int.TryParse(orderedAisles[firstNumericIndex], out int first);
+                int.TryParse(orderedAisles[lastNumericIndex], out int last);
+
+                if (first > last)
+                {
+                    // Descending order
+                    for (int i = max; i >= min; i--)
+                    {
+                        result.Add(i.ToString());
+                    }
+                }
+                else
+                {
+                    // Ascending order
+                    for (int i = min; i <= max; i++)
+                    {
+                        result.Add(i.ToString());
+                    }
+                }
+            }
+            else
+            {
+                // Single numeric or default ascending
+                for (int i = min; i <= max; i++)
+                {
+                    result.Add(i.ToString());
+                }
+            }
+        }
+
+        // Add named aisles in their original order
+        foreach (var named in namedAisles.OrderBy(n => n.originalIndex))
+        {
+            result.Add(named.name);
+        }
+
+        return result;
+    }
+
+    /// <summary>
+    /// Sorts aisles naturally: numeric aisles first (by value), then named aisles alphabetically.
+    /// </summary>
+    private static List<string> SortAislesNaturally(List<string> aisles)
+    {
+        var numeric = aisles
+            .Where(a => int.TryParse(a, out _))
+            .OrderBy(a => int.Parse(a))
+            .ToList();
+
+        var named = aisles
+            .Where(a => !int.TryParse(a, out _))
+            .OrderBy(a => a)
+            .ToList();
+
+        return numeric.Concat(named).ToList();
+    }
+
     /// <summary>
     /// Populates the IsConnected property on ShoppingLocationDto instances.
     /// For plugins that don't require OAuth, IsConnected is always true.

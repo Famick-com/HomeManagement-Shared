@@ -10,6 +10,7 @@
 @using Famick.HomeManagement.Core.DTOs.ProductLookup
 @using Famick.HomeManagement.UI.Services
 @using Famick.HomeManagement.UI.Components.Products
+@using Famick.HomeManagement.UI.Components.Shopping
 
 <PageTitle>@(_list?.Name ?? L["shopping.list"]) - Home Management</PageTitle>
 
@@ -17,6 +18,15 @@
 <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="mb-4">
     <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
         <MudIconButton Icon="@Icons.Material.Filled.ArrowBack" OnClick="NavigateBack" />
+        @if (_list != null)
+        {
+            <MudTooltip Text="@(CanEdit ? L["shopping.editAisleOrder"] : L["common.viewerNoPermission"])">
+                <MudIconButton Icon="@Icons.Material.Filled.Sort"
+                               Color="Color.Primary"
+                               OnClick="OpenAisleOrderEditor"
+                               Disabled="@(!CanEdit)" />
+            </MudTooltip>
+        }
         <MudStack Spacing="0">
             <MudText Typo="Typo.h4">@(_list?.Name ?? L["shopping.list"])</MudText>
             @if (_list != null)
@@ -409,6 +419,33 @@ else if (!_isLoading && _list != null)
     private void NavigateBack()
     {
         Navigation.NavigateTo("/shopping-lists");
+    }
+
+    private async Task OpenAisleOrderEditor()
+    {
+        if (_list == null) return;
+
+        var parameters = new DialogParameters<AisleOrderEditorDialog>
+        {
+            { x => x.ShoppingLocationId, _list.ShoppingLocationId }
+        };
+
+        var options = new DialogOptions
+        {
+            MaxWidth = MaxWidth.Small,
+            FullWidth = true,
+            CloseOnEscapeKey = true
+        };
+
+        var dialog = await DialogService.ShowAsync<AisleOrderEditorDialog>(
+            L["shopping.editAisleOrder"], parameters, options);
+        var result = await dialog.Result;
+
+        if (!result!.Canceled)
+        {
+            // Reload the list to apply new ordering
+            await LoadListAsync();
+        }
     }
 
     private async Task OpenProductSearch()
