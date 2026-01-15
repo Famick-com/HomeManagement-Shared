@@ -299,6 +299,115 @@ public class StoreIntegrationService : IStoreIntegrationService
         return true;
     }
 
+    /// <summary>
+    /// Force a token refresh regardless of expiry time. Used when the API rejects a token unexpectedly.
+    /// </summary>
+    private async Task<bool> ForceRefreshTokenAsync(string pluginId, CancellationToken ct)
+    {
+        var tenantId = _tenantProvider.TenantId;
+        if (!tenantId.HasValue)
+            return false;
+
+        var token = await _dbContext.TenantIntegrationTokens
+            .FirstOrDefaultAsync(t => t.TenantId == tenantId.Value && t.PluginId == pluginId, ct);
+
+        if (token == null)
+        {
+            _logger.LogWarning("No token found for plugin {PluginId} during force refresh", pluginId);
+            return false;
+        }
+
+        if (string.IsNullOrEmpty(token.RefreshToken))
+        {
+            _logger.LogWarning("Cannot force refresh token for plugin {PluginId}: no refresh token available", pluginId);
+            token.RequiresReauth = true;
+            await _dbContext.SaveChangesAsync(ct);
+            return false;
+        }
+
+        var plugin = _pluginLoader.GetPlugin<IStoreIntegrationPlugin>(pluginId);
+        if (plugin == null)
+        {
+            _logger.LogWarning("Plugin {PluginId} not found during force refresh", pluginId);
+            return false;
+        }
+
+        _logger.LogInformation("Force refreshing token for plugin {PluginId}", pluginId);
+        var tokenResult = await plugin.RefreshTokenAsync(token.RefreshToken, ct);
+
+        if (!tokenResult.Success)
+        {
+            _logger.LogWarning(
+                "Force token refresh failed for plugin {PluginId}: {Error}. Re-authentication required.",
+                pluginId, tokenResult.ErrorMessage);
+
+            token.RequiresReauth = true;
+            await _dbContext.SaveChangesAsync(ct);
+            return false;
+        }
+
+        // Update token
+        token.AccessToken = tokenResult.AccessToken;
+        if (!string.IsNullOrEmpty(tokenResult.RefreshToken))
+        {
+            token.RefreshToken = tokenResult.RefreshToken;
+        }
+        token.ExpiresAt = tokenResult.ExpiresAt;
+        token.LastRefreshedAt = DateTime.UtcNow;
+        token.RequiresReauth = false;
+
+        await _dbContext.SaveChangesAsync(ct);
+
+        _logger.LogInformation("Token force refreshed successfully for plugin {PluginId}", pluginId);
+        return true;
+    }
+
+    /// <summary>
+    /// Executes an authenticated operation with automatic token refresh on 401/403 errors.
+    /// If the API rejects the token, this method will refresh and retry once.
+    /// </summary>
+    private async Task<T> ExecuteWithTokenRefreshAsync<T>(
+        string pluginId,
+        Func<string, Task<T>> operation,
+        CancellationToken ct)
+    {
+        var accessToken = await GetAccessTokenAsync(pluginId, ct);
+        if (accessToken == null)
+        {
+            throw new InvalidOperationException("Unable to authenticate with store. Please reconnect the integration.");
+        }
+
+        try
+        {
+            return await operation(accessToken);
+        }
+        catch (StoreAuthenticationException ex)
+        {
+            // Token was rejected by the API - attempt refresh and retry
+            _logger.LogWarning(
+                "Token rejected by API for plugin {PluginId} (HTTP {StatusCode}), attempting refresh",
+                pluginId, ex.HttpStatusCode);
+
+            if (!await ForceRefreshTokenAsync(pluginId, ct))
+            {
+                throw new InvalidOperationException(
+                    "Authentication failed after token refresh. Please reconnect the store integration.");
+            }
+
+            // Get the new token after refresh
+            accessToken = await GetAccessTokenAsync(pluginId, ct);
+            if (accessToken == null)
+            {
+                throw new InvalidOperationException(
+                    "Unable to authenticate after token refresh. Please reconnect the integration.");
+            }
+
+            // Retry the operation once with the fresh token
+            _logger.LogInformation("Retrying operation for plugin {PluginId} with refreshed token", pluginId);
+            return await operation(accessToken);
+        }
+    }
+
     public async Task DisconnectPluginAsync(string pluginId, CancellationToken ct = default)
     {
         var tenantId = _tenantProvider.TenantId;
@@ -425,18 +534,18 @@ public class StoreIntegrationService : IStoreIntegrationService
         if (string.IsNullOrEmpty(location.ExternalLocationId))
             throw new InvalidOperationException("Shopping location has no external location ID");
 
-        // Get access token (auto-refreshes if needed)
-        var accessToken = await GetAccessTokenAsync(location.IntegrationType, ct);
-        if (accessToken == null)
-            throw new InvalidOperationException("Unable to authenticate with store. Please reconnect the integration.");
-
         var plugin = GetPluginOrThrow(location.IntegrationType);
+        var externalLocationId = location.ExternalLocationId;
 
-        return await plugin.SearchProductsAsync(
-            accessToken,
-            location.ExternalLocationId,
-            request.Query,
-            request.MaxResults,
+        // Execute with automatic token refresh on 401/403
+        return await ExecuteWithTokenRefreshAsync(
+            location.IntegrationType,
+            async (accessToken) => await plugin.SearchProductsAsync(
+                accessToken,
+                externalLocationId,
+                request.Query,
+                request.MaxResults,
+                ct),
             ct);
     }
 
@@ -466,14 +575,6 @@ public class StoreIntegrationService : IStoreIntegrationService
             return null;
         }
 
-        // Get access token (auto-refreshes if needed)
-        var accessToken = await GetAccessTokenAsync(location.IntegrationType, ct);
-        if (accessToken == null)
-        {
-            _logger.LogWarning("Unable to get access token for plugin {PluginId}", location.IntegrationType);
-            return null;
-        }
-
         var plugin = _pluginLoader.GetPlugin<IStoreIntegrationPlugin>(location.IntegrationType);
         if (plugin == null)
         {
@@ -481,10 +582,16 @@ public class StoreIntegrationService : IStoreIntegrationService
             return null;
         }
 
-        return await plugin.GetProductAsync(
-            accessToken,
-            location.ExternalLocationId,
-            externalProductId,
+        var externalLocationIdCopy = location.ExternalLocationId;
+
+        // Execute with automatic token refresh on 401/403
+        return await ExecuteWithTokenRefreshAsync(
+            location.IntegrationType,
+            async (accessToken) => await plugin.GetProductAsync(
+                accessToken,
+                externalLocationIdCopy,
+                externalProductId,
+                ct),
             ct);
     }
 
@@ -609,18 +716,20 @@ public class StoreIntegrationService : IStoreIntegrationService
             string.IsNullOrEmpty(location.ExternalLocationId))
             return null;
 
-        // Get access token (auto-refreshes if needed)
-        var accessToken = await GetAccessTokenAsync(location.IntegrationType, ct);
-        if (accessToken == null)
-            return null;
-
         var plugin = _pluginLoader.GetPlugin<IStoreIntegrationPlugin>(location.IntegrationType);
         if (plugin == null) return null;
 
-        var storeProduct = await plugin.GetProductAsync(
-            accessToken,
-            location.ExternalLocationId,
-            metadata.ExternalProductId,
+        var externalLocationId = location.ExternalLocationId;
+        var externalProductId = metadata.ExternalProductId;
+
+        // Execute with automatic token refresh on 401/403
+        var storeProduct = await ExecuteWithTokenRefreshAsync(
+            location.IntegrationType,
+            async (accessToken) => await plugin.GetProductAsync(
+                accessToken,
+                externalLocationId,
+                externalProductId,
+                ct),
             ct);
 
         if (storeProduct == null) return null;

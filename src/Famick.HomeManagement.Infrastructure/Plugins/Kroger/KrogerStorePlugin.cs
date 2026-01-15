@@ -452,6 +452,17 @@ public class KrogerStorePlugin : IStoreIntegrationPlugin, IProductLookupPlugin
         {
             _logger.LogError("Failed to search products. Status: {Status}, Response: {Response}",
                 response.StatusCode, responseContent);
+
+            // Throw specific exception for auth failures to enable retry with token refresh
+            if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized ||
+                response.StatusCode == System.Net.HttpStatusCode.Forbidden)
+            {
+                throw new StoreAuthenticationException(
+                    PluginId,
+                    $"Authentication failed: {response.StatusCode}",
+                    (int)response.StatusCode);
+            }
+
             throw new InvalidOperationException($"Failed to search products: {response.StatusCode}");
         }
 
@@ -631,7 +642,18 @@ public class KrogerStorePlugin : IStoreIntegrationPlugin, IProductLookupPlugin
         {
             _logger.LogError("Failed to get cart. Status: {Status}, Response: {Response}",
                 response.StatusCode, responseContent);
-            return null;
+
+            // Throw specific exception for auth failures to enable retry with token refresh
+            if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized ||
+                response.StatusCode == System.Net.HttpStatusCode.Forbidden)
+            {
+                throw new StoreAuthenticationException(
+                    PluginId,
+                    $"Authentication failed: {response.StatusCode}",
+                    (int)response.StatusCode);
+            }
+
+            throw new InvalidOperationException($"Failed to get cart: {response.StatusCode}");
         }
 
         var cartResponse = JsonSerializer.Deserialize<KrogerCartResponse>(responseContent);
@@ -677,7 +699,18 @@ public class KrogerStorePlugin : IStoreIntegrationPlugin, IProductLookupPlugin
         {
             _logger.LogError("Failed to add to cart. Status: {Status}, Response: {Response}",
                 response.StatusCode, responseContent);
-            return null;
+
+            // Throw specific exception for auth failures to enable retry with token refresh
+            if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized ||
+                response.StatusCode == System.Net.HttpStatusCode.Forbidden)
+            {
+                throw new StoreAuthenticationException(
+                    PluginId,
+                    $"Authentication failed: {response.StatusCode}",
+                    (int)response.StatusCode);
+            }
+
+            throw new InvalidOperationException($"Failed to add to cart: {response.StatusCode}");
         }
 
         // Return updated cart
