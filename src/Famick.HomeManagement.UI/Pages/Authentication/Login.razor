@@ -5,7 +5,9 @@
 @inject NavigationManager Navigation
 @inject IServiceProvider ServiceProvider
 @inject ILocalizer L
+@inject ILocalizationService LocalizationService
 @using Famick.HomeManagement.UI.Theme
+@using Famick.HomeManagement.UI.Localization
 @using Microsoft.Extensions.DependencyInjection
 
 <LocalizationInitializer>
@@ -15,7 +17,34 @@
     <MudSnackbarProvider />
 
     <MudContainer MaxWidth="MaxWidth.Small" Class="d-flex align-center" Style="height: 100vh;">
-        <MudPaper Elevation="3" Class="pa-8" Style="width: 100%;">
+        <MudPaper Elevation="3" Class="pa-8" Style="width: 100%; position: relative;">
+            @* Language Selector *@
+            <div style="position: absolute; top: 8px; right: 8px;">
+                <MudMenu AnchorOrigin="Origin.BottomRight" TransformOrigin="Origin.TopRight">
+                    <ActivatorContent>
+                        <MudIconButton Icon="@Icons.Material.Filled.Language"
+                                       Color="Color.Default"
+                                       Size="Size.Small"
+                                       Title="@L["profile.language"]" />
+                    </ActivatorContent>
+                    <ChildContent>
+                        @foreach (var language in LocalizationService.AvailableLanguages)
+                        {
+                            <MudMenuItem OnClick="@(() => ChangeLanguageAsync(language.Code))"
+                                         Disabled="@(language.Code == LocalizationService.CurrentLanguage)">
+                                <div class="d-flex align-center gap-2">
+                                    <span>@language.NativeName</span>
+                                    @if (language.NativeName != language.EnglishName)
+                                    {
+                                        <span class="mud-text-secondary" style="font-size: 0.85em;">(@language.EnglishName)</span>
+                                    }
+                                </div>
+                            </MudMenuItem>
+                        }
+                    </ChildContent>
+                </MudMenu>
+            </div>
+
             <MudStack Spacing="4" AlignItems="AlignItems.Center">
                 <MudImage Src="_content/Famick.HomeManagement.UI/images/logo-lockup.svg" Height="100" Alt="Famick Home Management" />
                 <MudText Typo="Typo.body2" Color="Color.Secondary">@L["auth.signInToAccount"]</MudText>
@@ -188,6 +217,12 @@
 
             if (result.IsSuccess)
             {
+                // Apply user's preferred language if set
+                if (!string.IsNullOrEmpty(result.Data?.User?.PreferredLanguage))
+                {
+                    await LocalizationService.SetLanguageAsync(result.Data.User.PreferredLanguage);
+                }
+
                 AuthStateProvider.NotifyAuthenticationStateChanged();
                 var returnUrl = string.IsNullOrEmpty(ReturnUrl) ? "/" : ReturnUrl;
                 Navigation.NavigateTo(returnUrl);
@@ -209,5 +244,10 @@
         {
             _isLoading = false;
         }
+    }
+
+    private async Task ChangeLanguageAsync(string languageCode)
+    {
+        await LocalizationService.SetLanguageAsync(languageCode);
     }
 }

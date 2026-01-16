@@ -112,6 +112,32 @@
     "resetFailed": "Password reset failed. Please try again."
   },
 
+  "profile": {
+    "title": "My Profile",
+    "personalInfo": "Personal Information",
+    "firstName": "First Name",
+    "lastName": "Last Name",
+    "email": "Email Address",
+    "lastLogin": "Last Login",
+    "language": "Preferred Language",
+    "languageDescription": "Your preferred language will be applied when you log in.",
+    "changePassword": "Change Password",
+    "currentPassword": "Current Password",
+    "newPassword": "New Password",
+    "confirmPassword": "Confirm Password",
+    "passwordChanged": "Password changed successfully",
+    "passwordMismatch": "New passwords do not match",
+    "incorrectPassword": "Current password is incorrect",
+    "contactInfo": "Contact Information",
+    "noLinkedContact": "No contact record is linked to your account.",
+    "viewFullContact": "View full contact details",
+    "phoneNumbers": "Phone Numbers",
+    "emailAddresses": "Email Addresses",
+    "saved": "Profile saved successfully",
+    "saveError": "Failed to save profile",
+    "loadError": "Failed to load profile"
+  },
+
   "nav": {
     "home": "Home",
     "homeManagement": "Home Management",

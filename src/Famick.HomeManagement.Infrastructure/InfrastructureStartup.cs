@@ -35,6 +35,7 @@ public static class InfrastructureStartup
         services.AddScoped<IEmailService, SmtpEmailService>();
         services.AddScoped<IPasswordResetService, PasswordResetService>();
         services.AddScoped<IUserManagementService, UserManagementService>();
+        services.AddScoped<IUserProfileService, UserProfileService>();
 
         // Register data seeder
         services.AddScoped<DataSeeder>();

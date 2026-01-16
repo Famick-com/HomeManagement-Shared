@@ -17,6 +17,11 @@ public class User : BaseEntity, ITenantEntity
     public DateTime? LastLoginAt { get; set; }
 
     /// <summary>
+    /// User's preferred language code (e.g., "en", "es", "fr")
+    /// </summary>
+    public string? PreferredLanguage { get; set; }
+
+    /// <summary>
     /// Link to the user's Contact record (1:1 relationship)
     /// </summary>
     public Guid? ContactId { get; set; }
