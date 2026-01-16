@@ -155,10 +155,13 @@ public partial class ShoppingListService : IShoppingListService
             })
             .ToList();
 
+        var totalUnpurchased = shoppingLists.Sum(sl => sl.Items?.Count(i => !i.IsPurchased) ?? 0);
+
         return new ShoppingListDashboardDto
         {
             StoresSummary = grouped,
             TotalItems = grouped.Sum(g => g.TotalItems),
+            UnpurchasedItems = totalUnpurchased,
             TotalLists = shoppingLists.Count
         };
     }

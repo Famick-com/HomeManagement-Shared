@@ -7,6 +7,7 @@ public class ShoppingListDashboardDto
 {
     public List<StoreShoppingListSummary> StoresSummary { get; set; } = new();
     public int TotalItems { get; set; }
+    public int UnpurchasedItems { get; set; }
     public int TotalLists { get; set; }
 }
 
