@@ -10,6 +10,7 @@ public class ChoreDto
     public bool TrackDateOnly { get; set; }
     public bool Rollover { get; set; }
     public string? AssignmentType { get; set; }
+    public string? AssignmentConfig { get; set; }
     public Guid? NextExecutionAssignedToUserId { get; set; }
     public string? NextExecutionAssignedToUserName { get; set; }
     public DateTime? NextExecutionDate { get; set; }

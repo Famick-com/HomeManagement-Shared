@@ -45,6 +45,9 @@ public class ChoreService : IChoreService
         var chore = _mapper.Map<Chore>(request);
         chore.Id = Guid.NewGuid();
 
+        // Set initial assignment based on assignment type
+        SetInitialAssignment(chore, request.AssignmentType, request.AssignmentConfig);
+
         _context.Chores.Add(chore);
         await _context.SaveChangesAsync(cancellationToken);
 
@@ -166,6 +169,10 @@ public class ChoreService : IChoreService
         }
 
         _mapper.Map(request, chore);
+
+        // Update assignment based on assignment type
+        SetInitialAssignment(chore, request.AssignmentType, request.AssignmentConfig);
+
         await _context.SaveChangesAsync(cancellationToken);
 
         _logger.LogInformation("Updated chore: {Id} - {Name}", id, request.Name);
@@ -458,24 +465,38 @@ public class ChoreService : IChoreService
             return null;
         }
 
-        // If no execution history, return now for first execution
+        DateTime? nextDate;
+
+        // If no execution history, calculate first execution based on period type
         if (lastExecution == null)
         {
-            return DateTime.UtcNow;
+            nextDate = chore.PeriodType switch
+            {
+                "daily" => DateTime.UtcNow.Date, // Today
+                "weekly" when chore.PeriodDays.HasValue =>
+                    GetNextWeekday(DateTime.UtcNow, (DayOfWeek)chore.PeriodDays.Value),
+                "monthly" when chore.PeriodDays.HasValue =>
+                    GetNextMonthlyDateFromNow(chore.PeriodDays.Value),
+                "dynamic-regular" => DateTime.UtcNow.Date, // Today for first execution
+                _ => DateTime.UtcNow
+            };
         }
-
-        var baseDate = lastExecution.Value;
-
-        var nextDate = chore.PeriodType switch
+        else
         {
-            "daily" => baseDate.AddDays(1),
-            "weekly" => baseDate.AddDays(7),
-            "monthly" when chore.PeriodDays.HasValue =>
-                GetNextMonthlyDate(baseDate, chore.PeriodDays.Value),
-            "dynamic-regular" when chore.PeriodDays.HasValue =>
-                baseDate.AddDays(chore.PeriodDays.Value),
-            _ => (DateTime?)null
-        };
+            var baseDate = lastExecution.Value;
+
+            nextDate = chore.PeriodType switch
+            {
+                "daily" => baseDate.AddDays(1),
+                "weekly" when chore.PeriodDays.HasValue =>
+                    GetNextWeekday(baseDate.AddDays(1), (DayOfWeek)chore.PeriodDays.Value),
+                "monthly" when chore.PeriodDays.HasValue =>
+                    GetNextMonthlyDate(baseDate, chore.PeriodDays.Value),
+                "dynamic-regular" when chore.PeriodDays.HasValue =>
+                    baseDate.AddDays(chore.PeriodDays.Value),
+                _ => (DateTime?)null
+            };
+        }
 
         // Apply rollover if needed
         if (nextDate.HasValue && chore.Rollover && nextDate.Value < DateTime.UtcNow)
@@ -492,8 +513,45 @@ public class ChoreService : IChoreService
             }
         }
 
+        // Apply TrackDateOnly - strip time portion
+        if (nextDate.HasValue && chore.TrackDateOnly)
+        {
+            nextDate = nextDate.Value.Date;
+        }
+
         await Task.CompletedTask; // Async method signature for consistency
         return nextDate;
+    }
+
+    private DateTime GetNextWeekday(DateTime from, DayOfWeek targetDay)
+    {
+        // Calculate days until target weekday
+        int daysUntil = ((int)targetDay - (int)from.DayOfWeek + 7) % 7;
+        if (daysUntil == 0)
+        {
+            // If today is the target day, use today (or next week if we want to skip today)
+            daysUntil = 0;
+        }
+        return from.Date.AddDays(daysUntil);
+    }
+
+    private DateTime GetNextMonthlyDateFromNow(int dayOfMonth)
+    {
+        var now = DateTime.UtcNow;
+        var daysInCurrentMonth = DateTime.DaysInMonth(now.Year, now.Month);
+        var targetDay = Math.Min(dayOfMonth, daysInCurrentMonth);
+
+        // If the target day hasn't passed this month, use this month
+        if (now.Day <= targetDay)
+        {
+            return new DateTime(now.Year, now.Month, targetDay, 0, 0, 0, DateTimeKind.Utc);
+        }
+
+        // Otherwise, use next month
+        var nextMonth = now.AddMonths(1);
+        var daysInNextMonth = DateTime.DaysInMonth(nextMonth.Year, nextMonth.Month);
+        targetDay = Math.Min(dayOfMonth, daysInNextMonth);
+        return new DateTime(nextMonth.Year, nextMonth.Month, targetDay, 0, 0, 0, DateTimeKind.Utc);
     }
 
     private DateTime GetNextMonthlyDate(DateTime baseDate, int dayOfMonth)
@@ -512,11 +570,53 @@ public class ChoreService : IChoreService
         if (string.IsNullOrWhiteSpace(config))
             return new List<Guid>();
 
-        // Assuming CSV format: "guid1,guid2,guid3"
+        // Try to parse as JSON array first (from UI), then fall back to CSV
+        if (config.StartsWith("["))
+        {
+            try
+            {
+                var guids = System.Text.Json.JsonSerializer.Deserialize<List<Guid>>(config);
+                return guids ?? new List<Guid>();
+            }
+            catch
+            {
+                // Fall through to CSV parsing
+            }
+        }
+
+        // CSV format: "guid1,guid2,guid3"
         return config.Split(',', StringSplitOptions.RemoveEmptyEntries)
             .Select(s => Guid.TryParse(s.Trim(), out var guid) ? guid : (Guid?)null)
             .Where(g => g.HasValue)
             .Select(g => g!.Value)
             .ToList();
+    }
+
+    private void SetInitialAssignment(Chore chore, string? assignmentType, string? assignmentConfig)
+    {
+        if (string.IsNullOrEmpty(assignmentType))
+        {
+            chore.NextExecutionAssignedToUserId = null;
+            return;
+        }
+
+        if (assignmentType == "specific-user" && !string.IsNullOrWhiteSpace(assignmentConfig))
+        {
+            // For specific-user, the config is the user ID
+            if (Guid.TryParse(assignmentConfig.Trim('"'), out var userId))
+            {
+                chore.NextExecutionAssignedToUserId = userId;
+            }
+        }
+        else if (assignmentType == "round-robin")
+        {
+            // For round-robin, assign to the first user in the list initially
+            var userIds = ParseAssignmentConfig(assignmentConfig);
+            chore.NextExecutionAssignedToUserId = userIds.FirstOrDefault();
+            if (chore.NextExecutionAssignedToUserId == Guid.Empty)
+            {
+                chore.NextExecutionAssignedToUserId = null;
+            }
+        }
     }
 }

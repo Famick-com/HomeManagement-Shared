@@ -20,7 +20,6 @@
     @* Household section (collapsible) *@
     <MudNavGroup Title="@L["nav.household"]" Icon="@Icons.Material.Filled.FamilyRestroom" Expanded="@_householdExpanded" ExpandedChanged="@(e => OnExpandedChanged("household", e))">
         <MudNavLink Href="/contacts" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Contacts">@L["nav.contacts"]</MudNavLink>
-        <MudNavLink Href="/tasks" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.TaskAlt">@L["nav.tasks"]</MudNavLink>
         <MudNavLink Href="/chores" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.CleaningServices">@L["nav.chores"]</MudNavLink>
         <MudNavLink Href="/equipment" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Build">@L["nav.equipment"]</MudNavLink>
         <MudNavLink Href="/storage" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Inventory2">@L["nav.storageBins"]</MudNavLink>
