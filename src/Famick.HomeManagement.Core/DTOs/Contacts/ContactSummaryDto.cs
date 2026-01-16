@@ -13,6 +13,7 @@ public class ContactSummaryDto
     public string? PreferredName { get; set; }
     public string? CompanyName { get; set; }
     public string? ProfileImageUrl { get; set; }
+    public string? GravatarUrl { get; set; }
 
     /// <summary>
     /// Display name for the contact

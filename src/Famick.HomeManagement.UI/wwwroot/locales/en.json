@@ -946,7 +946,7 @@
     "gender": "Gender",
     "company": "Company",
     "companyName": "Company Name",
-    "title": "Job Title",
+    "jobTitle": "Job Title",
     "nameOrCompanyRequired": "Either Company Name OR at least First Name or Last Name is required",
     "dates": "Dates",
     "birthDate": "Birth Date",
@@ -1022,6 +1022,8 @@
     "uploadingImage": "Uploading image...",
     "imageTooLarge": "Image file exceeds 5MB size limit",
     "invalidImageType": "Invalid image format. Please use JPG, PNG, GIF, or WebP",
+    "useGravatar": "Use Gravatar",
+    "whatsGravatar": "What's Gravatar?",
     "socialMedia.add": "Add Social Media",
     "socialMedia.none": "No social media profiles added",
     "socialMedia.added": "Social media added successfully",
@@ -1189,6 +1191,15 @@
     "printSelected": "Print Selected",
     "printSelectedDescription": "Generate labels for {0} selected storage bin(s).",
     "maxSelectionReached": "Maximum 9 bins can be selected for printing",
+    "location": "Location",
+    "locationHint": "Where this bin is physically stored",
+    "category": "Category",
+    "categoryPlaceholder": "e.g., Holiday Decorations, Tools, Crafts...",
+    "groupBy": "Group By",
+    "groupByNone": "No Grouping",
+    "groupByLocation": "Location",
+    "groupByCategory": "Category",
+    "ungrouped": "Unassigned",
     "editor": {
       "bold": "Bold",
       "italic": "Italic",
@@ -1199,6 +1210,11 @@
       "edit": "Edit",
       "noContent": "No description yet"
     }
+  },
+
+  "locations": {
+    "create": "Create",
+    "created": "Location \"{0}\" created successfully"
   },
 
   "home": {

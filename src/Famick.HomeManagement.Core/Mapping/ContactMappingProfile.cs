@@ -30,7 +30,8 @@ public class ContactMappingProfile : Profile
                 opt => opt.MapFrom(src => src.SharedWithUsers))
             .ForMember(dest => dest.Relationships,
                 opt => opt.MapFrom(src => src.RelationshipsAsSource))
-            .ForMember(dest => dest.ProfileImageUrl, opt => opt.Ignore()); // Set in service
+            .ForMember(dest => dest.ProfileImageUrl, opt => opt.Ignore()) // Set in service
+            .ForMember(dest => dest.GravatarUrl, opt => opt.Ignore()); // Set in service
 
         // Contact -> ContactSummaryDto
         CreateMap<Contact, ContactSummaryDto>()
@@ -64,7 +65,8 @@ public class ContactMappingProfile : Profile
                 opt => opt.MapFrom(src => src.Tags.Select(t => t.Tag.Name).ToList()))
             .ForMember(dest => dest.TagColors,
                 opt => opt.MapFrom(src => src.Tags.Select(t => t.Tag.Color).ToList()))
-            .ForMember(dest => dest.ProfileImageUrl, opt => opt.Ignore()); // Set in service
+            .ForMember(dest => dest.ProfileImageUrl, opt => opt.Ignore()) // Set in service
+            .ForMember(dest => dest.GravatarUrl, opt => opt.Ignore()); // Set in service
 
         // CreateContactRequest -> Contact
         CreateMap<CreateContactRequest, Contact>()

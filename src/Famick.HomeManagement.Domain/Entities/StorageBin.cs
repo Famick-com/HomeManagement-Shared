@@ -18,7 +18,22 @@ public class StorageBin : BaseTenantEntity
     /// </summary>
     public string Description { get; set; } = string.Empty;
 
+    /// <summary>
+    /// Optional location where this storage bin is physically kept.
+    /// </summary>
+    public Guid? LocationId { get; set; }
+
+    /// <summary>
+    /// Freeform category for organizing bins (e.g., "Holiday Decorations", "Tools").
+    /// </summary>
+    public string? Category { get; set; }
+
     #region Navigation Properties
+
+    /// <summary>
+    /// The location where this bin is stored (optional).
+    /// </summary>
+    public virtual Location? Location { get; set; }
 
     /// <summary>
     /// Photos attached to this storage bin (images of contents).

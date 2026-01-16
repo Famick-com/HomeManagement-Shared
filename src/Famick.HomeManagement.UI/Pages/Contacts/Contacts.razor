@@ -122,10 +122,15 @@
                     <TemplateColumn Title="@L["contacts.name"]">
                         <CellTemplate>
                             <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
-                                @if (!string.IsNullOrEmpty(context.Item.ProfileImageUrl))
+                                @{
+                                    var imageUrl = !string.IsNullOrEmpty(context.Item.ProfileImageUrl)
+                                        ? context.Item.ProfileImageUrl
+                                        : context.Item.GravatarUrl;
+                                }
+                                @if (!string.IsNullOrEmpty(imageUrl))
                                 {
                                     <MudAvatar Size="Size.Small">
-                                        <MudImage Src="@context.Item.ProfileImageUrl" Alt="Profile" Style="width: 100%; height: 100%; object-fit: cover;" />
+                                        <MudImage Src="@imageUrl" Alt="Profile" Style="width: 100%; height: 100%; object-fit: cover;" />
                                     </MudAvatar>
                                 }
                                 else
@@ -180,10 +185,15 @@
                     <MudCard Elevation="1" Class="cursor-pointer" @onclick="() => NavigateToContact(contact.Id)">
                         <MudCardContent>
                             <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
-                                @if (!string.IsNullOrEmpty(contact.ProfileImageUrl))
+                                @{
+                                    var mobileImageUrl = !string.IsNullOrEmpty(contact.ProfileImageUrl)
+                                        ? contact.ProfileImageUrl
+                                        : contact.GravatarUrl;
+                                }
+                                @if (!string.IsNullOrEmpty(mobileImageUrl))
                                 {
                                     <MudAvatar Size="Size.Medium">
-                                        <MudImage Src="@contact.ProfileImageUrl" Alt="Profile" Style="width: 100%; height: 100%; object-fit: cover;" />
+                                        <MudImage Src="@mobileImageUrl" Alt="Profile" Style="width: 100%; height: 100%; object-fit: cover;" />
                                     </MudAvatar>
                                 }
                                 else

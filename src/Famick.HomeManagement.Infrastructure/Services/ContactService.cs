@@ -172,6 +172,12 @@ public partial class ContactService : IContactService
             dto.ProfileImageUrl = _fileStorageService.GetContactProfileImageUrl(contact.Id, accessToken);
         }
 
+        // Set Gravatar URL if UseGravatar is enabled and primary email exists
+        if (contact.UseGravatar && !string.IsNullOrEmpty(dto.PrimaryEmail))
+        {
+            dto.GravatarUrl = GravatarHelper.GetGravatarUrl(dto.PrimaryEmail);
+        }
+
         return dto;
     }
 
@@ -200,6 +206,12 @@ public partial class ContactService : IContactService
         {
             var accessToken = _tokenService.GenerateToken("contact-profile-image", contact.Id, contact.TenantId);
             dto.ProfileImageUrl = _fileStorageService.GetContactProfileImageUrl(contact.Id, accessToken);
+        }
+
+        // Set Gravatar URL if UseGravatar is enabled and primary email exists
+        if (contact.UseGravatar && !string.IsNullOrEmpty(dto.PrimaryEmail))
+        {
+            dto.GravatarUrl = GravatarHelper.GetGravatarUrl(dto.PrimaryEmail);
         }
 
         return dto;
@@ -278,13 +290,19 @@ public partial class ContactService : IContactService
 
         var dtos = _mapper.Map<List<ContactSummaryDto>>(items);
 
-        // Set profile image URLs for contacts that have images
+        // Set profile image URLs and Gravatar URLs for contacts
         for (int i = 0; i < items.Count; i++)
         {
             if (!string.IsNullOrEmpty(items[i].ProfileImageFileName))
             {
                 var accessToken = _tokenService.GenerateToken("contact-profile-image", items[i].Id, items[i].TenantId);
                 dtos[i].ProfileImageUrl = _fileStorageService.GetContactProfileImageUrl(items[i].Id, accessToken);
+            }
+
+            // Set Gravatar URL if UseGravatar is enabled and primary email exists
+            if (items[i].UseGravatar && !string.IsNullOrEmpty(dtos[i].PrimaryEmail))
+            {
+                dtos[i].GravatarUrl = GravatarHelper.GetGravatarUrl(dtos[i].PrimaryEmail);
             }
         }
 
@@ -402,13 +420,19 @@ public partial class ContactService : IContactService
 
         var dtos = _mapper.Map<List<ContactSummaryDto>>(contacts);
 
-        // Set profile image URLs for contacts that have images
+        // Set profile image URLs and Gravatar URLs for contacts
         for (int i = 0; i < contacts.Count; i++)
         {
             if (!string.IsNullOrEmpty(contacts[i].ProfileImageFileName))
             {
                 var accessToken = _tokenService.GenerateToken("contact-profile-image", contacts[i].Id, contacts[i].TenantId);
                 dtos[i].ProfileImageUrl = _fileStorageService.GetContactProfileImageUrl(contacts[i].Id, accessToken);
+            }
+
+            // Set Gravatar URL if UseGravatar is enabled and primary email exists
+            if (contacts[i].UseGravatar && !string.IsNullOrEmpty(dtos[i].PrimaryEmail))
+            {
+                dtos[i].GravatarUrl = GravatarHelper.GetGravatarUrl(dtos[i].PrimaryEmail);
             }
         }
 

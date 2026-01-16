@@ -40,7 +40,9 @@ public class StorageBinService : IStorageBinService
         {
             Id = Guid.NewGuid(),
             ShortCode = shortCode,
-            Description = request.Description
+            Description = request.Description,
+            LocationId = request.LocationId,
+            Category = request.Category
         };
 
         _context.StorageBins.Add(storageBin);
@@ -93,6 +95,7 @@ public class StorageBinService : IStorageBinService
     {
         var bin = await _context.StorageBins
             .Include(b => b.Photos)
+            .Include(b => b.Location)
             .FirstOrDefaultAsync(b => b.Id == id, ct);
 
         if (bin == null) return null;
@@ -104,6 +107,7 @@ public class StorageBinService : IStorageBinService
     {
         var bin = await _context.StorageBins
             .Include(b => b.Photos)
+            .Include(b => b.Location)
             .FirstOrDefaultAsync(b => b.ShortCode == shortCode, ct);
 
         if (bin == null) return null;
@@ -115,6 +119,7 @@ public class StorageBinService : IStorageBinService
     {
         var bins = await _context.StorageBins
             .Include(b => b.Photos)
+            .Include(b => b.Location)
             .OrderBy(b => b.ShortCode)
             .ToListAsync(ct);
 
@@ -132,6 +137,8 @@ public class StorageBinService : IStorageBinService
         }
 
         bin.Description = request.Description;
+        bin.LocationId = request.LocationId;
+        bin.Category = request.Category;
 
         await _context.SaveChangesAsync(ct);
 
@@ -308,6 +315,9 @@ public class StorageBinService : IStorageBinService
             Id = bin.Id,
             ShortCode = bin.ShortCode,
             Description = bin.Description,
+            LocationId = bin.LocationId,
+            LocationName = bin.Location?.Name,
+            Category = bin.Category,
             PhotoCount = bin.Photos?.Count ?? 0,
             CreatedAt = bin.CreatedAt,
             UpdatedAt = bin.UpdatedAt
@@ -331,6 +341,9 @@ public class StorageBinService : IStorageBinService
             Id = bin.Id,
             ShortCode = bin.ShortCode,
             DescriptionPreview = GetFirstLine(bin.Description),
+            LocationId = bin.LocationId,
+            LocationName = bin.Location?.Name,
+            Category = bin.Category,
             PhotoCount = bin.Photos?.Count ?? 0,
             CreatedAt = bin.CreatedAt
         };
