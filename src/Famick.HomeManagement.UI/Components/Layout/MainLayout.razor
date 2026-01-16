@@ -3,7 +3,9 @@
 @using Famick.HomeManagement.UI.Theme
 @using Famick.HomeManagement.UI.Services
 @using Famick.HomeManagement.Core.Services
+@using TenantDto = Famick.HomeManagement.Core.DTOs.Tenant.TenantDto
 @inject ILocalizer L
+@inject IApiClient ApiClient
 @inject NavigationManager Navigation
 @inject IJSRuntime JS
 @inject IVersionService VersionService
@@ -33,9 +35,21 @@
                     <MudIconButton Icon="@Icons.Material.Filled.Menu" Color="Color.Inherit" Edge="Edge.Start" OnClick="@ToggleDrawer" />
                 }
             </MudHidden>
-            <MudImage Src="_content/Famick.HomeManagement.UI/images/icon.svg" Height="28" Class="ml-1" Alt="Famick" />
-            <MudText Typo="Typo.h6" Class="ml-1" Style="white-space: nowrap;">@L["nav.homeManagement"]</MudText>
+            @if (_isLoadingTenant)
+            {
+                <MudSkeleton SkeletonType="SkeletonType.Text" Width="120px" Height="28px" Class="ml-1" />
+            }
+            else
+            {
+                <MudText Typo="Typo.h6" Class="ml-1" Style="white-space: nowrap;">@_tenantName</MudText>
+            }
             <MudSpacer />
+            <MudHidden Breakpoint="Breakpoint.SmAndDown">
+                <MudImage Src="_content/Famick.HomeManagement.UI/images/icon.svg"
+                          Height="28"
+                          Class="mr-2"
+                          Alt="Famick" />
+            </MudHidden>
             <MudTooltip Text="@(_isDarkMode ? L["settings.switchToLightMode"] : L["settings.switchToDarkMode"])">
                 <MudIconButton Icon="@(_isDarkMode ? Icons.Material.Filled.LightMode : Icons.Material.Filled.DarkMode)"
                                Color="Color.Inherit"
@@ -80,6 +94,8 @@
     private bool _isDarkMode = false;
     private bool _canGoBack = false;
     private bool _canEdit = false;
+    private string _tenantName = "My Home"; // Fallback default
+    private bool _isLoadingTenant = true;
 
     // Pages that are considered "root" pages (no back button)
     private static readonly string[] RootPages = { "/", "/products", "/stock", "/locations", "/quantity-units", "/settings", "/login" };
@@ -91,6 +107,29 @@
 
         // Check user edit permissions (Admin/Editor can edit, Viewer is read-only)
         _canEdit = await UserPermissions.CanEditAsync();
+
+        // Load tenant name for header display
+        await LoadTenantNameAsync();
+    }
+
+    private async Task LoadTenantNameAsync()
+    {
+        try
+        {
+            var result = await ApiClient.GetAsync<TenantDto>("api/v1/tenant");
+            if (result.IsSuccess && result.Data != null && !string.IsNullOrWhiteSpace(result.Data.Name))
+            {
+                _tenantName = result.Data.Name;
+            }
+        }
+        catch
+        {
+            // Keep fallback value on error
+        }
+        finally
+        {
+            _isLoadingTenant = false;
+        }
     }
 
     private void OnLocationChanged(object? sender, LocationChangedEventArgs e)
