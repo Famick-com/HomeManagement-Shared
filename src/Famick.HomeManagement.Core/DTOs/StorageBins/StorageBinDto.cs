@@ -23,6 +23,21 @@ public class StorageBinDto
     public string DescriptionPreview => GetFirstLine(Description);
 
     /// <summary>
+    /// Optional location where this bin is stored
+    /// </summary>
+    public Guid? LocationId { get; set; }
+
+    /// <summary>
+    /// Location name for display
+    /// </summary>
+    public string? LocationName { get; set; }
+
+    /// <summary>
+    /// Freeform category for organizing bins
+    /// </summary>
+    public string? Category { get; set; }
+
+    /// <summary>
     /// Number of photos attached to this bin
     /// </summary>
     public int PhotoCount { get; set; }

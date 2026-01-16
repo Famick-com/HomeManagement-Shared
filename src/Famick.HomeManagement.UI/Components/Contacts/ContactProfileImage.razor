@@ -13,10 +13,16 @@
               Visible="@(!ReadOnly)"
               OnClick="@OpenUploadDialog"
               Style="cursor: pointer;">
-        @if (!string.IsNullOrEmpty(ProfileImageUrl))
+        @{
+            var imageUrl = !string.IsNullOrEmpty(ProfileImageUrl) ? ProfileImageUrl : GravatarUrl;
+            var showFallback = string.IsNullOrEmpty(imageUrl) || _gravatarFailed;
+        }
+        @if (!showFallback)
         {
             <MudAvatar Size="Size.Large" Style="width: 120px; height: 120px;">
-                <MudImage Src="@ProfileImageUrl" Alt="Profile" Style="width: 100%; height: 100%; object-fit: cover;" />
+                <img src="@imageUrl" alt="Profile"
+                     style="width: 100%; height: 100%; object-fit: cover;"
+                     @onerror="OnImageError" />
             </MudAvatar>
         }
         else
@@ -114,11 +120,24 @@
 @code {
     [Parameter] public Guid ContactId { get; set; }
     [Parameter] public string? ProfileImageUrl { get; set; }
+    [Parameter] public string? GravatarUrl { get; set; }
     [Parameter] public bool ReadOnly { get; set; }
     [Parameter] public EventCallback<string?> OnImageChanged { get; set; }
 
     private bool _dialogVisible;
+    private bool _gravatarFailed;
     private bool _isUploading;
+    private string? _previousGravatarUrl;
+
+    protected override void OnParametersSet()
+    {
+        // Reset the failed flag when the Gravatar URL changes
+        if (_previousGravatarUrl != GravatarUrl)
+        {
+            _gravatarFailed = false;
+            _previousGravatarUrl = GravatarUrl;
+        }
+    }
     private IBrowserFile? _selectedFile;
     private string? _errorMessage;
 
@@ -242,6 +261,13 @@
         if (bytes < 1024) return $"{bytes} B";
         if (bytes < 1024 * 1024) return $"{bytes / 1024.0:F1} KB";
         return $"{bytes / (1024.0 * 1024.0):F1} MB";
+    }
+
+    private void OnImageError()
+    {
+        // If the image (likely Gravatar) failed to load, show fallback
+        _gravatarFailed = true;
+        StateHasChanged();
     }
 
     private class ProfileImageResponse

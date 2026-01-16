@@ -64,4 +64,10 @@ public class UpdateContactRequest
     public bool IsActive { get; set; } = true;
 
     #endregion
+
+    #region Gravatar
+
+    public bool UseGravatar { get; set; } = true;
+
+    #endregion
 }

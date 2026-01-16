@@ -47,6 +47,23 @@ public class StorageBinConfiguration : IEntityTypeConfiguration<StorageBin>
             .IsRequired()
             .HasDefaultValueSql("CURRENT_TIMESTAMP");
 
+        // Location relationship (optional)
+        builder.Property(b => b.LocationId)
+            .HasColumnName("location_id")
+            .HasColumnType("uuid")
+            .IsRequired(false);
+
+        builder.Property(b => b.Category)
+            .HasColumnName("category")
+            .HasColumnType("character varying(100)")
+            .HasMaxLength(100)
+            .IsRequired(false);
+
+        builder.HasOne(b => b.Location)
+            .WithMany(l => l.StorageBins)
+            .HasForeignKey(b => b.LocationId)
+            .OnDelete(DeleteBehavior.SetNull);
+
         // Indexes
         builder.HasIndex(b => b.TenantId)
             .HasDatabaseName("ix_storage_bins_tenant_id");
@@ -54,6 +71,12 @@ public class StorageBinConfiguration : IEntityTypeConfiguration<StorageBin>
         builder.HasIndex(b => new { b.TenantId, b.ShortCode })
             .IsUnique()
             .HasDatabaseName("ix_storage_bins_tenant_short_code");
+
+        builder.HasIndex(b => new { b.TenantId, b.LocationId })
+            .HasDatabaseName("ix_storage_bins_tenant_location");
+
+        builder.HasIndex(b => new { b.TenantId, b.Category })
+            .HasDatabaseName("ix_storage_bins_tenant_category");
 
         // Photos relationship configured from StorageBinPhoto side
     }

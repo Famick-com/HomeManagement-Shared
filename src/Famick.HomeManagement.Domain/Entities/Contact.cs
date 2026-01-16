@@ -21,6 +21,11 @@ public class Contact : BaseTenantEntity
     // Profile image
     public string? ProfileImageFileName { get; set; }
 
+    /// <summary>
+    /// Whether to use Gravatar for this contact's profile image when no custom image is uploaded
+    /// </summary>
+    public bool UseGravatar { get; set; } = true;
+
     // Demographics
     public Gender Gender { get; set; } = Gender.Unknown;
 

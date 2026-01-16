@@ -60,6 +60,8 @@ public class ContactDto
 
     public string? ProfileImageFileName { get; set; }
     public string? ProfileImageUrl { get; set; }
+    public string? GravatarUrl { get; set; }
+    public bool UseGravatar { get; set; } = true;
 
     #endregion
 

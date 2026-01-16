@@ -25,6 +25,18 @@
                           OnDebounceIntervalElapsed="OnSearchChanged"
                           Style="max-width: 300px;" />
 
+            <MudSelect T="string"
+                       Value="_groupBy"
+                       ValueChanged="OnGroupByChanged"
+                       Label="@L["storageBins.groupBy"]"
+                       Variant="Variant.Outlined"
+                       Margin="Margin.Dense"
+                       Style="max-width: 180px;">
+                <MudSelectItem Value="@("none")">@L["storageBins.groupByNone"]</MudSelectItem>
+                <MudSelectItem Value="@("location")">@L["storageBins.groupByLocation"]</MudSelectItem>
+                <MudSelectItem Value="@("category")">@L["storageBins.groupByCategory"]</MudSelectItem>
+            </MudSelect>
+
             @if (_selectedBins.Count > 0)
             {
                 <MudChip T="string" Color="Color.Primary" Size="Size.Small">
@@ -146,65 +158,172 @@
     }
     else
     {
-        @* Desktop: Full DataGrid *@
+        @* Desktop: Full DataGrid or Grouped View *@
         <MudHidden Breakpoint="Breakpoint.SmAndDown">
-            <MudDataGrid T="StorageBinSummaryDto"
-                         Items="@_filteredBins"
-                         SortMode="SortMode.Single"
-                         Filterable="false"
-                         Hideable="false"
-                         Dense="true"
-                         Hover="true"
-                         Class="cursor-pointer">
-                <Columns>
-                    <TemplateColumn T="StorageBinSummaryDto" Sortable="false" Style="width: 50px;">
-                        <CellTemplate>
-                            <MudCheckBox T="bool"
-                                         Value="@(_selectedBins.Contains(context.Item.Id))"
-                                         ValueChanged="@((bool val) => OnSelectionChanged(context.Item, val))"
-                                         Color="Color.Primary"
-                                         Size="Size.Small"
-                                         StopClickPropagation="true" />
-                        </CellTemplate>
-                    </TemplateColumn>
-                    <TemplateColumn T="StorageBinSummaryDto" Title="@L["storageBins.shortCode"]">
-                        <CellTemplate>
-                            <MudLink Href="@($"/storage/{context.Item.ShortCode}")" Style="font-family: monospace; font-weight: bold;">
-                                @context.Item.ShortCode
-                            </MudLink>
-                        </CellTemplate>
-                    </TemplateColumn>
-                    <TemplateColumn Title="@L["storageBins.description"]">
-                        <CellTemplate>
-                            <MudText Typo="Typo.body2" Class="text-truncate" Style="max-width: 400px;">
-                                @context.Item.DescriptionPreview
-                            </MudText>
-                        </CellTemplate>
-                    </TemplateColumn>
-                    <TemplateColumn Title="@L["storageBins.photos"]">
-                        <CellTemplate>
-                            @if (context.Item.PhotoCount > 0)
-                            {
-                                <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" Icon="@Icons.Material.Filled.Image">
-                                    @context.Item.PhotoCount
-                                </MudChip>
-                            }
-                        </CellTemplate>
-                    </TemplateColumn>
-                    <PropertyColumn Property="x => x.CreatedAt" Title="@L["common.created"]" Format="d" />
-                    <TemplateColumn T="StorageBinSummaryDto" Title="@L["common.actions"]" Sortable="false" Style="width: 80px;">
-                        <CellTemplate>
-                            <MudTooltip Text="@(CanEdit ? L["common.delete"] : L["common.viewerNoPermission"])">
-                                <MudIconButton Icon="@Icons.Material.Filled.Delete"
-                                               Size="Size.Small"
-                                               Color="Color.Error"
-                                               OnClick="@(() => DeleteBin(context.Item))"
-                                               Disabled="@(!CanEdit)" />
-                            </MudTooltip>
-                        </CellTemplate>
-                    </TemplateColumn>
-                </Columns>
-            </MudDataGrid>
+            @if (_groupBy != "none")
+            {
+                @* Grouped view with expansion panels *@
+                <MudExpansionPanels MultiExpansion="true">
+                    @foreach (var group in _groupedBins)
+                    {
+                        <MudExpansionPanel IsInitiallyExpanded="true" Class="mb-2">
+                            <TitleContent>
+                                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                    <MudIcon Icon="@GetGroupIcon()" Size="Size.Small" Color="Color.Primary" />
+                                    <MudText Typo="Typo.subtitle1" Style="font-weight: 600;">
+                                        @(string.IsNullOrEmpty(group.Key) ? L["storageBins.ungrouped"] : group.Key)
+                                    </MudText>
+                                    <MudChip T="string" Size="Size.Small" Color="Color.Default" Variant="Variant.Text">
+                                        @group.Count() @(group.Count() == 1 ? "bin" : "bins")
+                                    </MudChip>
+                                </MudStack>
+                            </TitleContent>
+                            <ChildContent>
+                                <MudDataGrid T="StorageBinSummaryDto"
+                                             Items="@group"
+                                             SortMode="SortMode.Single"
+                                             Filterable="false"
+                                             Hideable="false"
+                                             Dense="true"
+                                             Hover="true"
+                                             Class="cursor-pointer">
+                                    <Columns>
+                                        <TemplateColumn T="StorageBinSummaryDto" Sortable="false" Style="width: 50px;">
+                                            <CellTemplate>
+                                                <MudCheckBox T="bool"
+                                                             Value="@(_selectedBins.Contains(context.Item.Id))"
+                                                             ValueChanged="@((bool val) => OnSelectionChanged(context.Item, val))"
+                                                             Color="Color.Primary"
+                                                             Size="Size.Small"
+                                                             StopClickPropagation="true" />
+                                            </CellTemplate>
+                                        </TemplateColumn>
+                                        <TemplateColumn T="StorageBinSummaryDto" Title="@L["storageBins.shortCode"]">
+                                            <CellTemplate>
+                                                <MudLink Href="@($"/storage/{context.Item.ShortCode}")" Style="font-family: monospace; font-weight: bold;">
+                                                    @context.Item.ShortCode
+                                                </MudLink>
+                                            </CellTemplate>
+                                        </TemplateColumn>
+                                        <TemplateColumn Title="@L["storageBins.description"]">
+                                            <CellTemplate>
+                                                <MudText Typo="Typo.body2" Class="text-truncate" Style="max-width: 300px;">
+                                                    @context.Item.DescriptionPreview
+                                                </MudText>
+                                            </CellTemplate>
+                                        </TemplateColumn>
+                                        <TemplateColumn Title="@L["storageBins.photos"]">
+                                            <CellTemplate>
+                                                @if (context.Item.PhotoCount > 0)
+                                                {
+                                                    <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" Icon="@Icons.Material.Filled.Image">
+                                                        @context.Item.PhotoCount
+                                                    </MudChip>
+                                                }
+                                            </CellTemplate>
+                                        </TemplateColumn>
+                                        <PropertyColumn Property="x => x.CreatedAt" Title="@L["common.created"]" Format="d" />
+                                        <TemplateColumn T="StorageBinSummaryDto" Title="@L["common.actions"]" Sortable="false" Style="width: 80px;">
+                                            <CellTemplate>
+                                                <MudTooltip Text="@(CanEdit ? L["common.delete"] : L["common.viewerNoPermission"])">
+                                                    <MudIconButton Icon="@Icons.Material.Filled.Delete"
+                                                                   Size="Size.Small"
+                                                                   Color="Color.Error"
+                                                                   OnClick="@(() => DeleteBin(context.Item))"
+                                                                   Disabled="@(!CanEdit)" />
+                                                </MudTooltip>
+                                            </CellTemplate>
+                                        </TemplateColumn>
+                                    </Columns>
+                                </MudDataGrid>
+                            </ChildContent>
+                        </MudExpansionPanel>
+                    }
+                </MudExpansionPanels>
+            }
+            else
+            {
+                @* Flat list view *@
+                <MudDataGrid T="StorageBinSummaryDto"
+                             Items="@_filteredBins"
+                             SortMode="SortMode.Single"
+                             Filterable="false"
+                             Hideable="false"
+                             Dense="true"
+                             Hover="true"
+                             Class="cursor-pointer">
+                    <Columns>
+                        <TemplateColumn T="StorageBinSummaryDto" Sortable="false" Style="width: 50px;">
+                            <CellTemplate>
+                                <MudCheckBox T="bool"
+                                             Value="@(_selectedBins.Contains(context.Item.Id))"
+                                             ValueChanged="@((bool val) => OnSelectionChanged(context.Item, val))"
+                                             Color="Color.Primary"
+                                             Size="Size.Small"
+                                             StopClickPropagation="true" />
+                            </CellTemplate>
+                        </TemplateColumn>
+                        <TemplateColumn T="StorageBinSummaryDto" Title="@L["storageBins.shortCode"]">
+                            <CellTemplate>
+                                <MudLink Href="@($"/storage/{context.Item.ShortCode}")" Style="font-family: monospace; font-weight: bold;">
+                                    @context.Item.ShortCode
+                                </MudLink>
+                            </CellTemplate>
+                        </TemplateColumn>
+                        <TemplateColumn Title="@L["storageBins.description"]">
+                            <CellTemplate>
+                                <MudText Typo="Typo.body2" Class="text-truncate" Style="max-width: 250px;">
+                                    @context.Item.DescriptionPreview
+                                </MudText>
+                            </CellTemplate>
+                        </TemplateColumn>
+                        <TemplateColumn Title="@L["storageBins.location"]">
+                            <CellTemplate>
+                                @if (!string.IsNullOrEmpty(context.Item.LocationName))
+                                {
+                                    <MudText Typo="Typo.body2">@context.Item.LocationName</MudText>
+                                }
+                                else
+                                {
+                                    <MudText Typo="Typo.body2" Color="Color.Secondary">-</MudText>
+                                }
+                            </CellTemplate>
+                        </TemplateColumn>
+                        <TemplateColumn Title="@L["storageBins.category"]">
+                            <CellTemplate>
+                                @if (!string.IsNullOrEmpty(context.Item.Category))
+                                {
+                                    <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined">
+                                        @context.Item.Category
+                                    </MudChip>
+                                }
+                            </CellTemplate>
+                        </TemplateColumn>
+                        <TemplateColumn Title="@L["storageBins.photos"]">
+                            <CellTemplate>
+                                @if (context.Item.PhotoCount > 0)
+                                {
+                                    <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" Icon="@Icons.Material.Filled.Image">
+                                        @context.Item.PhotoCount
+                                    </MudChip>
+                                }
+                            </CellTemplate>
+                        </TemplateColumn>
+                        <PropertyColumn Property="x => x.CreatedAt" Title="@L["common.created"]" Format="d" />
+                        <TemplateColumn T="StorageBinSummaryDto" Title="@L["common.actions"]" Sortable="false" Style="width: 80px;">
+                            <CellTemplate>
+                                <MudTooltip Text="@(CanEdit ? L["common.delete"] : L["common.viewerNoPermission"])">
+                                    <MudIconButton Icon="@Icons.Material.Filled.Delete"
+                                                   Size="Size.Small"
+                                                   Color="Color.Error"
+                                                   OnClick="@(() => DeleteBin(context.Item))"
+                                                   Disabled="@(!CanEdit)" />
+                                </MudTooltip>
+                            </CellTemplate>
+                        </TemplateColumn>
+                    </Columns>
+                </MudDataGrid>
+            }
         </MudHidden>
 
         @* Mobile: Card list *@
@@ -238,6 +357,20 @@
                                             @bin.DescriptionPreview
                                         </MudText>
                                     }
+                                    <MudStack Row="true" Spacing="2" Class="mt-1">
+                                        @if (!string.IsNullOrEmpty(bin.LocationName))
+                                        {
+                                            <MudChip T="string" Size="Size.Small" Variant="Variant.Text" Icon="@Icons.Material.Filled.Place">
+                                                @bin.LocationName
+                                            </MudChip>
+                                        }
+                                        @if (!string.IsNullOrEmpty(bin.Category))
+                                        {
+                                            <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined">
+                                                @bin.Category
+                                            </MudChip>
+                                        }
+                                    </MudStack>
                                 </MudStack>
                                 @if (CanEdit)
                                 {
@@ -335,6 +468,7 @@
 
     private bool _isLoading = true;
     private string _searchText = string.Empty;
+    private string _groupBy = "none";
     private List<StorageBinSummaryDto> _bins = new();
     private HashSet<Guid> _selectedBins = new();
     private bool _printDialogVisible = false;
@@ -344,18 +478,69 @@
     private LabelFormat _selectedLabelFormat = LabelFormat.Avery94104;
 
     private const string LabelFormatStorageKey = "storageBinLabelFormat";
+    private const string GroupByStorageKey = "storageBinGroupBy";
 
     private List<StorageBinSummaryDto> _filteredBins => _bins
         .Where(b => string.IsNullOrWhiteSpace(_searchText) ||
                     b.ShortCode.Contains(_searchText, StringComparison.OrdinalIgnoreCase) ||
-                    (b.DescriptionPreview?.Contains(_searchText, StringComparison.OrdinalIgnoreCase) ?? false))
+                    (b.DescriptionPreview?.Contains(_searchText, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                    (b.LocationName?.Contains(_searchText, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                    (b.Category?.Contains(_searchText, StringComparison.OrdinalIgnoreCase) ?? false))
         .OrderBy(b => b.ShortCode)
         .ToList();
+
+    private IEnumerable<IGrouping<string, StorageBinSummaryDto>> _groupedBins => _groupBy switch
+    {
+        "location" => _filteredBins.GroupBy(b => b.LocationName ?? "")
+            .OrderBy(g => string.IsNullOrEmpty(g.Key) ? 1 : 0)
+            .ThenBy(g => g.Key),
+        "category" => _filteredBins.GroupBy(b => b.Category ?? "")
+            .OrderBy(g => string.IsNullOrEmpty(g.Key) ? 1 : 0)
+            .ThenBy(g => g.Key),
+        _ => Enumerable.Empty<IGrouping<string, StorageBinSummaryDto>>()
+    };
+
+    private string GetGroupIcon() => _groupBy switch
+    {
+        "location" => Icons.Material.Filled.Place,
+        "category" => Icons.Material.Filled.Category,
+        _ => Icons.Material.Filled.List
+    };
 
     protected override async Task OnInitializedAsync()
     {
         await LoadLabelFormatFromStorageAsync();
+        await LoadGroupByFromStorageAsync();
         await LoadDataAsync();
+    }
+
+    private async Task LoadGroupByFromStorageAsync()
+    {
+        try
+        {
+            var savedGroupBy = await JS.InvokeAsync<string?>("localStorage.getItem", GroupByStorageKey);
+            if (!string.IsNullOrEmpty(savedGroupBy) && (savedGroupBy == "none" || savedGroupBy == "location" || savedGroupBy == "category"))
+            {
+                _groupBy = savedGroupBy;
+            }
+        }
+        catch
+        {
+            // Ignore errors reading from localStorage
+        }
+    }
+
+    private async Task OnGroupByChanged(string value)
+    {
+        _groupBy = value;
+        try
+        {
+            await JS.InvokeVoidAsync("localStorage.setItem", GroupByStorageKey, value);
+        }
+        catch
+        {
+            // Ignore errors writing to localStorage
+        }
     }
 
     private async Task LoadLabelFormatFromStorageAsync()

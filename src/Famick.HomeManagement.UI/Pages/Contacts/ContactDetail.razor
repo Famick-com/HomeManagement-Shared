@@ -38,6 +38,7 @@ else
                         <MudItem xs="12">
                             <ContactProfileImage ContactId="@(Id ?? Guid.Empty)"
                                                  ProfileImageUrl="@_contact?.ProfileImageUrl"
+                                                 GravatarUrl="@_contact?.GravatarUrl"
                                                  ReadOnly="@(!CanEdit)"
                                                  OnImageChanged="OnProfileImageChanged" />
                         </MudItem>
@@ -88,7 +89,7 @@ else
                                 </MudItem>
                                 <MudItem xs="12" md="6">
                                     <MudTextField @bind-Value="_model.Title"
-                                                  Label="@L["contacts.title"]"
+                                                  Label="@L["contacts.jobTitle"]"
                                                   Variant="Variant.Outlined"
                                                   ReadOnly="@(!CanEdit)" />
                                 </MudItem>
@@ -105,6 +106,16 @@ else
                                     <MudSelectItem T="Gender" Value="@gender">@L[$"contacts.gender.{gender}"]</MudSelectItem>
                                 }
                             </MudSelect>
+
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudSwitch @bind-Value="_model.UseGravatar"
+                                           Label="@L["contacts.useGravatar"]"
+                                           Color="Color.Primary"
+                                           Disabled="@(!CanEdit)" />
+                                <MudLink Href="https://gravatar.com" Target="_blank" Typo="Typo.body2">
+                                    @L["contacts.whatsGravatar"]
+                                </MudLink>
+                            </MudStack>
                         </MudStack>
                     </MudItem>
 
@@ -275,7 +286,8 @@ else
                         DeathMonth = _contact.DeathMonth,
                         DeathDay = _contact.DeathDay,
                         DeathDatePrecision = _contact.DeathDatePrecision,
-                        Notes = _contact.Notes
+                        Notes = _contact.Notes,
+                        UseGravatar = _contact.UseGravatar
                     };
                     _selectedTagIds = _contact.Tags.Select(t => t.Id).ToList();
                 }
@@ -324,7 +336,8 @@ else
                     DeathMonth = _model.DeathMonth,
                     DeathDay = _model.DeathDay,
                     DeathDatePrecision = _model.DeathDatePrecision,
-                    Notes = _model.Notes
+                    Notes = _model.Notes,
+                    UseGravatar = _model.UseGravatar
                 };
 
                 var result = await ApiClient.PostAsync<CreateContactRequest, ContactDto>("api/v1/contacts", request);
@@ -357,7 +370,8 @@ else
                     DeathMonth = _model.DeathMonth,
                     DeathDay = _model.DeathDay,
                     DeathDatePrecision = _model.DeathDatePrecision,
-                    Notes = _model.Notes
+                    Notes = _model.Notes,
+                    UseGravatar = _model.UseGravatar
                 };
 
                 var result = await ApiClient.PutAsync<UpdateContactRequest, ContactDto>($"api/v1/contacts/{Id}", request);
@@ -445,5 +459,6 @@ else
         public int? DeathDay { get; set; }
         public DatePrecision DeathDatePrecision { get; set; } = DatePrecision.Unknown;
         public string? Notes { get; set; }
+        public bool UseGravatar { get; set; } = true;
     }
 }

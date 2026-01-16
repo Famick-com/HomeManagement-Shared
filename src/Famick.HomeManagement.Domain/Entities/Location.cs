@@ -12,4 +12,5 @@ public class Location : BaseTenantEntity
 
     // Navigation properties
     public ICollection<Product> Products { get; set; } = new List<Product>();
+    public ICollection<StorageBin> StorageBins { get; set; } = new List<StorageBin>();
 }

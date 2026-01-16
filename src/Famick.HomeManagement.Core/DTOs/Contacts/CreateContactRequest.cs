@@ -64,4 +64,10 @@ public class CreateContactRequest
     public List<Guid>? TagIds { get; set; }
 
     #endregion
+
+    #region Gravatar
+
+    public bool UseGravatar { get; set; } = true;
+
+    #endregion
 }

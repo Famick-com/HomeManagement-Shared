@@ -10,6 +10,7 @@
 @inject IJSRuntime JS
 @using Famick.HomeManagement.Core.DTOs.StorageBins
 @using Famick.HomeManagement.UI.Components.StorageBins
+@using Famick.HomeManagement.UI.Components.Common
 @using Microsoft.AspNetCore.Components.Forms
 
 <MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-4">
@@ -50,6 +51,19 @@ else
                 <MarkdownEditor @bind-Value="_description"
                                 Placeholder="@L["storageBins.descriptionPlaceholder"]"
                                 ReadOnly="@(!CanEdit)" />
+
+                <MudStack Spacing="3" Class="mt-4">
+                    <LocationAutocomplete @bind-SelectedLocationId="_locationId"
+                                          Label="@L["storageBins.location"]"
+                                          HelperText="@L["storageBins.locationHint"]"
+                                          CanEdit="@CanEdit" />
+
+                    <MudTextField @bind-Value="_category"
+                                  Label="@L["storageBins.category"]"
+                                  Placeholder="@L["storageBins.categoryPlaceholder"]"
+                                  Variant="Variant.Outlined"
+                                  ReadOnly="@(!CanEdit)" />
+                </MudStack>
 
                 <MudStack Row="true" Justify="Justify.FlexEnd" Spacing="2" Class="mt-4">
                     @if (!IsNew)
@@ -218,6 +232,8 @@ else
 
     private StorageBinDto? _bin;
     private string? _description;
+    private Guid? _locationId;
+    private string? _category;
     private List<StorageBinPhotoDto> _photos = new();
 
     protected override async Task OnInitializedAsync()
@@ -281,6 +297,8 @@ else
                 {
                     _bin = result.Data;
                     _description = _bin.Description;
+                    _locationId = _bin.LocationId;
+                    _category = _bin.Category;
                     _photos = _bin.Photos ?? new();
                 }
                 else
@@ -294,6 +312,8 @@ else
             {
                 _bin = null;
                 _description = null;
+                _locationId = null;
+                _category = null;
                 _photos = new();
             }
         }
@@ -314,7 +334,12 @@ else
         {
             if (IsNew)
             {
-                var request = new CreateStorageBinRequest { Description = _description };
+                var request = new CreateStorageBinRequest
+                {
+                    Description = _description,
+                    LocationId = _locationId,
+                    Category = _category
+                };
                 var result = await ApiClient.PostAsync<CreateStorageBinRequest, StorageBinDto>("api/v1/storage-bins", request);
                 if (result.IsSuccess && result.Data != null)
                 {
@@ -328,7 +353,12 @@ else
             }
             else
             {
-                var request = new UpdateStorageBinRequest { Description = _description };
+                var request = new UpdateStorageBinRequest
+                {
+                    Description = _description,
+                    LocationId = _locationId,
+                    Category = _category
+                };
                 var result = await ApiClient.PutAsync<UpdateStorageBinRequest, StorageBinDto>($"api/v1/storage-bins/{_bin!.Id}", request);
                 if (result.IsSuccess && result.Data != null)
                 {

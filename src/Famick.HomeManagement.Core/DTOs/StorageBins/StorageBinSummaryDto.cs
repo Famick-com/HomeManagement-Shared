@@ -18,6 +18,21 @@ public class StorageBinSummaryDto
     public string DescriptionPreview { get; set; } = string.Empty;
 
     /// <summary>
+    /// Location ID for filtering/grouping
+    /// </summary>
+    public Guid? LocationId { get; set; }
+
+    /// <summary>
+    /// Location name for display in groups
+    /// </summary>
+    public string? LocationName { get; set; }
+
+    /// <summary>
+    /// Category for grouping
+    /// </summary>
+    public string? Category { get; set; }
+
+    /// <summary>
     /// Number of photos attached to this bin
     /// </summary>
     public int PhotoCount { get; set; }
