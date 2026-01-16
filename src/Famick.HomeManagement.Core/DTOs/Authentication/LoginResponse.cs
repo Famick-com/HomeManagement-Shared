@@ -57,6 +57,11 @@ public class UserDto
     public string LastName { get; set; } = string.Empty;
 
     /// <summary>
+    /// User's preferred language code
+    /// </summary>
+    public string? PreferredLanguage { get; set; }
+
+    /// <summary>
     /// User's full name
     /// </summary>
     public string FullName => $"{FirstName} {LastName}".Trim();
