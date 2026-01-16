@@ -1,0 +1,29 @@
+@page "/settings"
+@attribute [Authorize]
+@inject ILocalizer L
+
+<PageTitle>@L["nav.settings"]</PageTitle>
+
+<MudText Typo="Typo.h4" Class="mb-4">@L["nav.settings"]</MudText>
+
+@* Users section - Admin only *@
+<AuthorizeView Policy="RequireAdmin">
+    <Authorized>
+        <MudText Typo="Typo.h5" Class="mb-3">@L["nav.users"]</MudText>
+        <div class="mb-6">
+            <UsersSection />
+        </div>
+    </Authorized>
+</AuthorizeView>
+
+@* Store Integrations section *@
+<MudText Typo="Typo.h5" Class="mb-3">@L["nav.storeIntegrations"]</MudText>
+<div class="mb-6">
+    <StoreIntegrationsSection />
+</div>
+
+@* Quantity Units section *@
+<MudText Typo="Typo.h5" Class="mb-3">@L["nav.quantityUnits"]</MudText>
+<div class="mb-6">
+    <QuantityUnitsSection />
+</div>
