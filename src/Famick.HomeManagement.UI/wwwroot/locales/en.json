@@ -578,7 +578,20 @@
     "aisleOrderSaved": "Aisle order saved",
     "aisleOrderReset": "Aisle order reset to default",
     "resetAisleOrder": "Reset to Default",
-    "noAislesFound": "No aisles found. Add products with aisle information to this store to customize the order."
+    "noAislesFound": "No aisles found. Add products with aisle information to this store to customize the order.",
+    "shopTheList": "Shop The List",
+    "shoppingMode": "Shopping Mode",
+    "moveToInventory": "Move Checked Items To Inventory",
+    "purchasedSection": "Purchased Items",
+    "unknownAisle": "Unknown Aisle",
+    "allItemsPurchased": "All items checked off!",
+    "noItemsYet": "No items in this shopping list yet.",
+    "appBanner": {
+      "message": "Want a better shopping experience? Download the Famick Shopping app",
+      "downloadIos": "App Store",
+      "downloadAndroid": "Google Play",
+      "dismiss": "Dismiss"
+    }
   },
 
   "chores": {

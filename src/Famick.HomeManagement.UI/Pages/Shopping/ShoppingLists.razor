@@ -7,6 +7,8 @@
 @inject NavigationManager Navigation
 @using Famick.HomeManagement.Core.DTOs.ShoppingLists
 @using Famick.HomeManagement.Core.DTOs.ShoppingLocations
+@using Famick.HomeManagement.UI.Services
+@inject IMobileDetectionService MobileDetection
 
 <MudText Typo="Typo.h4" Class="mb-4">@L["shopping.lists"]</MudText>
 
@@ -78,6 +80,12 @@
                                         </MudChip>
                                     }
                                     <span @onclick:stopPropagation="true">
+                                        <MudTooltip Text="@L["shopping.shopTheList"]">
+                                            <MudIconButton Icon="@Icons.Material.Filled.ShoppingCartCheckout"
+                                                           Size="Size.Small"
+                                                           Color="Color.Success"
+                                                           OnClick="@(() => StartShopping(list))" />
+                                        </MudTooltip>
                                         <MudTooltip Text="@(CanEdit ? null : L["common.viewerNoPermission"])">
                                             <MudIconButton Icon="@Icons.Material.Filled.Edit"
                                                            Size="Size.Small"
@@ -363,5 +371,43 @@
         {
             Snackbar.Add(L["errors.generic"], Severity.Error);
         }
+    }
+
+    private async Task StartShopping(ShoppingListSummaryDto list)
+    {
+        // Try to open mobile app if on mobile device
+        if (await MobileDetection.IsMobileDeviceAsync())
+        {
+            try
+            {
+                // Fetch app links configuration
+                var appLinksResult = await ApiClient.GetAsync<AppLinksDto>("api/v1/configuration/app-links");
+                if (appLinksResult.IsSuccess && appLinksResult.Data != null && !string.IsNullOrEmpty(appLinksResult.Data.DeepLinkScheme))
+                {
+                    var deepLinkUrl = $"{appLinksResult.Data.DeepLinkScheme}://shopping/session?ListId={list.Id}&ListName={Uri.EscapeDataString(list.Name)}";
+                    var appOpened = await MobileDetection.TryOpenAppAsync(deepLinkUrl);
+
+                    if (appOpened)
+                    {
+                        // App was opened, don't navigate
+                        return;
+                    }
+                }
+            }
+            catch
+            {
+                // Silently fall through to web navigation
+            }
+        }
+
+        // Fallback: Navigate to web shopping mode
+        Navigation.NavigateTo($"/shopping-mode/{list.Id}");
+    }
+
+    private class AppLinksDto
+    {
+        public string AppleAppStore { get; set; } = string.Empty;
+        public string GooglePlayStore { get; set; } = string.Empty;
+        public string DeepLinkScheme { get; set; } = string.Empty;
     }
 }

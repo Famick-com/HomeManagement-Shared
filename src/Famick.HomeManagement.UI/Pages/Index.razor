@@ -18,7 +18,7 @@
             <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween">
                 <MudStack Spacing="1">
                     <MudText Typo="Typo.body2" Color="Color.Secondary">@L["dashboard.shoppingLists"]</MudText>
-                    <MudText Typo="Typo.h4">@(_shoppingDashboard?.TotalItems.ToString() ?? "--")</MudText>
+                    <MudText Typo="Typo.h4">@(_shoppingDashboard?.UnpurchasedItems.ToString() ?? "--")</MudText>
                     @if (_shoppingDashboard != null && _shoppingDashboard.TotalLists > 0)
                     {
                         <MudText Typo="Typo.caption" Color="Color.Secondary">
