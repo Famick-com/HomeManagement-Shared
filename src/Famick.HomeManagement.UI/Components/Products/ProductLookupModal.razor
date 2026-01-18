@@ -130,7 +130,7 @@
                     @L["productLookup.resultsCount", _searchResults.Count]
                 </MudText>
 
-                <MudList T="ProductLookupResultDto" Dense="true" Class="overflow-auto" Style="max-height: 400px;">
+                <MudList T="ProductLookupResultDto" Dense="true" Class="overflow-auto product-lookup-results">
                     @foreach (var result in _searchResults)
                     {
                         <MudListItem T="ProductLookupResultDto"

@@ -70,4 +70,66 @@ public class ProductLookupResult
     /// Description of the product
     /// </summary>
     public string? Description { get; set; }
+
+    // ===== Store integration fields =====
+
+    /// <summary>
+    /// Current price at the store
+    /// </summary>
+    public decimal? Price { get; set; }
+
+    /// <summary>
+    /// Price unit (e.g., "each", "lb")
+    /// </summary>
+    public string? PriceUnit { get; set; }
+
+    /// <summary>
+    /// Sale/promotional price
+    /// </summary>
+    public decimal? SalePrice { get; set; }
+
+    /// <summary>
+    /// Aisle location in the store
+    /// </summary>
+    public string? Aisle { get; set; }
+
+    /// <summary>
+    /// Shelf location in the store
+    /// </summary>
+    public string? Shelf { get; set; }
+
+    /// <summary>
+    /// Department or category in the store
+    /// </summary>
+    public string? Department { get; set; }
+
+    /// <summary>
+    /// Whether the product is currently in stock
+    /// </summary>
+    public bool? InStock { get; set; }
+
+    /// <summary>
+    /// Product size/weight description
+    /// </summary>
+    public string? Size { get; set; }
+
+    /// <summary>
+    /// URL to the product page on the store's website
+    /// </summary>
+    public string? ProductUrl { get; set; }
+
+    /// <summary>
+    /// Store's internal product ID/SKU
+    /// </summary>
+    public string? ExternalProductId { get; set; }
+
+    /// <summary>
+    /// Shopping location ID where this product was found
+    /// </summary>
+    public Guid? ShoppingLocationId { get; set; }
+
+    /// <summary>
+    /// Shopping location name where this product was found
+    /// </summary>
+    public string? ShoppingLocationName { get; set; }
 }

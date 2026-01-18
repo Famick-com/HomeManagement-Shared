@@ -1,13 +1,10 @@
 @inherits LayoutComponentBase
-@implements IDisposable
 @using Famick.HomeManagement.UI.Theme
 @using Famick.HomeManagement.UI.Services
 @using Famick.HomeManagement.Core.Services
 @using TenantDto = Famick.HomeManagement.Core.DTOs.Tenant.TenantDto
 @inject ILocalizer L
 @inject IApiClient ApiClient
-@inject NavigationManager Navigation
-@inject IJSRuntime JS
 @inject IVersionService VersionService
 @inject IUserPermissions UserPermissions
 
@@ -24,16 +21,9 @@
             <MudHidden Breakpoint="Breakpoint.SmAndDown">
                 <MudIconButton Icon="@Icons.Material.Filled.Menu" Color="Color.Inherit" Edge="Edge.Start" OnClick="@ToggleDrawer" />
             </MudHidden>
-            @* Mobile: Back button when on detail page, otherwise menu *@
+            @* Mobile: Menu button *@
             <MudHidden Breakpoint="Breakpoint.MdAndUp">
-                @if (_canGoBack)
-                {
-                    <MudIconButton Icon="@Icons.Material.Filled.ArrowBack" Color="Color.Inherit" Edge="Edge.Start" OnClick="@GoBack" />
-                }
-                else
-                {
-                    <MudIconButton Icon="@Icons.Material.Filled.Menu" Color="Color.Inherit" Edge="Edge.Start" OnClick="@ToggleDrawer" />
-                }
+                <MudIconButton Icon="@Icons.Material.Filled.Menu" Color="Color.Inherit" Edge="Edge.Start" OnClick="@ToggleDrawer" />
             </MudHidden>
             @if (_isLoadingTenant)
             {
@@ -92,19 +82,12 @@
 @code {
     private bool _drawerOpen = true;
     private bool _isDarkMode = false;
-    private bool _canGoBack = false;
     private bool _canEdit = false;
     private string _tenantName = "My Home"; // Fallback default
     private bool _isLoadingTenant = true;
 
-    // Pages that are considered "root" pages (no back button)
-    private static readonly string[] RootPages = { "/", "/products", "/stock", "/locations", "/quantity-units", "/settings", "/login" };
-
     protected override async Task OnInitializedAsync()
     {
-        Navigation.LocationChanged += OnLocationChanged;
-        UpdateCanGoBack();
-
         // Check user edit permissions (Admin/Editor can edit, Viewer is read-only)
         _canEdit = await UserPermissions.CanEditAsync();
 
@@ -132,24 +115,6 @@
         }
     }
 
-    private void OnLocationChanged(object? sender, LocationChangedEventArgs e)
-    {
-        UpdateCanGoBack();
-        StateHasChanged();
-    }
-
-    private void UpdateCanGoBack()
-    {
-        var path = new Uri(Navigation.Uri).AbsolutePath.ToLowerInvariant();
-        // Show back button if not on a root page
-        _canGoBack = !RootPages.Any(p => path.Equals(p, StringComparison.OrdinalIgnoreCase));
-    }
-
-    private async Task GoBack()
-    {
-        await JS.InvokeVoidAsync("history.back");
-    }
-
     private void ToggleDrawer()
     {
         _drawerOpen = !_drawerOpen;
@@ -158,10 +123,5 @@
     private void ToggleDarkMode()
     {
         _isDarkMode = !_isDarkMode;
-    }
-
-    public void Dispose()
-    {
-        Navigation.LocationChanged -= OnLocationChanged;
     }
 }

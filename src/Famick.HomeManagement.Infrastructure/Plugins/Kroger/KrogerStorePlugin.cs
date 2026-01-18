@@ -839,6 +839,18 @@ public class KrogerStorePlugin : IStoreIntegrationPlugin, IProductLookupPlugin
             // Add Kroger as a data source if not already present
             resultItem.DataSources.TryAdd(DisplayName, product.ExternalProductId);
 
+            // Populate store-specific fields from StoreProductResult
+            resultItem.Price ??= product.Price;
+            resultItem.PriceUnit ??= product.PriceUnit;
+            resultItem.SalePrice ??= product.SalePrice;
+            resultItem.Aisle ??= product.Aisle;
+            resultItem.Shelf ??= product.Shelf;
+            resultItem.Department ??= product.Department;
+            resultItem.InStock ??= product.InStock;
+            resultItem.Size ??= product.Size;
+            resultItem.ProductUrl ??= product.ProductUrl;
+            resultItem.ExternalProductId ??= product.ExternalProductId;
+
             if (isNewResult)
             {
                 context.Results.Add(resultItem);
