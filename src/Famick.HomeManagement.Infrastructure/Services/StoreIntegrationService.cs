@@ -63,11 +63,31 @@ public class StoreIntegrationService : IStoreIntegrationService
 
                 if (token != null)
                 {
-                    info.IsConnected = !string.IsNullOrEmpty(token.AccessToken) &&
+                    // If token is expired but we have a refresh token, try to refresh automatically
+                    if (!token.RequiresReauth &&
+                        !string.IsNullOrEmpty(token.RefreshToken) &&
+                        token.ExpiresAt.HasValue &&
+                        token.ExpiresAt.Value <= DateTime.UtcNow)
+                    {
+                        _logger.LogInformation(
+                            "Token expired for plugin {PluginId}, attempting automatic refresh",
+                            plugin.PluginId);
+
+                        var refreshed = await RefreshSharedTokenAsync(plugin.PluginId, ct);
+                        if (refreshed)
+                        {
+                            // Re-fetch the token after refresh
+                            token = await _dbContext.TenantIntegrationTokens
+                                .FirstOrDefaultAsync(t => t.TenantId == tenantId.Value && t.PluginId == plugin.PluginId, ct);
+                        }
+                    }
+
+                    info.IsConnected = token != null &&
+                                       !string.IsNullOrEmpty(token.AccessToken) &&
                                        !token.RequiresReauth &&
                                        token.ExpiresAt.HasValue &&
                                        token.ExpiresAt.Value > DateTime.UtcNow;
-                    info.RequiresReauth = token.RequiresReauth;
+                    info.RequiresReauth = token?.RequiresReauth ?? false;
                 }
             }
 

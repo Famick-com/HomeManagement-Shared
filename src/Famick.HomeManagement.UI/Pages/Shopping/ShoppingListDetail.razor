@@ -5,6 +5,7 @@
 @inject ISnackbar Snackbar
 @inject ILocalizer L
 @inject NavigationManager Navigation
+@inject IMobileDetectionService MobileDetectionService
 @using Famick.HomeManagement.Core.DTOs.ShoppingLists
 @using Famick.HomeManagement.Core.DTOs.Products
 @using Famick.HomeManagement.Core.DTOs.ProductLookup
@@ -14,69 +15,128 @@
 
 <PageTitle>@(_list?.Name ?? L["shopping.list"]) - Home Management</PageTitle>
 
-@* Header Section *@
-<MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="mb-4">
-    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
-        <MudIconButton Icon="@Icons.Material.Filled.ArrowBack" OnClick="NavigateBack" />
-        @if (_list != null)
-        {
-            <MudTooltip Text="@(CanEdit ? L["shopping.editAisleOrder"] : L["common.viewerNoPermission"])">
-                <MudIconButton Icon="@Icons.Material.Filled.Sort"
-                               Color="Color.Primary"
-                               OnClick="OpenAisleOrderEditor"
-                               Disabled="@(!CanEdit)" />
-            </MudTooltip>
-        }
-        <MudStack Spacing="0">
-            <MudText Typo="Typo.h4">@(_list?.Name ?? L["shopping.list"])</MudText>
+@* Header Section - Desktop *@
+<MudHidden Breakpoint="Breakpoint.SmAndDown">
+    <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="mb-4">
+        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+            <MudIconButton Icon="@Icons.Material.Filled.ArrowBack" OnClick="NavigateBack" />
             @if (_list != null)
             {
-                <MudText Typo="Typo.body2" Color="Color.Secondary">
-                    @_list.ShoppingLocationName
-                    @if (_list.HasStoreIntegration)
-                    {
-                        <MudChip T="string" Size="Size.Small" Color="Color.Info" Variant="Variant.Text" Class="ml-2">
-                            @L["shopping.integrated"]
-                        </MudChip>
-                    }
-                </MudText>
+                <MudTooltip Text="@(CanEdit ? L["shopping.editAisleOrder"] : L["common.viewerNoPermission"])">
+                    <MudIconButton Icon="@Icons.Material.Filled.Sort"
+                                   Color="Color.Primary"
+                                   OnClick="OpenAisleOrderEditor"
+                                   Disabled="@(!CanEdit)" />
+                </MudTooltip>
             }
+            <MudStack Spacing="0">
+                <MudText Typo="Typo.h4">@(_list?.Name ?? L["shopping.list"])</MudText>
+                @if (_list != null)
+                {
+                    <MudText Typo="Typo.body2" Color="Color.Secondary">
+                        @_list.ShoppingLocationName
+                        @if (_list.HasStoreIntegration)
+                        {
+                            <MudChip T="string" Size="Size.Small" Color="Color.Info" Variant="Variant.Text" Class="ml-2">
+                                @L["shopping.integrated"]
+                            </MudChip>
+                        }
+                    </MudText>
+                }
+            </MudStack>
         </MudStack>
-    </MudStack>
 
-    <MudStack Row="true" Spacing="2">
-        @if (_list?.CanAddToCart == true)
-        {
-            <MudTooltip Text="@(CanEdit ? L["shopping.sendToCart"] : L["common.viewerNoPermission"])">
+        <MudStack Row="true" Spacing="2">
+            @if (_list?.CanAddToCart == true)
+            {
+                <MudTooltip Text="@(CanEdit ? L["shopping.sendToCart"] : L["common.viewerNoPermission"])">
+                    <MudButton Variant="Variant.Outlined"
+                               Color="Color.Primary"
+                               StartIcon="@Icons.Material.Filled.ShoppingCartCheckout"
+                               OnClick="SendToCart"
+                               Disabled="@(!CanEdit || _isSendingToCart || _unpurchasedCount == 0)">
+                        @if (_isSendingToCart)
+                        {
+                            <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                        }
+                        @L["shopping.sendToCart"]
+                    </MudButton>
+                </MudTooltip>
+            }
+            <MudTooltip Text="@(CanEdit ? L["shopping.clearPurchased"] : L["common.viewerNoPermission"])">
                 <MudButton Variant="Variant.Outlined"
-                           Color="Color.Primary"
-                           StartIcon="@Icons.Material.Filled.ShoppingCartCheckout"
-                           OnClick="SendToCart"
-                           Disabled="@(!CanEdit || _isSendingToCart || _unpurchasedCount == 0)">
-                    @if (_isSendingToCart)
-                    {
-                        <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
-                    }
-                    @L["shopping.sendToCart"]
+                           Color="Color.Warning"
+                           StartIcon="@Icons.Material.Filled.ClearAll"
+                           OnClick="ClearPurchased"
+                           Disabled="@(!CanEdit || _purchasedCount == 0)">
+                    @L["shopping.clearPurchased"]
                 </MudButton>
             </MudTooltip>
-        }
-        <MudTooltip Text="@(CanEdit ? L["shopping.clearPurchased"] : L["common.viewerNoPermission"])">
-            <MudButton Variant="Variant.Outlined"
-                       Color="Color.Warning"
-                       StartIcon="@Icons.Material.Filled.ClearAll"
-                       OnClick="ClearPurchased"
-                       Disabled="@(!CanEdit || _purchasedCount == 0)">
-                @L["shopping.clearPurchased"]
-            </MudButton>
-        </MudTooltip>
+        </MudStack>
     </MudStack>
-</MudStack>
+</MudHidden>
+
+@* Header Section - Mobile *@
+<MudHidden Breakpoint="Breakpoint.MdAndUp">
+    <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="mb-3">
+        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1" Style="flex: 1; min-width: 0;">
+            <MudIconButton Icon="@Icons.Material.Filled.ArrowBack" OnClick="NavigateBack" Size="Size.Small" />
+            @if (_list != null)
+            {
+                <MudIconButton Icon="@Icons.Material.Filled.Sort"
+                               Color="Color.Primary"
+                               Size="Size.Small"
+                               OnClick="OpenAisleOrderEditor"
+                               Disabled="@(!CanEdit)" />
+            }
+            <MudStack Spacing="0" Style="min-width: 0; flex: 1;">
+                <MudText Typo="Typo.h6" Style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 180px;">
+                    @(_list?.Name ?? L["shopping.list"])
+                </MudText>
+                @if (_list != null)
+                {
+                    <MudText Typo="Typo.caption" Color="Color.Secondary" Style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                        @_list.ShoppingLocationName
+                        @if (_list.HasStoreIntegration)
+                        {
+                            <MudChip T="string" Size="Size.Small" Color="Color.Info" Variant="Variant.Text" Style="font-size: 0.65rem; padding: 0 4px;">
+                                @L["shopping.integrated"]
+                            </MudChip>
+                        }
+                    </MudText>
+                }
+            </MudStack>
+        </MudStack>
+
+        <MudStack Row="true" Spacing="0">
+            @if (_list?.CanAddToCart == true)
+            {
+                <MudTooltip Text="@(CanEdit ? L["shopping.sendToCart"] : L["common.viewerNoPermission"])">
+                    <MudIconButton Icon="@Icons.Material.Filled.ShoppingCartCheckout"
+                                   Color="Color.Primary"
+                                   OnClick="SendToCart"
+                                   Disabled="@(!CanEdit || _isSendingToCart || _unpurchasedCount == 0)">
+                        @if (_isSendingToCart)
+                        {
+                            <MudProgressCircular Size="Size.Small" Indeterminate="true" />
+                        }
+                    </MudIconButton>
+                </MudTooltip>
+            }
+            <MudTooltip Text="@(CanEdit ? L["shopping.clearPurchased"] : L["common.viewerNoPermission"])">
+                <MudIconButton Icon="@Icons.Material.Filled.ClearAll"
+                               Color="Color.Warning"
+                               OnClick="ClearPurchased"
+                               Disabled="@(!CanEdit || _purchasedCount == 0)" />
+            </MudTooltip>
+        </MudStack>
+    </MudStack>
+</MudHidden>
 
 @* Summary Chips *@
 @if (_list != null)
 {
-    <MudStack Row="true" Spacing="2" Class="mb-4">
+    <MudStack Row="true" Spacing="2" Class="mb-4 shopping-list-summary">
         <MudChip T="string" Color="Color.Default" Variant="Variant.Outlined">
             @_list.ItemCount @L["shopping.items"]
         </MudChip>
@@ -117,131 +177,229 @@
     <MudProgressLinear Color="Color.Primary" Indeterminate="true" Class="mb-4" />
 }
 
-@* Items List *@
-@if (_list?.Items != null && _list.Items.Count > 0)
-{
-    <MudDataGrid T="ShoppingListItemDto" Items="@_list.Items" Dense="true" Hover="true"
-                 SortMode="SortMode.Single" Filterable="false"
-                 Groupable="true" GroupExpanded="true">
-        <Columns>
-            <TemplateColumn T="ShoppingListItemDto" Title="" Sortable="false" CellStyle="width: 50px;">
-                <CellTemplate>
-                    <MudTooltip Text="@(CanEdit ? L["shopping.togglePurchased"] : L["common.viewerNoPermission"])">
-                        <MudCheckBox T="bool"
-                                     Value="@context.Item.IsPurchased"
-                                     ValueChanged="@((bool value) => TogglePurchased(context.Item))"
-                                     Color="Color.Success"
-                                     Disabled="@(!CanEdit)" />
-                    </MudTooltip>
-                </CellTemplate>
-            </TemplateColumn>
+@* Items List - Desktop *@
+<MudHidden Breakpoint="Breakpoint.SmAndDown">
+    @if (_list?.Items != null && _list.Items.Count > 0)
+    {
+        <MudDataGrid T="ShoppingListItemDto" Items="@_list.Items" Dense="true" Hover="true"
+                     SortMode="SortMode.Single" Filterable="false"
+                     Groupable="true" GroupExpanded="true">
+            <Columns>
+                <TemplateColumn T="ShoppingListItemDto" Title="" Sortable="false" CellStyle="width: 50px;">
+                    <CellTemplate>
+                        <MudTooltip Text="@(CanEdit ? L["shopping.togglePurchased"] : L["common.viewerNoPermission"])">
+                            <MudCheckBox T="bool"
+                                         Value="@context.Item.IsPurchased"
+                                         ValueChanged="@((bool value) => TogglePurchased(context.Item))"
+                                         Color="Color.Success"
+                                         Disabled="@(!CanEdit)" />
+                        </MudTooltip>
+                    </CellTemplate>
+                </TemplateColumn>
 
-            <PropertyColumn Property="x => x.ProductName" Title="@L["shopping.product"]" Sortable="true">
-                <CellTemplate>
-                    <MudStack Spacing="0">
-                        <MudText Style="@(context.Item.IsPurchased ? "text-decoration: line-through;" : "")">
-                            @context.Item.ProductName
-                        </MudText>
-                        @if (!string.IsNullOrEmpty(context.Item.Note))
-                        {
-                            <MudText Typo="Typo.caption" Color="Color.Secondary">@context.Item.Note</MudText>
-                        }
-                    </MudStack>
-                </CellTemplate>
-            </PropertyColumn>
-
-            <TemplateColumn T="ShoppingListItemDto" Title="@L["common.amount"]" Sortable="true" SortBy="x => x.Amount">
-                <CellTemplate>
-                    <MudStack Row="true" Spacing="1" AlignItems="AlignItems.Center">
-                        <MudText>@context.Item.Amount.ToString("0.##")</MudText>
-                        @if (!string.IsNullOrEmpty(context.Item.QuantityUnitName))
-                        {
-                            <MudText Color="Color.Secondary">@context.Item.QuantityUnitName</MudText>
-                        }
-                    </MudStack>
-                </CellTemplate>
-            </TemplateColumn>
-
-            <TemplateColumn T="ShoppingListItemDto" Title="@L["shopping.storeLocation"]" Sortable="true" SortBy="x => x.Aisle">
-                <CellTemplate>
-                    @if (!string.IsNullOrEmpty(context.Item.Aisle) || !string.IsNullOrEmpty(context.Item.Department))
-                    {
+                <PropertyColumn Property="x => x.ProductName" Title="@L["shopping.product"]" Sortable="true">
+                    <CellTemplate>
                         <MudStack Spacing="0">
-                            @if (!string.IsNullOrEmpty(context.Item.Aisle))
+                            <MudText Style="@(context.Item.IsPurchased ? "text-decoration: line-through;" : "")">
+                                @context.Item.ProductName
+                            </MudText>
+                            @if (!string.IsNullOrEmpty(context.Item.Note))
                             {
-                                <MudText>@L["shopping.aisle"] @context.Item.Aisle</MudText>
-                            }
-                            @if (!string.IsNullOrEmpty(context.Item.Department))
-                            {
-                                <MudText Typo="Typo.caption" Color="Color.Secondary">@context.Item.Department</MudText>
+                                <MudText Typo="Typo.caption" Color="Color.Secondary">@context.Item.Note</MudText>
                             }
                         </MudStack>
-                    }
-                    else if (_list?.HasStoreIntegration == true)
-                    {
-                        <MudButton Size="Size.Small"
-                                   Variant="Variant.Text"
-                                   Color="Color.Info"
-                                   StartIcon="@Icons.Material.Filled.Search"
-                                   OnClick="@(() => LookupInStore(context.Item))"
-                                   Disabled="@(!CanEdit || _lookingUpItems.Contains(context.Item.Id))">
-                            @if (_lookingUpItems.Contains(context.Item.Id))
-                            {
-                                <MudProgressCircular Size="Size.Small" Indeterminate="true" />
-                            }
-                            else
-                            {
-                                @L["shopping.lookupInStore"]
-                            }
-                        </MudButton>
-                    }
-                    else
-                    {
-                        <MudText Color="Color.Secondary">-</MudText>
-                    }
-                </CellTemplate>
-            </TemplateColumn>
+                    </CellTemplate>
+                </PropertyColumn>
 
-            <TemplateColumn T="ShoppingListItemDto" Title="@L["shopping.price"]" Sortable="true" SortBy="x => x.Price">
-                <CellTemplate>
-                    @if (context.Item.Price.HasValue)
-                    {
-                        <MudText>@context.Item.Price.Value.ToString("C")</MudText>
-                    }
-                    else
-                    {
-                        <MudText Color="Color.Secondary">-</MudText>
-                    }
-                </CellTemplate>
-            </TemplateColumn>
+                <TemplateColumn T="ShoppingListItemDto" Title="@L["common.amount"]" Sortable="true" SortBy="x => x.Amount">
+                    <CellTemplate>
+                        <MudStack Row="true" Spacing="1" AlignItems="AlignItems.Center">
+                            <MudText>@context.Item.Amount.ToString("0.##")</MudText>
+                            @if (!string.IsNullOrEmpty(context.Item.QuantityUnitName))
+                            {
+                                <MudText Color="Color.Secondary">@context.Item.QuantityUnitName</MudText>
+                            }
+                        </MudStack>
+                    </CellTemplate>
+                </TemplateColumn>
 
-            <TemplateColumn T="ShoppingListItemDto" Title="@L["common.actions"]" Sortable="false" CellStyle="width: 100px;">
-                <CellTemplate>
-                    <MudStack Row="true" Spacing="1">
-                        <MudTooltip Text="@(CanEdit ? L["common.edit"] : L["common.viewerNoPermission"])">
-                            <MudIconButton Icon="@Icons.Material.Filled.Edit"
-                                           Size="Size.Small"
-                                           Color="Color.Primary"
-                                           OnClick="@(() => OpenEditItemDialog(context.Item))"
-                                           Disabled="@(!CanEdit)" />
-                        </MudTooltip>
-                        <MudTooltip Text="@(CanEdit ? L["common.delete"] : L["common.viewerNoPermission"])">
-                            <MudIconButton Icon="@Icons.Material.Filled.Delete"
-                                           Size="Size.Small"
-                                           Color="Color.Error"
-                                           OnClick="@(() => RemoveItem(context.Item))"
-                                           Disabled="@(!CanEdit)" />
-                        </MudTooltip>
-                    </MudStack>
-                </CellTemplate>
-            </TemplateColumn>
-        </Columns>
-    </MudDataGrid>
-}
-else if (!_isLoading && _list != null)
-{
-    <MudAlert Severity="Severity.Info">@L["shopping.noItems"]</MudAlert>
-}
+                <TemplateColumn T="ShoppingListItemDto" Title="@L["shopping.storeLocation"]" Sortable="true" SortBy="x => x.Aisle">
+                    <CellTemplate>
+                        @if (!string.IsNullOrEmpty(context.Item.Aisle) || !string.IsNullOrEmpty(context.Item.Department))
+                        {
+                            <MudStack Spacing="0">
+                                @if (!string.IsNullOrEmpty(context.Item.Aisle))
+                                {
+                                    <MudText>@L["shopping.aisle"] @context.Item.Aisle</MudText>
+                                }
+                                @if (!string.IsNullOrEmpty(context.Item.Department))
+                                {
+                                    <MudText Typo="Typo.caption" Color="Color.Secondary">@context.Item.Department</MudText>
+                                }
+                            </MudStack>
+                        }
+                        else if (_list?.HasStoreIntegration == true)
+                        {
+                            <MudButton Size="Size.Small"
+                                       Variant="Variant.Text"
+                                       Color="Color.Info"
+                                       StartIcon="@Icons.Material.Filled.Search"
+                                       OnClick="@(() => LookupInStore(context.Item))"
+                                       Disabled="@(!CanEdit || _lookingUpItems.Contains(context.Item.Id))">
+                                @if (_lookingUpItems.Contains(context.Item.Id))
+                                {
+                                    <MudProgressCircular Size="Size.Small" Indeterminate="true" />
+                                }
+                                else
+                                {
+                                    @L["shopping.lookupInStore"]
+                                }
+                            </MudButton>
+                        }
+                        else
+                        {
+                            <MudText Color="Color.Secondary">-</MudText>
+                        }
+                    </CellTemplate>
+                </TemplateColumn>
+
+                <TemplateColumn T="ShoppingListItemDto" Title="@L["shopping.price"]" Sortable="true" SortBy="x => x.Price">
+                    <CellTemplate>
+                        @if (context.Item.Price.HasValue)
+                        {
+                            <MudText>@context.Item.Price.Value.ToString("C")</MudText>
+                        }
+                        else
+                        {
+                            <MudText Color="Color.Secondary">-</MudText>
+                        }
+                    </CellTemplate>
+                </TemplateColumn>
+
+                <TemplateColumn T="ShoppingListItemDto" Title="@L["common.actions"]" Sortable="false" CellStyle="width: 100px;">
+                    <CellTemplate>
+                        <MudStack Row="true" Spacing="1">
+                            <MudTooltip Text="@(CanEdit ? L["common.edit"] : L["common.viewerNoPermission"])">
+                                <MudIconButton Icon="@Icons.Material.Filled.Edit"
+                                               Size="Size.Small"
+                                               Color="Color.Primary"
+                                               OnClick="@(() => OpenEditItemDialog(context.Item))"
+                                               Disabled="@(!CanEdit)" />
+                            </MudTooltip>
+                            <MudTooltip Text="@(CanEdit ? L["common.delete"] : L["common.viewerNoPermission"])">
+                                <MudIconButton Icon="@Icons.Material.Filled.Delete"
+                                               Size="Size.Small"
+                                               Color="Color.Error"
+                                               OnClick="@(() => RemoveItem(context.Item))"
+                                               Disabled="@(!CanEdit)" />
+                            </MudTooltip>
+                        </MudStack>
+                    </CellTemplate>
+                </TemplateColumn>
+            </Columns>
+        </MudDataGrid>
+    }
+    else if (!_isLoading && _list != null)
+    {
+        <MudAlert Severity="Severity.Info">@L["shopping.noItems"]</MudAlert>
+    }
+</MudHidden>
+
+@* Items List - Mobile *@
+<MudHidden Breakpoint="Breakpoint.MdAndUp">
+    @if (_list?.Items != null && _list.Items.Count > 0)
+    {
+        <MudList T="ShoppingListItemDto" Dense="true" Class="shopping-list-mobile">
+            @foreach (var item in _list.Items)
+            {
+                <MudListItem T="ShoppingListItemDto" Class="shopping-list-item pa-0">
+                    <MudPaper Elevation="0" Class="pa-2 mb-1" Style="background: transparent;">
+                        <MudStack Spacing="0">
+                            @* Row 1: Checkbox, Product Name, Amount *@
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween">
+                                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1" Style="flex: 1; min-width: 0;">
+                                    <MudCheckBox T="bool"
+                                                 Value="@item.IsPurchased"
+                                                 ValueChanged="@((bool value) => TogglePurchased(item))"
+                                                 Color="Color.Success"
+                                                 Size="Size.Small"
+                                                 Disabled="@(!CanEdit)" />
+                                    <MudText Typo="Typo.body1"
+                                             Style="@(item.IsPurchased ? "text-decoration: line-through; opacity: 0.6; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" : "overflow: hidden; text-overflow: ellipsis; white-space: nowrap;")">
+                                        @item.ProductName
+                                    </MudText>
+                                </MudStack>
+                                <MudText Typo="Typo.body2" Color="Color.Secondary" Style="white-space: nowrap; margin-left: 8px;">
+                                    @item.Amount.ToString("0.##") @item.QuantityUnitName
+                                </MudText>
+                            </MudStack>
+
+                            @* Row 2: Note and Actions *@
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="ml-9">
+                                <MudText Typo="Typo.caption" Color="Color.Secondary" Style="flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                                    @(string.IsNullOrEmpty(item.Note) ? "" : item.Note)
+                                </MudText>
+                                <MudStack Row="true" Spacing="0">
+                                    <MudIconButton Icon="@Icons.Material.Filled.Edit"
+                                                   Size="Size.Small"
+                                                   Color="Color.Primary"
+                                                   OnClick="@(() => OpenEditItemDialog(item))"
+                                                   Disabled="@(!CanEdit)" />
+                                    <MudIconButton Icon="@Icons.Material.Filled.Delete"
+                                                   Size="Size.Small"
+                                                   Color="Color.Error"
+                                                   OnClick="@(() => RemoveItem(item))"
+                                                   Disabled="@(!CanEdit)" />
+                                </MudStack>
+                            </MudStack>
+
+                            @* Row 3: Location info *@
+                            @if (!string.IsNullOrEmpty(item.Aisle) || !string.IsNullOrEmpty(item.Department))
+                            {
+                                <MudText Typo="Typo.caption" Color="Color.Tertiary" Class="ml-9" Style="opacity: 0.7;">
+                                    @if (!string.IsNullOrEmpty(item.Aisle))
+                                    {
+                                        @L["shopping.aisle"] @item.Aisle
+                                    }
+                                    @if (!string.IsNullOrEmpty(item.Aisle) && !string.IsNullOrEmpty(item.Department))
+                                    {
+                                        <text> - </text>
+                                    }
+                                    @item.Department
+                                </MudText>
+                            }
+                            else if (_list?.HasStoreIntegration == true)
+                            {
+                                <MudButton Size="Size.Small"
+                                           Variant="Variant.Text"
+                                           Color="Color.Info"
+                                           StartIcon="@Icons.Material.Filled.Search"
+                                           OnClick="@(() => LookupInStore(item))"
+                                           Disabled="@(!CanEdit || _lookingUpItems.Contains(item.Id))"
+                                           Class="ml-7"
+                                           Style="padding: 0; min-width: auto;">
+                                    @if (_lookingUpItems.Contains(item.Id))
+                                    {
+                                        <MudProgressCircular Size="Size.Small" Indeterminate="true" />
+                                    }
+                                    else
+                                    {
+                                        @L["shopping.lookupInStore"]
+                                    }
+                                </MudButton>
+                            }
+                        </MudStack>
+                    </MudPaper>
+                </MudListItem>
+                <MudDivider />
+            }
+        </MudList>
+    }
+    else if (!_isLoading && _list != null)
+    {
+        <MudAlert Severity="Severity.Info">@L["shopping.noItems"]</MudAlert>
+    }
+</MudHidden>
 
 @* Add Item Dialog (after product search) *@
 <MudDialog @bind-Visible="_addDialogVisible" Options="@(new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true })">
@@ -455,11 +613,14 @@ else if (!_isLoading && _list != null)
             { x => x.PreferredShoppingLocationId, _list?.ShoppingLocationId }
         };
 
+        var isMobile = await MobileDetectionService.IsMobileDeviceAsync();
         var options = new DialogOptions
         {
-            MaxWidth = MaxWidth.Medium,
+            MaxWidth = isMobile ? MaxWidth.ExtraExtraLarge : MaxWidth.Medium,
             FullWidth = true,
-            CloseOnEscapeKey = true
+            FullScreen = isMobile,
+            CloseOnEscapeKey = true,
+            CloseButton = isMobile
         };
 
         var dialog = await DialogService.ShowAsync<ProductLookupModal>(L["productLookup.title"], parameters, options);
