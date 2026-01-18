@@ -50,6 +50,11 @@ namespace Famick.HomeManagement.Domain.Entities
         public DateTime? PurchasedAt { get; set; }
 
         /// <summary>
+        /// Best before / expiration date for inventory tracking
+        /// </summary>
+        public DateTime? BestBeforeDate { get; set; }
+
+        /// <summary>
         /// Aisle location from store integration (number only if contains "aisle")
         /// </summary>
         public string? Aisle { get; set; }

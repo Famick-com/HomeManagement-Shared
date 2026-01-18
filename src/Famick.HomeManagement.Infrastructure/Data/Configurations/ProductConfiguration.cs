@@ -49,6 +49,10 @@ public class ProductConfiguration : IEntityTypeConfiguration<Product>
             .IsRequired()
             .HasDefaultValue(0);
 
+        builder.Property(p => p.TracksBestBeforeDate)
+            .IsRequired()
+            .HasDefaultValue(false);
+
         builder.Property(p => p.IsActive)
             .IsRequired()
             .HasDefaultValue(true);

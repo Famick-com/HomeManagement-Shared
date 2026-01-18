@@ -137,6 +137,17 @@ else
                                              Style="flex: 1;" />
                         </MudStack>
 
+                        <MudSwitch @bind-Value="_tracksBestBeforeDate"
+                                   Label="@L["products.tracksBestBeforeDate"]"
+                                   Color="Color.Primary"
+                                   Disabled="@(!CanEdit)" />
+                        @if (_tracksBestBeforeDate)
+                        {
+                            <MudText Typo="Typo.caption" Color="Color.Secondary" Class="ml-12 mt-n2">
+                                @L["products.tracksBestBeforeDateHelp"]
+                            </MudText>
+                        }
+
                         <MudDivider Class="my-3" />
                         <MudText Typo="Typo.subtitle2" Class="mb-2">Package Information</MudText>
 
@@ -433,6 +444,7 @@ else
     private decimal _conversionFactor = 1.0m;
     private decimal _minStockAmount = 0m;
     private int _defaultBestBeforeDays = 0;
+    private bool _tracksBestBeforeDate = false;
     private bool _isActive = true;
     private decimal? _servingSize;
     private string? _servingUnit = "g";
@@ -462,6 +474,7 @@ else
     private decimal _originalConversionFactor;
     private decimal _originalMinStockAmount;
     private int _originalDefaultBestBeforeDays;
+    private bool _originalTracksBestBeforeDate;
     private bool _originalIsActive;
     private decimal? _originalServingSize;
     private string? _originalServingUnit;
@@ -477,6 +490,7 @@ else
         _conversionFactor != _originalConversionFactor ||
         _minStockAmount != _originalMinStockAmount ||
         _defaultBestBeforeDays != _originalDefaultBestBeforeDays ||
+        _tracksBestBeforeDate != _originalTracksBestBeforeDate ||
         _isActive != _originalIsActive ||
         _servingSize != _originalServingSize ||
         _servingUnit != _originalServingUnit ||
@@ -564,6 +578,7 @@ else
                 _conversionFactor = product.QuantityUnitFactorPurchaseToStock;
                 _minStockAmount = product.MinStockAmount;
                 _defaultBestBeforeDays = product.DefaultBestBeforeDays;
+                _tracksBestBeforeDate = product.TracksBestBeforeDate;
                 _isActive = product.IsActive;
                 _servingSize = product.ServingSize;
                 _servingUnit = product.ServingUnit ?? "g";
@@ -636,6 +651,7 @@ else
                     QuantityUnitFactorPurchaseToStock = _conversionFactor,
                     MinStockAmount = _minStockAmount,
                     DefaultBestBeforeDays = _defaultBestBeforeDays,
+                    TracksBestBeforeDate = _tracksBestBeforeDate,
                     IsActive = _isActive,
                     ServingSize = _servingSize,
                     ServingUnit = _servingUnit,
@@ -667,6 +683,7 @@ else
                     QuantityUnitFactorPurchaseToStock = _conversionFactor,
                     MinStockAmount = _minStockAmount,
                     DefaultBestBeforeDays = _defaultBestBeforeDays,
+                    TracksBestBeforeDate = _tracksBestBeforeDate,
                     IsActive = _isActive,
                     ServingSize = _servingSize,
                     ServingUnit = _servingUnit,
@@ -1226,6 +1243,7 @@ else
                     QuantityUnitFactorPurchaseToStock = _conversionFactor,
                     MinStockAmount = _minStockAmount,
                     DefaultBestBeforeDays = _defaultBestBeforeDays,
+                    TracksBestBeforeDate = _tracksBestBeforeDate,
                     IsActive = _isActive,
                     ServingSize = _servingSize,
                     ServingUnit = _servingUnit,
@@ -1259,6 +1277,7 @@ else
                     QuantityUnitFactorPurchaseToStock = _conversionFactor,
                     MinStockAmount = _minStockAmount,
                     DefaultBestBeforeDays = _defaultBestBeforeDays,
+                    TracksBestBeforeDate = _tracksBestBeforeDate,
                     IsActive = _isActive,
                     ServingSize = _servingSize,
                     ServingUnit = _servingUnit,
@@ -1301,6 +1320,7 @@ else
         _originalConversionFactor = _conversionFactor;
         _originalMinStockAmount = _minStockAmount;
         _originalDefaultBestBeforeDays = _defaultBestBeforeDays;
+        _originalTracksBestBeforeDate = _tracksBestBeforeDate;
         _originalIsActive = _isActive;
         _originalServingSize = _servingSize;
         _originalServingUnit = _servingUnit;

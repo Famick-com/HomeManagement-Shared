@@ -51,6 +51,10 @@ namespace Famick.HomeManagement.Infrastructure.Configuration
                 .HasColumnName("purchased_at")
                 .HasColumnType("timestamp with time zone");
 
+            builder.Property(sli => sli.BestBeforeDate)
+                .HasColumnName("best_before_date")
+                .HasColumnType("timestamp with time zone");
+
             builder.Property(sli => sli.Aisle)
                 .HasColumnName("aisle")
                 .HasColumnType("character varying(50)")

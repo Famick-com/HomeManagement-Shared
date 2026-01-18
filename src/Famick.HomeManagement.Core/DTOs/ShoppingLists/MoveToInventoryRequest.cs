@@ -50,4 +50,14 @@ public class MoveToInventoryItem
     /// Barcode if scanned
     /// </summary>
     public string? Barcode { get; set; }
+
+    /// <summary>
+    /// Best before / expiration date for inventory tracking
+    /// </summary>
+    public DateTime? BestBeforeDate { get; set; }
+
+    /// <summary>
+    /// Storage location ID for this item in inventory
+    /// </summary>
+    public Guid? LocationId { get; set; }
 }
