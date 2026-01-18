@@ -37,7 +37,13 @@ public class ShoppingListMappingProfile : Profile
             .ForMember(dest => dest.QuantityUnitName,
                 opt => opt.MapFrom(src => src.Product != null && src.Product.QuantityUnitPurchase != null
                     ? src.Product.QuantityUnitPurchase.Name : null))
-            .ForMember(dest => dest.Price, opt => opt.Ignore()); // Set manually from ProductStoreMetadata
+            .ForMember(dest => dest.Price, opt => opt.Ignore()) // Set manually from ProductStoreMetadata
+            .ForMember(dest => dest.TracksBestBeforeDate,
+                opt => opt.MapFrom(src => src.Product != null && src.Product.TracksBestBeforeDate))
+            .ForMember(dest => dest.DefaultBestBeforeDays,
+                opt => opt.MapFrom(src => src.Product != null ? src.Product.DefaultBestBeforeDays : 0))
+            .ForMember(dest => dest.DefaultLocationId,
+                opt => opt.MapFrom(src => src.Product != null ? src.Product.LocationId : (Guid?)null));
 
         CreateMap<CreateShoppingListRequest, ShoppingList>()
             .ForMember(dest => dest.Id, opt => opt.Ignore())
@@ -65,7 +71,8 @@ public class ShoppingListMappingProfile : Profile
             .ForMember(dest => dest.ShoppingList, opt => opt.Ignore())
             .ForMember(dest => dest.Product, opt => opt.Ignore())
             .ForMember(dest => dest.IsPurchased, opt => opt.Ignore())
-            .ForMember(dest => dest.PurchasedAt, opt => opt.Ignore());
+            .ForMember(dest => dest.PurchasedAt, opt => opt.Ignore())
+            .ForMember(dest => dest.BestBeforeDate, opt => opt.Ignore());
 
         CreateMap<UpdateShoppingListItemRequest, ShoppingListItem>()
             .ForMember(dest => dest.Id, opt => opt.Ignore())
@@ -79,6 +86,7 @@ public class ShoppingListMappingProfile : Profile
             .ForMember(dest => dest.Product, opt => opt.Ignore())
             .ForMember(dest => dest.IsPurchased, opt => opt.Ignore())
             .ForMember(dest => dest.PurchasedAt, opt => opt.Ignore())
+            .ForMember(dest => dest.BestBeforeDate, opt => opt.Ignore())
             .ForMember(dest => dest.Aisle, opt => opt.Ignore())
             .ForMember(dest => dest.Shelf, opt => opt.Ignore())
             .ForMember(dest => dest.Department, opt => opt.Ignore())

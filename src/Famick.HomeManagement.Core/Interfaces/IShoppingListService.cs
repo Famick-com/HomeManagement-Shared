@@ -60,6 +60,13 @@ public interface IShoppingListService
         Guid listId,
         CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Gets a preview of purchased items for the clear purchased dialog
+    /// </summary>
+    Task<ClearPurchasedPreviewDto> GetClearPurchasedPreviewAsync(
+        Guid listId,
+        CancellationToken cancellationToken = default);
+
     // Quick add from Stock Overview or barcode scan
     Task<ShoppingListItemDto> QuickAddItemAsync(
         AddToShoppingListRequest request,
@@ -78,6 +85,7 @@ public interface IShoppingListService
     // Toggle purchased status
     Task<ShoppingListItemDto> TogglePurchasedAsync(
         Guid itemId,
+        MarkItemPurchasedRequest? request = null,
         CancellationToken cancellationToken = default);
 
     // Smart features

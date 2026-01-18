@@ -11,6 +11,13 @@ public class ShoppingListItemDto
     public string? Note { get; set; }
     public bool IsPurchased { get; set; }
     public DateTime? PurchasedAt { get; set; }
+    public DateTime? BestBeforeDate { get; set; }
+
+    // Product tracking fields for date prompting logic
+    public bool TracksBestBeforeDate { get; set; }
+    public int DefaultBestBeforeDays { get; set; }
+    public Guid? DefaultLocationId { get; set; }
+
     public string? Aisle { get; set; }
     public string? Shelf { get; set; }
     public string? Department { get; set; }

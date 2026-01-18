@@ -5,7 +5,9 @@
 @inject ISnackbar Snackbar
 @inject ILocalizer L
 @inject NavigationManager Navigation
+@inject IMobileDetectionService MobileDetectionService
 @using Famick.HomeManagement.Core.DTOs.ShoppingLists
+@using Famick.HomeManagement.Core.DTOs.Locations
 @using Famick.HomeManagement.UI.Services
 @using Famick.HomeManagement.UI.Components.Shopping
 
@@ -224,8 +226,43 @@ else
 
         try
         {
-            var result = await ApiClient.PostAsync<object, ShoppingListItemDto>(
-                $"api/v1/shoppinglists/{Id}/items/{item.Id}/toggle-purchased", new { });
+            MarkItemPurchasedRequest? request = null;
+
+            // If marking as purchased (not currently purchased) and product tracks best before dates
+            // with no default days, show dialog to prompt for date
+            if (!item.IsPurchased && item.TracksBestBeforeDate && item.DefaultBestBeforeDays == 0)
+            {
+                var parameters = new DialogParameters<MarkPurchasedDialog>
+                {
+                    { x => x.ProductName, item.ProductName ?? "Unknown" },
+                    { x => x.DefaultBestBeforeDays, item.DefaultBestBeforeDays }
+                };
+
+                var isMobile = await MobileDetectionService.IsMobileDeviceAsync();
+                var options = new DialogOptions
+                {
+                    MaxWidth = MaxWidth.Small,
+                    FullWidth = true,
+                    FullScreen = isMobile,
+                    CloseOnEscapeKey = true
+                };
+
+                var dialog = await DialogService.ShowAsync<MarkPurchasedDialog>(
+                    L["shopping.markAsPurchased"], parameters, options);
+                var dialogResult = await dialog.Result;
+
+                if (dialogResult!.Canceled)
+                {
+                    _togglingItems.Remove(item.Id);
+                    StateHasChanged();
+                    return; // User cancelled, don't toggle
+                }
+
+                request = dialogResult.Data as MarkItemPurchasedRequest;
+            }
+
+            var result = await ApiClient.PostAsync<MarkItemPurchasedRequest?, ShoppingListItemDto>(
+                $"api/v1/shoppinglists/{Id}/items/{item.Id}/toggle-purchased", request);
 
             if (result.IsSuccess && result.Data != null)
             {
@@ -256,58 +293,127 @@ else
     {
         if (_list == null || _purchasedCount == 0) return;
 
-        var confirmed = await DialogService.ShowMessageBox(
-            L["shopping.moveToInventory"],
-            $"This will add {_purchasedCount} purchased item(s) to your inventory.",
-            yesText: L["shopping.moveToInventory"],
-            cancelText: L["common.cancel"]);
-
-        if (confirmed != true) return;
-
         _isMovingToInventory = true;
 
         try
         {
-            var purchasedItems = _list.Items!.Where(i => i.IsPurchased).ToList();
+            // Load preview data and locations
+            var previewResult = await ApiClient.GetAsync<ClearPurchasedPreviewDto>(
+                $"api/v1/shoppinglists/{Id}/clear-purchased-preview");
 
-            var request = new MoveToInventoryRequest
+            if (!previewResult.IsSuccess || previewResult.Data == null)
             {
-                ShoppingListId = Id,
-                Items = purchasedItems.Select(i => new MoveToInventoryItem
-                {
-                    ShoppingListItemId = i.Id,
-                    ProductId = i.ProductId,
-                    ProductName = i.ProductName,
-                    Amount = i.Amount,
-                    Price = i.Price,
-                    Barcode = i.ExternalProductId
-                }).ToList()
+                Snackbar.Add(previewResult.ErrorMessage ?? L["errors.generic"], Severity.Error);
+                return;
+            }
+
+            var preview = previewResult.Data;
+
+            // If no purchased items, show message and return
+            if (preview.InventoryItemCount == 0 && preview.TodoItemCount == 0)
+            {
+                Snackbar.Add(L["shopping.noPurchasedItems"], Severity.Info);
+                return;
+            }
+
+            // Load locations for the dialog
+            var locationsResult = await ApiClient.GetAsync<List<LocationDto>>("api/v1/locations");
+            var locations = locationsResult.Data ?? new List<LocationDto>();
+
+            var parameters = new DialogParameters<ClearPurchasedDialog>
+            {
+                { x => x.Preview, preview },
+                { x => x.Locations, locations }
             };
 
-            var result = await ApiClient.PostAsync<MoveToInventoryRequest, MoveToInventoryResponse>(
-                $"api/v1/shoppinglists/{Id}/move-to-inventory", request);
-
-            if (result.IsSuccess && result.Data != null)
+            var isMobile = await MobileDetectionService.IsMobileDeviceAsync();
+            var options = new DialogOptions
             {
-                var message = $"Added {result.Data.ItemsAddedToStock} item(s) to inventory.";
-                if (result.Data.TodoItemsCreated > 0)
-                {
-                    message += $" {result.Data.TodoItemsCreated} item(s) need product setup.";
-                }
-                if (result.Data.Errors.Count > 0)
-                {
-                    message += $" {result.Data.Errors.Count} error(s) occurred.";
-                }
+                MaxWidth = MaxWidth.Medium,
+                FullWidth = true,
+                FullScreen = isMobile,
+                CloseOnEscapeKey = true
+            };
 
-                Snackbar.Add(message, Severity.Success);
+            var dialog = await DialogService.ShowAsync<ClearPurchasedDialog>(
+                L["shopping.clearPurchasedTitle"], parameters, options);
+            var dialogResult = await dialog.Result;
 
-                // Reload the list to reflect changes
-                await LoadListAsync();
-            }
-            else
+            if (dialogResult!.Canceled)
             {
-                Snackbar.Add(result.ErrorMessage ?? L["errors.generic"], Severity.Error);
+                return;
             }
+
+            var action = (ClearPurchasedDialog.ClearPurchasedResult)dialogResult.Data!;
+
+            if (action == ClearPurchasedDialog.ClearPurchasedResult.MoveToInventoryAndClear)
+            {
+                // Build the move to inventory request from the preview items
+                var moveRequest = new MoveToInventoryRequest
+                {
+                    ShoppingListId = Id,
+                    Items = preview.ItemsWithProducts.Select(item => new MoveToInventoryItem
+                    {
+                        ShoppingListItemId = item.Id,
+                        ProductId = item.ProductId,
+                        ProductName = item.ProductName,
+                        Amount = item.Amount,
+                        BestBeforeDate = item.SelectedBestBeforeDate?.ToUniversalTime(),
+                        LocationId = item.SelectedLocationId
+                    }).ToList()
+                };
+
+                // Also add items without products (will become TODOs)
+                foreach (var item in preview.ItemsWithoutProducts)
+                {
+                    moveRequest.Items.Add(new MoveToInventoryItem
+                    {
+                        ShoppingListItemId = item.Id,
+                        ProductId = null,
+                        ProductName = item.ProductName,
+                        Amount = item.Amount
+                    });
+                }
+
+                var moveResult = await ApiClient.PostAsync<MoveToInventoryRequest, MoveToInventoryResponse>(
+                    $"api/v1/shoppinglists/{Id}/move-to-inventory", moveRequest);
+
+                if (moveResult.IsSuccess && moveResult.Data != null)
+                {
+                    var message = string.Format(L["shopping.movedToInventory"],
+                        moveResult.Data.ItemsAddedToStock, moveResult.Data.TodoItemsCreated);
+
+                    if (moveResult.Data.Errors.Count > 0)
+                    {
+                        message = string.Format(L["shopping.movedToInventoryWithErrors"],
+                            moveResult.Data.ItemsAddedToStock, moveResult.Data.Errors.Count);
+                    }
+
+                    Snackbar.Add(message, Severity.Success);
+                }
+                else
+                {
+                    Snackbar.Add(moveResult.ErrorMessage ?? L["errors.generic"], Severity.Error);
+                }
+            }
+            else if (action == ClearPurchasedDialog.ClearPurchasedResult.ClearOnly)
+            {
+                // Just clear purchased items without moving to inventory
+                var clearResult = await ApiClient.PostAsync<object, object>(
+                    $"api/v1/shoppinglists/{Id}/clear-purchased", new { });
+
+                if (clearResult.IsSuccess)
+                {
+                    Snackbar.Add(L["shopping.purchasedCleared"], Severity.Success);
+                }
+                else
+                {
+                    Snackbar.Add(clearResult.ErrorMessage ?? L["errors.generic"], Severity.Error);
+                }
+            }
+
+            // Reload the list to reflect changes
+            await LoadListAsync();
         }
         catch (Exception)
         {

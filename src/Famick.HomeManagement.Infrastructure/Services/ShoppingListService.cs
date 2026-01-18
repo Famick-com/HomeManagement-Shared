@@ -334,13 +334,81 @@ public partial class ShoppingListService : IShoppingListService
             throw new EntityNotFoundException(nameof(ShoppingList), listId);
         }
 
-        // TODO: Future enhancement - identify "purchased" items
-        // For now, this is a no-op since items are removed when marked as purchased
-        // In the future, we might have a "Purchased" flag or timestamp
+        // Remove all purchased items from the list
+        var purchasedItems = await _context.ShoppingListItems
+            .Where(i => i.ShoppingListId == listId && i.IsPurchased)
+            .ToListAsync(cancellationToken);
 
-        _logger.LogInformation("Cleared purchased items from shopping list: {ListId}", listId);
+        _context.ShoppingListItems.RemoveRange(purchasedItems);
+        await _context.SaveChangesAsync(cancellationToken);
 
-        await Task.CompletedTask;
+        _logger.LogInformation("Cleared {Count} purchased items from shopping list: {ListId}",
+            purchasedItems.Count, listId);
+    }
+
+    public async Task<ClearPurchasedPreviewDto> GetClearPurchasedPreviewAsync(
+        Guid listId,
+        CancellationToken cancellationToken = default)
+    {
+        _logger.LogInformation("Getting clear purchased preview for shopping list: {ListId}", listId);
+
+        // Verify list exists
+        var list = await _context.ShoppingLists.FindAsync(new object[] { listId }, cancellationToken);
+        if (list == null)
+        {
+            throw new EntityNotFoundException(nameof(ShoppingList), listId);
+        }
+
+        // Get all purchased items with product info
+        var purchasedItems = await _context.ShoppingListItems
+            .Include(i => i.Product)
+                .ThenInclude(p => p!.QuantityUnitPurchase)
+            .Include(i => i.Product)
+                .ThenInclude(p => p!.Location)
+            .Where(i => i.ShoppingListId == listId && i.IsPurchased)
+            .ToListAsync(cancellationToken);
+
+        var result = new ClearPurchasedPreviewDto();
+
+        foreach (var item in purchasedItems)
+        {
+            var previewItem = new ClearPurchasedItemDto
+            {
+                Id = item.Id,
+                ProductId = item.ProductId,
+                ProductName = item.Product?.Name ?? item.ProductName ?? "Unknown",
+                Amount = item.Amount,
+                QuantityUnitName = item.Product?.QuantityUnitPurchase?.Name,
+                TracksBestBeforeDate = item.Product?.TracksBestBeforeDate ?? false,
+                DefaultBestBeforeDays = item.Product?.DefaultBestBeforeDays ?? 0,
+                DefaultLocationId = item.Product?.LocationId,
+                DefaultLocationName = item.Product?.Location?.Name,
+                BestBeforeDate = item.BestBeforeDate,
+                // Pre-fill UI binding properties
+                SelectedLocationId = item.Product?.LocationId,
+                SelectedBestBeforeDate = item.BestBeforeDate
+            };
+
+            // Calculate default best before date if not already set
+            if (previewItem.TracksBestBeforeDate && previewItem.SelectedBestBeforeDate == null && previewItem.DefaultBestBeforeDays > 0)
+            {
+                previewItem.SelectedBestBeforeDate = DateTime.UtcNow.Date.AddDays(previewItem.DefaultBestBeforeDays);
+            }
+
+            if (item.ProductId.HasValue)
+            {
+                result.ItemsWithProducts.Add(previewItem);
+            }
+            else
+            {
+                result.ItemsWithoutProducts.Add(previewItem);
+            }
+        }
+
+        _logger.LogInformation("Found {WithProducts} items with products and {WithoutProducts} items without products",
+            result.InventoryItemCount, result.TodoItemCount);
+
+        return result;
     }
 
     // Smart features
@@ -702,6 +770,7 @@ public partial class ShoppingListService : IShoppingListService
 
     public async Task<ShoppingListItemDto> TogglePurchasedAsync(
         Guid itemId,
+        MarkItemPurchasedRequest? request = null,
         CancellationToken cancellationToken = default)
     {
         _logger.LogInformation("Toggling purchased status for item: {ItemId}", itemId);
@@ -718,6 +787,27 @@ public partial class ShoppingListService : IShoppingListService
 
         item.IsPurchased = !item.IsPurchased;
         item.PurchasedAt = item.IsPurchased ? DateTime.UtcNow : null;
+
+        // Handle best before date when marking as purchased
+        if (item.IsPurchased)
+        {
+            if (request?.BestBeforeDate != null)
+            {
+                // Use explicitly provided date
+                item.BestBeforeDate = request.BestBeforeDate;
+            }
+            else if (item.Product?.TracksBestBeforeDate == true && item.Product.DefaultBestBeforeDays > 0)
+            {
+                // Auto-calculate date based on product settings
+                item.BestBeforeDate = DateTime.UtcNow.Date.AddDays(item.Product.DefaultBestBeforeDays);
+            }
+            // If TracksBestBeforeDate is false or DefaultBestBeforeDays is 0 without explicit date, leave null
+        }
+        else
+        {
+            // Clear best before date when unmarking
+            item.BestBeforeDate = null;
+        }
 
         await _context.SaveChangesAsync(cancellationToken);
 
@@ -916,7 +1006,9 @@ public partial class ShoppingListService : IShoppingListService
                         ProductId = item.ProductId.Value,
                         Amount = item.Amount,
                         Price = item.Price,
-                        PurchasedDate = DateTime.UtcNow
+                        PurchasedDate = DateTime.UtcNow,
+                        BestBeforeDate = item.BestBeforeDate,
+                        LocationId = item.LocationId
                     };
 
                     var stockEntry = await _stockService.AddStockAsync(addStockRequest, cancellationToken);

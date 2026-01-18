@@ -10,6 +10,7 @@ public class UpdateProductRequest
     public decimal QuantityUnitFactorPurchaseToStock { get; set; }
     public decimal MinStockAmount { get; set; }
     public int DefaultBestBeforeDays { get; set; }
+    public bool TracksBestBeforeDate { get; set; }
     public bool IsActive { get; set; }
 
     // Serving/package information
