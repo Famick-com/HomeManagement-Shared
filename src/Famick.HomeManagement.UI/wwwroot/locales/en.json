@@ -186,7 +186,38 @@
     "noExpiringItems": "No items expiring in the next 7 days.",
     "noItemsExpiringSoon": "No items expiring in the next 5 days.",
     "itemsExpiringSoon": "{0} items expiring within 5 days. Click to view.",
-    "recentActivity": "Recent Activity"
+    "recentActivity": "Recent Activity",
+    "todosPending": "Tasks Pending",
+    "clickToComplete": "Click to complete"
+  },
+
+  "todos": {
+    "title": "Pending Tasks",
+    "taskProgress": "Task {0} of {1}",
+    "noTasksPending": "No pending tasks. You're all caught up!",
+    "skip": "Skip",
+    "completeWithoutChanges": "Complete Without Changes",
+    "markComplete": "Mark Complete",
+    "celebrationTitle": "All Done!",
+    "celebrationMessage": "You've completed all {0} pending tasks.",
+    "returnToDashboard": "Return to Dashboard",
+    "completionNote": "Completion Note",
+    "completionNotePlaceholder": "Add any notes about how you completed this task...",
+    "stockEntryNotFound": "Stock entry not found or has been deleted.",
+    "skipThis": "Skip This Task",
+    "noRelatedEntity": "No related item found for this task.",
+    "taskType": {
+      "inventory": "Inventory",
+      "product": "Product",
+      "equipment": "Equipment",
+      "other": "Task"
+    },
+    "defaultTitle": {
+      "inventory": "Update Inventory",
+      "product": "Complete Product Details",
+      "equipment": "Equipment Follow-up",
+      "other": "Complete Task"
+    }
   },
 
   "settings": {
@@ -573,13 +604,18 @@
     "purchasedCleared": "Purchased items cleared",
     "noPurchasedItems": "No purchased items to clear",
     "clearPurchasedTitle": "Clear Purchased Items",
+    "clearPurchasedExplanation": "Items will be cleared from the shopping list and moved to inventory.",
     "clearPurchasedSummary": "{0} items can be added to inventory, {1} items will become TODO tasks",
     "itemsToMoveToInventory": "Items to Add to Inventory",
+    "itemsNeedSetup": "{0} item(s) will be added to inventory with basic details. You can review and complete the product setup now or later.",
     "itemsWithoutProductNote": "{0} items without linked products will be cleared and created as TODO tasks for product setup",
     "clearOnly": "Clear Only",
+    "clearForNow": "Clear for Now",
+    "provideDetails": "Provide Details Now",
     "moveToInventoryAndClear": "Move to Inventory & Clear",
     "movedToInventory": "Added {0} items to inventory. {1} TODO items created.",
     "movedToInventoryWithErrors": "Added {0} items to inventory. {1} errors occurred.",
+    "todosCreated": "{0} task(s) created for product setup.",
     "confirmSendToCart": "Send all unpurchased items to store cart?",
     "createNewList": "Create New List",
     "notePlaceholder": "Add a note...",

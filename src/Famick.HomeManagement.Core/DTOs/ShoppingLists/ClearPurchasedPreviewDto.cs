@@ -81,6 +81,16 @@ public class ClearPurchasedItemDto
     /// </summary>
     public DateTime? BestBeforeDate { get; set; }
 
+    /// <summary>
+    /// Product image URL from store integration
+    /// </summary>
+    public string? ImageUrl { get; set; }
+
+    /// <summary>
+    /// Product barcode from store integration
+    /// </summary>
+    public string? Barcode { get; set; }
+
     // UI binding properties (set by client, not server)
 
     /// <summary>

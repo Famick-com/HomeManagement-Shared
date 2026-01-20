@@ -925,7 +925,9 @@
                         ShoppingListItemId = item.Id,
                         ProductId = null,
                         ProductName = item.ProductName,
-                        Amount = item.Amount
+                        Amount = item.Amount,
+                        ImageUrl = item.ImageUrl,
+                        Barcode = item.Barcode
                     });
                 }
 
@@ -949,17 +951,57 @@
                     Snackbar.Add(moveResult.ErrorMessage ?? L["errors.generic"], Severity.Error);
                 }
             }
-            else // ClearOnly
+            else // ClearOnly or ClearAndGoToTodos
             {
-                var result = await ApiClient.PostAsync($"api/v1/shoppinglists/{Id}/clear-purchased", new { });
-
-                if (result.IsSuccess)
+                // Create TODO tasks for items without products, then clear
+                if (preview.ItemsWithoutProducts.Any())
                 {
-                    Snackbar.Add(L["shopping.purchasedCleared"], Severity.Success);
+                    var moveRequest = new MoveToInventoryRequest
+                    {
+                        ShoppingListId = Id,
+                        Items = preview.ItemsWithoutProducts.Select(item => new MoveToInventoryItem
+                        {
+                            ShoppingListItemId = item.Id,
+                            ProductId = null,
+                            ProductName = item.ProductName,
+                            Amount = item.Amount,
+                            ImageUrl = item.ImageUrl,
+                            Barcode = item.Barcode
+                        }).ToList()
+                    };
+
+                    var moveResult = await ApiClient.PostAsync<MoveToInventoryRequest, MoveToInventoryResponse>(
+                        $"api/v1/shoppinglists/{Id}/move-to-inventory", moveRequest);
+
+                    if (moveResult.IsSuccess && moveResult.Data != null)
+                    {
+                        Snackbar.Add(string.Format(L["shopping.todosCreated"], moveResult.Data.TodoItemsCreated), Severity.Success);
+                    }
+                    else
+                    {
+                        Snackbar.Add(moveResult.ErrorMessage ?? L["errors.generic"], Severity.Error);
+                    }
                 }
                 else
                 {
-                    Snackbar.Add(result.ErrorMessage ?? L["errors.generic"], Severity.Error);
+                    // No items without products, just clear
+                    var result = await ApiClient.PostAsync($"api/v1/shoppinglists/{Id}/clear-purchased", new { });
+
+                    if (result.IsSuccess)
+                    {
+                        Snackbar.Add(L["shopping.purchasedCleared"], Severity.Success);
+                    }
+                    else
+                    {
+                        Snackbar.Add(result.ErrorMessage ?? L["errors.generic"], Severity.Error);
+                    }
+                }
+
+                // If user chose to provide details now, navigate to todos
+                if (action == ClearPurchasedDialog.ClearPurchasedResult.ClearAndGoToTodos)
+                {
+                    Navigation.NavigateTo("/todos");
+                    return;
                 }
             }
 

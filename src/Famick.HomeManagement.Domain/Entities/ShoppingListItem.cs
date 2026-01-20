@@ -74,6 +74,16 @@ namespace Famick.HomeManagement.Domain.Entities
         /// </summary>
         public string? ExternalProductId { get; set; }
 
+        /// <summary>
+        /// Product image URL from store integration
+        /// </summary>
+        public string? ImageUrl { get; set; }
+
+        /// <summary>
+        /// Product barcode (UPC/EAN) from store integration
+        /// </summary>
+        public string? Barcode { get; set; }
+
         // Navigation properties
         /// <summary>
         /// The shopping list this item belongs to

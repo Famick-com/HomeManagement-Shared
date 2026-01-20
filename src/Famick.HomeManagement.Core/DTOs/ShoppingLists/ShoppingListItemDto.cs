@@ -23,4 +23,8 @@ public class ShoppingListItemDto
     public string? Department { get; set; }
     public string? ExternalProductId { get; set; }
     public decimal? Price { get; set; }
+
+    // Store integration fields (for items without linked products)
+    public string? ImageUrl { get; set; }
+    public string? Barcode { get; set; }
 }

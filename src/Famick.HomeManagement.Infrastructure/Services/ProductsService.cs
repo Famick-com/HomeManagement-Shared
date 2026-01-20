@@ -14,17 +14,20 @@ public class ProductsService : IProductsService
     private readonly IMapper _mapper;
     private readonly IFileStorageService _fileStorage;
     private readonly IFileAccessTokenService _tokenService;
+    private readonly IHttpClientFactory _httpClientFactory;
 
     public ProductsService(
         HomeManagementDbContext context,
         IMapper mapper,
         IFileStorageService fileStorage,
-        IFileAccessTokenService tokenService)
+        IFileAccessTokenService tokenService,
+        IHttpClientFactory httpClientFactory)
     {
         _context = context;
         _mapper = mapper;
         _fileStorage = fileStorage;
         _tokenService = tokenService;
+        _httpClientFactory = httpClientFactory;
     }
 
     public async Task<ProductDto> CreateAsync(CreateProductRequest request, CancellationToken cancellationToken = default)
@@ -401,6 +404,56 @@ public class ProductsService : IProductsService
         var token = _tokenService.GenerateToken("product-image", productImage.Id, productImage.TenantId);
         dto.Url = _fileStorage.GetProductImageUrl(productId, productImage.Id, token);
         return dto;
+    }
+
+    public async Task<ProductImageDto?> AddImageFromUrlAsync(
+        Guid productId,
+        string imageUrl,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrEmpty(imageUrl))
+            return null;
+
+        try
+        {
+            var httpClient = _httpClientFactory.CreateClient();
+            httpClient.Timeout = TimeSpan.FromSeconds(30);
+
+            using var response = await httpClient.GetAsync(imageUrl, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+            if (!response.IsSuccessStatusCode)
+                return null;
+
+            var contentType = response.Content.Headers.ContentType?.MediaType ?? "image/jpeg";
+
+            // Only allow image content types
+            if (!contentType.StartsWith("image/"))
+                return null;
+
+            // Extract filename from URL or use default
+            var uri = new Uri(imageUrl);
+            var fileName = Path.GetFileName(uri.LocalPath);
+            if (string.IsNullOrEmpty(fileName) || !fileName.Contains('.'))
+            {
+                var extension = contentType switch
+                {
+                    "image/png" => ".png",
+                    "image/gif" => ".gif",
+                    "image/webp" => ".webp",
+                    _ => ".jpg"
+                };
+                fileName = $"product-image{extension}";
+            }
+
+            await using var imageStream = await response.Content.ReadAsStreamAsync(cancellationToken);
+            var fileSize = response.Content.Headers.ContentLength ?? imageStream.Length;
+
+            return await AddImageAsync(productId, imageStream, fileName, contentType, fileSize, cancellationToken);
+        }
+        catch
+        {
+            // Silently fail - image download is not critical
+            return null;
+        }
     }
 
     public async Task<List<ProductImageDto>> GetImagesAsync(Guid productId, CancellationToken cancellationToken = default)
