@@ -31,4 +31,6 @@ public class User : BaseEntity, ITenantEntity
     public virtual Contact? Contact { get; set; }
     public ICollection<UserPermission> UserPermissions { get; set; } = new List<UserPermission>();
     public ICollection<UserRole> UserRoles { get; set; } = new List<UserRole>();
+    public ICollection<UserExternalLogin> ExternalLogins { get; set; } = new List<UserExternalLogin>();
+    public ICollection<UserPasskeyCredential> PasskeyCredentials { get; set; } = new List<UserPasskeyCredential>();
 }
