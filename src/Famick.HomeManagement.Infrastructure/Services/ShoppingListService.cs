@@ -1,6 +1,7 @@
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using AutoMapper;
+using Famick.HomeManagement.Core.DTOs.Products;
 using Famick.HomeManagement.Core.DTOs.ShoppingLists;
 using Famick.HomeManagement.Core.DTOs.Stock;
 using Famick.HomeManagement.Core.DTOs.StoreIntegrations;
@@ -26,6 +27,7 @@ public partial class ShoppingListService : IShoppingListService
     private readonly IPluginLoader _pluginLoader;
     private readonly IStockService _stockService;
     private readonly ITodoItemService _todoItemService;
+    private readonly IProductsService _productsService;
 
     public ShoppingListService(
         HomeManagementDbContext context,
@@ -34,7 +36,8 @@ public partial class ShoppingListService : IShoppingListService
         IStoreIntegrationService storeIntegrationService,
         IPluginLoader pluginLoader,
         IStockService stockService,
-        ITodoItemService todoItemService)
+        ITodoItemService todoItemService,
+        IProductsService productsService)
     {
         _context = context;
         _mapper = mapper;
@@ -43,6 +46,7 @@ public partial class ShoppingListService : IShoppingListService
         _pluginLoader = pluginLoader;
         _stockService = stockService;
         _todoItemService = todoItemService;
+        _productsService = productsService;
     }
 
     [GeneratedRegex(@"aisle\s*[-:]?\s*(\w+)", RegexOptions.IgnoreCase)]
@@ -384,6 +388,8 @@ public partial class ShoppingListService : IShoppingListService
                 DefaultLocationId = item.Product?.LocationId,
                 DefaultLocationName = item.Product?.Location?.Name,
                 BestBeforeDate = item.BestBeforeDate,
+                ImageUrl = item.ImageUrl,
+                Barcode = item.Barcode,
                 // Pre-fill UI binding properties
                 SelectedLocationId = item.Product?.LocationId,
                 SelectedBestBeforeDate = item.BestBeforeDate
@@ -862,10 +868,12 @@ public partial class ShoppingListService : IShoppingListService
                     item.Aisle = NormalizeAisle(productInfo.Aisle);
                     item.Shelf = productInfo.Shelf;
                     item.Department = productInfo.Department;
+                    item.ImageUrl = productInfo.ImageUrl;
+                    item.Barcode = productInfo.Barcode;
 
                     _logger.LogInformation(
-                        "Found store info for item via ExternalProductId {ExternalProductId}: Aisle={Aisle}, Dept={Department}",
-                        item.ExternalProductId, item.Aisle, item.Department);
+                        "Found store info for item via ExternalProductId {ExternalProductId}: Aisle={Aisle}, Dept={Department}, ImageUrl={ImageUrl}",
+                        item.ExternalProductId, item.Aisle, item.Department, item.ImageUrl);
                     return;
                 }
             }
@@ -899,10 +907,12 @@ public partial class ShoppingListService : IShoppingListService
                     item.Shelf = bestMatch.Shelf;
                     item.Department = bestMatch.Department;
                     item.ExternalProductId = bestMatch.ExternalProductId;
+                    item.ImageUrl = bestMatch.ImageUrl;
+                    item.Barcode = bestMatch.Barcode;
 
                     _logger.LogInformation(
-                        "Found store info for product {ProductId}: Aisle={Aisle}, Dept={Department}",
-                        item.ProductId, item.Aisle, item.Department);
+                        "Found store info for product {ProductId}: Aisle={Aisle}, Dept={Department}, ImageUrl={ImageUrl}",
+                        item.ProductId, item.Aisle, item.Department, item.ImageUrl);
                 }
             }
         }
@@ -1020,7 +1030,78 @@ public partial class ShoppingListService : IShoppingListService
                 }
                 else
                 {
-                    // Item has no product - create a TODO item for inventory setup
+                    // Item has no product - create a basic product and a TODO to review it
+                    // Get "Kitchen" location (or first available as fallback)
+                    var defaultLocation = await _context.Locations
+                        .FirstOrDefaultAsync(l => l.Name == "Kitchen", cancellationToken)
+                        ?? await _context.Locations
+                            .OrderBy(l => l.Name)
+                            .FirstOrDefaultAsync(cancellationToken);
+
+                    var defaultQuantityUnit = await _context.QuantityUnits
+                        .OrderBy(q => q.Name)
+                        .FirstOrDefaultAsync(cancellationToken);
+
+                    if (defaultLocation == null || defaultQuantityUnit == null)
+                    {
+                        _logger.LogWarning("Cannot create product - no default location or quantity unit exists");
+                        response.Errors.Add($"Cannot create product '{item.ProductName}': No default location or quantity unit configured");
+                        continue;
+                    }
+
+                    // Create the product with basic info - assume all new products track expiration dates
+                    var createProductRequest = new CreateProductRequest
+                    {
+                        Name = item.ProductName ?? "Unknown product",
+                        LocationId = defaultLocation.Id,
+                        QuantityUnitIdPurchase = defaultQuantityUnit.Id,
+                        QuantityUnitIdStock = defaultQuantityUnit.Id,
+                        QuantityUnitFactorPurchaseToStock = 1.0m,
+                        TracksBestBeforeDate = true,
+                        IsActive = true
+                    };
+
+                    var newProduct = await _productsService.CreateAsync(createProductRequest, cancellationToken);
+
+                    _logger.LogInformation("Created product {ProductId} '{ProductName}' from shopping item",
+                        newProduct.Id, newProduct.Name);
+
+                    // Add barcode if available
+                    if (!string.IsNullOrEmpty(item.Barcode))
+                    {
+                        await _productsService.AddBarcodeAsync(newProduct.Id, item.Barcode, "Added from shopping", cancellationToken);
+                        _logger.LogInformation("Added barcode {Barcode} to product {ProductId}", item.Barcode, newProduct.Id);
+                    }
+
+                    // Add image if available (download from URL)
+                    if (!string.IsNullOrEmpty(item.ImageUrl))
+                    {
+                        var imageResult = await _productsService.AddImageFromUrlAsync(newProduct.Id, item.ImageUrl, cancellationToken);
+                        if (imageResult != null)
+                        {
+                            _logger.LogInformation("Added image from URL to product {ProductId}", newProduct.Id);
+                        }
+                    }
+
+                    // Add to inventory
+                    var addStockRequest = new AddStockRequest
+                    {
+                        ProductId = newProduct.Id,
+                        Amount = item.Amount,
+                        Price = item.Price,
+                        PurchasedDate = DateTime.UtcNow,
+                        BestBeforeDate = item.BestBeforeDate,
+                        LocationId = item.LocationId ?? defaultLocation.Id
+                    };
+
+                    var stockEntry = await _stockService.AddStockAsync(addStockRequest, cancellationToken);
+                    response.StockEntryIds.Add(stockEntry.Id);
+                    response.ItemsAddedToStock++;
+
+                    _logger.LogInformation("Added stock entry {StockEntryId} for new product {ProductId}",
+                        stockEntry.Id, newProduct.Id);
+
+                    // Create a TODO item to review/complete the product setup
                     var additionalData = JsonSerializer.Serialize(new
                     {
                         Amount = item.Amount,
@@ -1032,9 +1113,10 @@ public partial class ShoppingListService : IShoppingListService
 
                     var todoRequest = new CreateTodoItemRequest
                     {
-                        TaskType = TaskType.Inventory,
-                        Reason = "New product from shopping - needs setup",
-                        Description = item.ProductName ?? "Unknown product",
+                        TaskType = TaskType.Product,
+                        RelatedEntityId = newProduct.Id,
+                        Reason = "New product from shopping - review and complete setup",
+                        Description = newProduct.Name,
                         AdditionalData = additionalData
                     };
 
@@ -1042,8 +1124,8 @@ public partial class ShoppingListService : IShoppingListService
                     response.TodoItemIds.Add(todoItem.Id);
                     response.TodoItemsCreated++;
 
-                    _logger.LogInformation("Created TODO item {TodoItemId} for product '{ProductName}'",
-                        todoItem.Id, item.ProductName);
+                    _logger.LogInformation("Created TODO item {TodoItemId} for product {ProductId} '{ProductName}'",
+                        todoItem.Id, newProduct.Id, newProduct.Name);
                 }
 
                 // Mark item for removal from shopping list

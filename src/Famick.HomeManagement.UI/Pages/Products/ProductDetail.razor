@@ -423,6 +423,20 @@ else
     [Parameter]
     public Guid? Id { get; set; }
 
+    /// <summary>
+    /// Callback invoked after a successful save operation. Receives the saved product's ID.
+    /// Used by TodoWizard to mark the todo as complete and advance to the next item.
+    /// </summary>
+    [Parameter]
+    public EventCallback<Guid> OnSaveComplete { get; set; }
+
+    /// <summary>
+    /// When true, suppresses automatic navigation after save operations.
+    /// Used when embedding this component in the TodoWizard.
+    /// </summary>
+    [Parameter]
+    public bool SuppressNavigation { get; set; } = false;
+
     [CascadingParameter(Name = "CanEdit")]
     private bool CanEdit { get; set; }
 
@@ -664,7 +678,16 @@ else
                 if (result.IsSuccess && result.Data != null)
                 {
                     Snackbar.Add(L["products.productSaved"], Severity.Success);
-                    Navigation.NavigateTo($"/products/{result.Data.Id}");
+
+                    if (OnSaveComplete.HasDelegate)
+                    {
+                        await OnSaveComplete.InvokeAsync(result.Data.Id);
+                    }
+
+                    if (!SuppressNavigation)
+                    {
+                        Navigation.NavigateTo($"/products/{result.Data.Id}");
+                    }
                 }
                 else
                 {
@@ -698,6 +721,11 @@ else
                     Snackbar.Add(L["products.productSaved"], Severity.Success);
                     // Re-capture original state after successful save
                     CaptureOriginalState();
+
+                    if (OnSaveComplete.HasDelegate)
+                    {
+                        await OnSaveComplete.InvokeAsync(Id!.Value);
+                    }
                 }
                 else
                 {

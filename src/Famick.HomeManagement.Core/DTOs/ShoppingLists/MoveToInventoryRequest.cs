@@ -52,6 +52,11 @@ public class MoveToInventoryItem
     public string? Barcode { get; set; }
 
     /// <summary>
+    /// Product image URL from store integration
+    /// </summary>
+    public string? ImageUrl { get; set; }
+
+    /// <summary>
     /// Best before / expiration date for inventory tracking
     /// </summary>
     public DateTime? BestBeforeDate { get; set; }
