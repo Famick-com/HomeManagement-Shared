@@ -1,8 +1,10 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using System.ComponentModel.Design;
+using Famick.HomeManagement.Core.Configuration;
 using Famick.HomeManagement.Core.Interfaces;
 using Famick.HomeManagement.Infrastructure.Data;
 using Famick.HomeManagement.Infrastructure.Services;
+using Fido2NetLib;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -54,6 +56,37 @@ public static class InfrastructureStartup
         services.AddScoped<ITenantService, TenantService>();
         services.AddScoped<IContactService, ContactService>();
         services.AddScoped<ITodoItemService, TodoItemService>();
+
+        // Configure External Authentication
+        services.Configure<ExternalAuthSettings>(configuration.GetSection("ExternalAuth"));
+        services.AddScoped<IExternalAuthService, ExternalAuthService>();
+
+        // Configure Passkey/WebAuthn authentication
+        var passkeySettings = configuration.GetSection("ExternalAuth:Passkey").Get<PasskeySettings>();
+        if (passkeySettings?.IsConfigured == true)
+        {
+            var fido2Config = new Fido2Configuration
+            {
+                ServerDomain = passkeySettings.RelyingPartyId,
+                ServerName = passkeySettings.RelyingPartyName,
+                Origins = passkeySettings.Origins?.ToHashSet() ?? new HashSet<string>()
+            };
+            services.AddSingleton(fido2Config);
+            services.AddSingleton<IFido2, Fido2>(sp =>
+                new Fido2(fido2Config, sp.GetService<IMetadataService>()));
+        }
+        else
+        {
+            // Register a null Fido2 service when not configured
+            services.AddSingleton<IFido2>(sp =>
+                new Fido2(new Fido2Configuration
+                {
+                    ServerDomain = "localhost",
+                    ServerName = "HomeManagement",
+                    Origins = new HashSet<string> { "https://localhost" }
+                }));
+        }
+        services.AddScoped<IPasskeyService, PasskeyService>();
 
         // Configure Geoapify address normalization service
         services.Configure<GeoapifyOptions>(configuration.GetSection(GeoapifyOptions.SectionName));

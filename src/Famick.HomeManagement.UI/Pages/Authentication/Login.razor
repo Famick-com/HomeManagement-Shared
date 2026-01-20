@@ -8,6 +8,8 @@
 @inject ILocalizationService LocalizationService
 @using Famick.HomeManagement.UI.Theme
 @using Famick.HomeManagement.UI.Localization
+@using Famick.HomeManagement.UI.Components.Authentication
+@using Famick.HomeManagement.Core.DTOs.Authentication
 @using Microsoft.Extensions.DependencyInjection
 
 <LocalizationInitializer>
@@ -132,6 +134,12 @@
                     }
                 </MudButton>
             </MudForm>
+
+            @* External Authentication Options *@
+            <ExternalAuthButtons RememberMe="@_rememberMe"
+                                 ReturnUrl="@ReturnUrl"
+                                 OnLoginSuccess="@HandleExternalLoginSuccess"
+                                 OnError="@HandleExternalAuthError" />
         </MudPaper>
     </MudContainer>
 </LocalizationInitializer>
@@ -249,5 +257,24 @@
     private async Task ChangeLanguageAsync(string languageCode)
     {
         await LocalizationService.SetLanguageAsync(languageCode);
+    }
+
+    private async Task HandleExternalLoginSuccess(LoginResponse response)
+    {
+        // Apply user's preferred language if set
+        if (!string.IsNullOrEmpty(response.User?.PreferredLanguage))
+        {
+            await LocalizationService.SetLanguageAsync(response.User.PreferredLanguage);
+        }
+
+        AuthStateProvider.NotifyAuthenticationStateChanged();
+        var returnUrl = string.IsNullOrEmpty(ReturnUrl) ? "/" : ReturnUrl;
+        Navigation.NavigateTo(returnUrl);
+    }
+
+    private void HandleExternalAuthError(string error)
+    {
+        _errorMessage = error;
+        StateHasChanged();
     }
 }

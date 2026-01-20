@@ -42,6 +42,8 @@ public class HomeManagementDbContext : DbContext
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
     public DbSet<PasswordResetToken> PasswordResetTokens => Set<PasswordResetToken>();
     public DbSet<UserRole> UserRoles => Set<UserRole>();
+    public DbSet<UserExternalLogin> UserExternalLogins => Set<UserExternalLogin>();
+    public DbSet<UserPasskeyCredential> UserPasskeyCredentials => Set<UserPasskeyCredential>();
 
     // Household management entities
     public DbSet<Location> Locations => Set<Location>();

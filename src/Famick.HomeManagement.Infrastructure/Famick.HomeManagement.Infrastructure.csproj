@@ -7,6 +7,8 @@
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="Fido2" Version="4.0.0" />
+    <PackageReference Include="Fido2.Models" Version="4.0.0" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.0">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       <PrivateAssets>all</PrivateAssets>
