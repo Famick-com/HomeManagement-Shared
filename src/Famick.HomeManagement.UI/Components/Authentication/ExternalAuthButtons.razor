@@ -13,10 +13,17 @@
     }
     else if (_providers?.Count > 0)
     {
-        <MudDivider Class="my-4" />
-        <MudText Typo="Typo.body2" Color="Color.Secondary" Align="Align.Center" Class="mb-3">
-            @L["auth.orContinueWith"]
-        </MudText>
+        @if (ShowDivider)
+        {
+            <MudDivider Class="my-4" />
+            <MudText Typo="Typo.body2" Color="Color.Secondary" Align="Align.Center" Class="mb-3">
+                @L["auth.orContinueWith"]
+            </MudText>
+        }
+        else
+        {
+            <div class="mt-6"></div>
+        }
 
         <MudStack Spacing="2">
             @foreach (var provider in _providers)
@@ -56,10 +63,17 @@
     }
     else if (_passkeyEnabled)
     {
-        <MudDivider Class="my-4" />
-        <MudText Typo="Typo.body2" Color="Color.Secondary" Align="Align.Center" Class="mb-3">
-            @L["auth.orContinueWith"]
-        </MudText>
+        @if (ShowDivider)
+        {
+            <MudDivider Class="my-4" />
+            <MudText Typo="Typo.body2" Color="Color.Secondary" Align="Align.Center" Class="mb-3">
+                @L["auth.orContinueWith"]
+            </MudText>
+        }
+        else
+        {
+            <div class="mt-6"></div>
+        }
 
         <MudButton Variant="Variant.Outlined"
                    FullWidth="true"
@@ -94,6 +108,12 @@
 
     [Parameter]
     public EventCallback<string> OnError { get; set; }
+
+    /// <summary>
+    /// Whether to show the "Or continue with" divider. Set to false when password auth is disabled.
+    /// </summary>
+    [Parameter]
+    public bool ShowDivider { get; set; } = true;
 
     private List<ExternalAuthProviderDto>? _providers;
     private bool _passkeyEnabled;
