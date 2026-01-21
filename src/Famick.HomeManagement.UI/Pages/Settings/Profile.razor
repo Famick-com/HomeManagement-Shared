@@ -9,6 +9,7 @@
 @using Famick.HomeManagement.Domain.Enums
 @using Famick.HomeManagement.UI.Localization
 @using Famick.HomeManagement.UI.Components.Contacts
+@using Famick.HomeManagement.UI.Components.Settings
 
 <MudText Typo="Typo.h4" Class="mb-4">@L["profile.title"]</MudText>
 
@@ -160,6 +161,11 @@ else
                     </MudStack>
                 </MudForm>
             </MudPaper>
+        </MudItem>
+
+        @* Linked Accounts Section (External Auth & Passkeys) *@
+        <MudItem xs="12" md="6">
+            <LinkedAccounts HasPassword="@(_profile?.HasPassword ?? false)" />
         </MudItem>
 
         @* Contact Information Section *@

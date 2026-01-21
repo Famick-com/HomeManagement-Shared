@@ -21,6 +21,11 @@ public class UserProfileDto
     public string FullName => $"{FirstName} {LastName}".Trim();
 
     /// <summary>
+    /// Whether the user has a password set (for external auth users, this may be false)
+    /// </summary>
+    public bool HasPassword { get; set; }
+
+    /// <summary>
     /// Linked contact ID (if any)
     /// </summary>
     public Guid? ContactId { get; set; }
