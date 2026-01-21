@@ -86,6 +86,27 @@ public class ExternalAuthLinkChallengeRequest
 }
 
 /// <summary>
+/// Authentication configuration settings for the frontend
+/// </summary>
+public class AuthConfigurationDto
+{
+    /// <summary>
+    /// Whether password-based authentication is enabled
+    /// </summary>
+    public bool PasswordAuthEnabled { get; set; } = true;
+
+    /// <summary>
+    /// Whether passkey authentication is enabled
+    /// </summary>
+    public bool PasskeyEnabled { get; set; }
+
+    /// <summary>
+    /// List of enabled external authentication providers
+    /// </summary>
+    public List<ExternalAuthProviderDto> Providers { get; set; } = [];
+}
+
+/// <summary>
 /// Information about a linked external account
 /// </summary>
 public class LinkedAccountDto

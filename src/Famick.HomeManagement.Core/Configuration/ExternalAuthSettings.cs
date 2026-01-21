@@ -11,6 +11,13 @@ public class ExternalAuthSettings
     public const string SectionName = "ExternalAuth";
 
     /// <summary>
+    /// Whether password-based authentication is enabled.
+    /// When false, users can only log in via external providers (Google, Apple, OIDC, Passkey).
+    /// Default is true.
+    /// </summary>
+    public bool PasswordAuthEnabled { get; set; } = true;
+
+    /// <summary>
     /// Apple Sign In configuration
     /// </summary>
     public AppleAuthSettings Apple { get; set; } = new();

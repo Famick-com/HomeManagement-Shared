@@ -1,6 +1,7 @@
 @page "/auth/external/callback/{Provider}"
 @layout EmptyLayout
 @inject IApiClient ApiClient
+@inject ITokenStorage TokenStorage
 @inject ApiAuthStateProvider AuthStateProvider
 @inject NavigationManager Navigation
 @inject ILocalizer L
@@ -8,6 +9,7 @@
 @using Famick.HomeManagement.Core.DTOs.ExternalAuth
 @using Famick.HomeManagement.UI.Theme
 @using Famick.HomeManagement.UI.Localization
+@using Famick.HomeManagement.UI.Services
 
 <LocalizationInitializer>
     <MudThemeProvider Theme="FamickTheme.Theme" IsDarkMode="false" />
@@ -141,6 +143,9 @@
 
                 if (result.IsSuccess && result.Data != null)
                 {
+                    // Store the tokens
+                    await TokenStorage.SetTokensAsync(result.Data.AccessToken, result.Data.RefreshToken);
+
                     // Apply user's preferred language if set
                     if (!string.IsNullOrEmpty(result.Data.User?.PreferredLanguage))
                     {
