@@ -227,6 +227,7 @@ public class UserProfileService : IUserProfileService
             FirstName = user.FirstName,
             LastName = user.LastName,
             PreferredLanguage = user.PreferredLanguage,
+            HasPassword = !string.IsNullOrEmpty(user.PasswordHash),
             LastLoginAt = user.LastLoginAt,
             CreatedAt = user.CreatedAt,
             ContactId = user.ContactId,
