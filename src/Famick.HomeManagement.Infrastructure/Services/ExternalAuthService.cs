@@ -99,7 +99,7 @@ public class ExternalAuthService : IExternalAuthService
     }
 
     /// <inheritdoc />
-    public Task<ExternalAuthChallengeResponse> GetAuthorizationUrlAsync(
+    public async Task<ExternalAuthChallengeResponse> GetAuthorizationUrlAsync(
         string provider,
         string redirectUri,
         CancellationToken cancellationToken = default)
@@ -124,19 +124,19 @@ public class ExternalAuthService : IExternalAuthService
         {
             "GOOGLE" => BuildGoogleAuthUrl(redirectUri, state, codeChallenge),
             "APPLE" => BuildAppleAuthUrl(redirectUri, state),
-            "OIDC" => BuildOidcAuthUrl(redirectUri, state, codeChallenge),
+            "OIDC" => await BuildOidcAuthUrlAsync(redirectUri, state, codeChallenge, cancellationToken),
             _ => throw new ArgumentException($"Unknown provider: {provider}")
         };
 
-        return Task.FromResult(new ExternalAuthChallengeResponse
+        return new ExternalAuthChallengeResponse
         {
             AuthorizationUrl = authUrl,
             State = state
-        });
+        };
     }
 
     /// <inheritdoc />
-    public Task<ExternalAuthChallengeResponse> GetLinkAuthorizationUrlAsync(
+    public async Task<ExternalAuthChallengeResponse> GetLinkAuthorizationUrlAsync(
         Guid userId,
         string provider,
         string redirectUri,
@@ -164,15 +164,15 @@ public class ExternalAuthService : IExternalAuthService
         {
             "GOOGLE" => BuildGoogleAuthUrl(redirectUri, state, codeChallenge),
             "APPLE" => BuildAppleAuthUrl(redirectUri, state),
-            "OIDC" => BuildOidcAuthUrl(redirectUri, state, codeChallenge),
+            "OIDC" => await BuildOidcAuthUrlAsync(redirectUri, state, codeChallenge, cancellationToken),
             _ => throw new ArgumentException($"Unknown provider: {provider}")
         };
 
-        return Task.FromResult(new ExternalAuthChallengeResponse
+        return new ExternalAuthChallengeResponse
         {
             AuthorizationUrl = authUrl,
             State = state
-        });
+        };
     }
 
     /// <inheritdoc />
@@ -202,12 +202,15 @@ public class ExternalAuthService : IExternalAuthService
             throw new InvalidCredentialsException("OAuth provider mismatch");
         }
 
+        // Use the redirect URI stored during challenge creation (must match exactly)
+        var storedRedirectUri = stateData.RedirectUri;
+
         // Exchange code for tokens and get user info
         var userInfo = provider.ToUpperInvariant() switch
         {
-            "GOOGLE" => await ExchangeGoogleCodeAsync(request.Code, redirectUri, stateData.CodeVerifier, cancellationToken),
-            "APPLE" => await ExchangeAppleCodeAsync(request.Code, redirectUri, cancellationToken),
-            "OIDC" => await ExchangeOidcCodeAsync(request.Code, redirectUri, stateData.CodeVerifier, cancellationToken),
+            "GOOGLE" => await ExchangeGoogleCodeAsync(request.Code, storedRedirectUri, stateData.CodeVerifier, cancellationToken),
+            "APPLE" => await ExchangeAppleCodeAsync(request.Code, storedRedirectUri, cancellationToken),
+            "OIDC" => await ExchangeOidcCodeAsync(request.Code, storedRedirectUri, stateData.CodeVerifier, cancellationToken),
             _ => throw new ArgumentException($"Unknown provider: {provider}")
         };
 
@@ -235,12 +238,15 @@ public class ExternalAuthService : IExternalAuthService
 
         _cache.Remove(cacheKey);
 
+        // Use the redirect URI stored during challenge creation (must match exactly)
+        var storedRedirectUri = stateData!.RedirectUri;
+
         // Get user info from provider
         var userInfo = provider.ToUpperInvariant() switch
         {
-            "GOOGLE" => await ExchangeGoogleCodeAsync(request.Code, redirectUri, stateData!.CodeVerifier, cancellationToken),
-            "APPLE" => await ExchangeAppleCodeAsync(request.Code, redirectUri, cancellationToken),
-            "OIDC" => await ExchangeOidcCodeAsync(request.Code, redirectUri, stateData!.CodeVerifier, cancellationToken),
+            "GOOGLE" => await ExchangeGoogleCodeAsync(request.Code, storedRedirectUri, stateData.CodeVerifier, cancellationToken),
+            "APPLE" => await ExchangeAppleCodeAsync(request.Code, storedRedirectUri, cancellationToken),
+            "OIDC" => await ExchangeOidcCodeAsync(request.Code, storedRedirectUri, stateData.CodeVerifier, cancellationToken),
             _ => throw new ArgumentException($"Unknown provider: {provider}")
         };
 
@@ -397,15 +403,18 @@ public class ExternalAuthService : IExternalAuthService
         return authUrl;
     }
 
-    private string BuildOidcAuthUrl(string redirectUri, string state, string codeChallenge)
+    private async Task<string> BuildOidcAuthUrlAsync(string redirectUri, string state, string codeChallenge, CancellationToken cancellationToken)
     {
+        // Fetch the OIDC discovery document to get the authorization endpoint
+        var discovery = await GetOidcDiscoveryDocumentAsync(cancellationToken);
+
         var scopes = "openid profile email";
         if (_settings.OpenIdConnect.Scopes.Length > 0)
         {
             scopes = string.Join(" ", _settings.OpenIdConnect.Scopes);
         }
 
-        var authUrl = $"{_settings.OpenIdConnect.Authority.TrimEnd('/')}/authorize"
+        var authUrl = discovery.AuthorizationEndpoint
             + $"?client_id={Uri.EscapeDataString(_settings.OpenIdConnect.ClientId)}"
             + $"&redirect_uri={Uri.EscapeDataString(redirectUri)}"
             + $"&response_type=code"
@@ -522,6 +531,9 @@ public class ExternalAuthService : IExternalAuthService
         string codeVerifier,
         CancellationToken cancellationToken)
     {
+        // Fetch the OIDC discovery document to get the token endpoint
+        var discovery = await GetOidcDiscoveryDocumentAsync(cancellationToken);
+
         var client = _httpClientFactory.CreateClient();
 
         var tokenRequest = new Dictionary<string, string>
@@ -534,9 +546,8 @@ public class ExternalAuthService : IExternalAuthService
             ["code_verifier"] = codeVerifier
         };
 
-        var tokenEndpoint = $"{_settings.OpenIdConnect.Authority.TrimEnd('/')}/token";
         var tokenResponse = await client.PostAsync(
-            tokenEndpoint,
+            discovery.TokenEndpoint,
             new FormUrlEncodedContent(tokenRequest),
             cancellationToken);
 
@@ -849,6 +860,64 @@ public class ExternalAuthService : IExternalAuthService
         public string? Name { get; set; }
         public string? GivenName { get; set; }
         public string? FamilyName { get; set; }
+    }
+
+    private class OidcDiscoveryDocument
+    {
+        public string AuthorizationEndpoint { get; set; } = string.Empty;
+        public string TokenEndpoint { get; set; } = string.Empty;
+        public string? UserinfoEndpoint { get; set; }
+        public string? JwksUri { get; set; }
+        public string? Issuer { get; set; }
+    }
+
+    #endregion
+
+    #region OIDC Discovery
+
+    private async Task<OidcDiscoveryDocument> GetOidcDiscoveryDocumentAsync(CancellationToken cancellationToken = default)
+    {
+        var cacheKey = $"oidc_discovery_{_settings.OpenIdConnect.Authority}";
+
+        if (_cache.TryGetValue<OidcDiscoveryDocument>(cacheKey, out var cached) && cached != null)
+        {
+            return cached;
+        }
+
+        var client = _httpClientFactory.CreateClient();
+        var discoveryUrl = $"{_settings.OpenIdConnect.Authority.TrimEnd('/')}/.well-known/openid-configuration";
+
+        _logger.LogDebug("Fetching OIDC discovery document from {Url}", discoveryUrl);
+
+        var response = await client.GetAsync(discoveryUrl, cancellationToken);
+
+        if (!response.IsSuccessStatusCode)
+        {
+            var content = await response.Content.ReadAsStringAsync(cancellationToken);
+            _logger.LogError("Failed to fetch OIDC discovery document from {Url}: {StatusCode} - {Content}",
+                discoveryUrl, response.StatusCode, content);
+            throw new InvalidOperationException($"Failed to fetch OIDC discovery document: {response.StatusCode}");
+        }
+
+        var json = await response.Content.ReadAsStringAsync(cancellationToken);
+        var doc = JsonSerializer.Deserialize<JsonElement>(json);
+
+        var discovery = new OidcDiscoveryDocument
+        {
+            AuthorizationEndpoint = doc.GetProperty("authorization_endpoint").GetString() ?? throw new InvalidOperationException("Missing authorization_endpoint"),
+            TokenEndpoint = doc.GetProperty("token_endpoint").GetString() ?? throw new InvalidOperationException("Missing token_endpoint"),
+            UserinfoEndpoint = doc.TryGetProperty("userinfo_endpoint", out var userinfo) ? userinfo.GetString() : null,
+            JwksUri = doc.TryGetProperty("jwks_uri", out var jwks) ? jwks.GetString() : null,
+            Issuer = doc.TryGetProperty("issuer", out var issuer) ? issuer.GetString() : null
+        };
+
+        // Cache for 1 hour
+        _cache.Set(cacheKey, discovery, TimeSpan.FromHours(1));
+
+        _logger.LogDebug("OIDC discovery: authorization_endpoint={AuthEndpoint}, token_endpoint={TokenEndpoint}",
+            discovery.AuthorizationEndpoint, discovery.TokenEndpoint);
+
+        return discovery;
     }
 
     #endregion
