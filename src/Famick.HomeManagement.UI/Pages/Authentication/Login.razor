@@ -93,6 +93,16 @@
                                       Placeholder="https://your-server.com"
                                       Disabled="@_isLoading"
                                       Class="mb-4" />
+
+                        <MudButton Variant="Variant.Outlined"
+                                   Color="Color.Primary"
+                                   FullWidth="true"
+                                   OnClick="@(() => Navigation.NavigateTo("/setup/scan"))"
+                                   StartIcon="@Icons.Material.Filled.QrCodeScanner"
+                                   Disabled="@_isLoading"
+                                   Class="mb-4">
+                            @L["auth.scanQrCode"]
+                        </MudButton>
                     }
                 }
 
