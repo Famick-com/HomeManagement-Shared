@@ -122,7 +122,10 @@
     "externalAuthInvalidCallback": "Invalid callback. Missing required parameters.",
     "processingExternalAuth": "Processing authentication...",
     "passkeyFailed": "Passkey authentication failed. Please try again.",
-    "passkeyCancelled": "Passkey authentication was cancelled."
+    "passkeyCancelled": "Passkey authentication was cancelled.",
+    "scanQrCode": "Scan QR Code",
+    "scanQrCodeDescription": "Scan the QR code on your server's Mobile App Setup page",
+    "orEnterManually": "Or enter URL manually"
   },
 
   "profile": {
@@ -285,6 +288,26 @@
     "noExternalAuthConfigured": "No external authentication methods are configured.",
     "failedToLoadAccounts": "Failed to load linked accounts. Please try again.",
     "sso": "SSO",
+    "mobileAppSetup": {
+      "title": "Mobile App Setup",
+      "description": "Connect the Famick mobile app to your self-hosted server.",
+      "qrCodeInstructions": "Scan this QR code with the Famick mobile app:",
+      "deepLinkInstructions": "Or share this link:",
+      "shareLink": "Share Link",
+      "shareLinkDescription": "Share this link with family members. If they don't have the app, they'll be prompted to download it.",
+      "copyLink": "Copy Link",
+      "linkCopied": "Link copied to clipboard!",
+      "shareInstructions": "You can text or email this link to family members. When they tap it, the Famick app will open and configure automatically.",
+      "advancedOptions": "Advanced Options",
+      "directDeepLink": "Direct Deep Link",
+      "directDeepLinkDescription": "Use this link if the recipient already has the app installed.",
+      "serverName": "Server Name",
+      "serverNameHelp": "Display name for this server in the mobile app",
+      "serverUrl": "Server URL",
+      "serverUrlHelp": "Public URL for this server",
+      "serverUrlNotConfigured": "Public URL not configured. Please set the PublicUrl in your server configuration.",
+      "notAvailable": "Mobile app setup is not available for this server. This feature is only used for self-hosted installations."
+    },
     "locations": {
       "title": "Storage Locations",
       "add": "Add Location",

@@ -1,14 +1,40 @@
 @page "/settings"
 @attribute [Authorize]
 @inject ILocalizer L
+@inject NavigationManager Navigation
+@inject HttpClient Http
 
 <PageTitle>@L["nav.settings"]</PageTitle>
 
 <MudText Typo="Typo.h4" Class="mb-4">@L["nav.settings"]</MudText>
 
-@* Users section - Admin only *@
+@* Admin section *@
 <AuthorizeView Policy="RequireAdmin">
     <Authorized>
+        @* Mobile App Setup - Admin only, and only if enabled *@
+        @if (_mobileAppSetupEnabled)
+        {
+            <MudText Typo="Typo.h5" Class="mb-3">@L["settings.mobileAppSetup.title"]</MudText>
+            <div class="mb-6">
+                <MudCard Outlined="true" Class="cursor-pointer" @onclick="@(() => Navigation.NavigateTo("/settings/mobile-setup"))">
+                    <MudCardContent>
+                        <div class="d-flex align-center gap-4">
+                            <MudIcon Icon="@Icons.Material.Filled.QrCode2" Size="Size.Large" Color="Color.Primary" />
+                            <div>
+                                <MudText Typo="Typo.subtitle1">@L["settings.mobileAppSetup.title"]</MudText>
+                                <MudText Typo="Typo.body2" Color="Color.Secondary">
+                                    @L["settings.mobileAppSetup.description"]
+                                </MudText>
+                            </div>
+                            <MudSpacer />
+                            <MudIcon Icon="@Icons.Material.Filled.ChevronRight" />
+                        </div>
+                    </MudCardContent>
+                </MudCard>
+            </div>
+        }
+
+        @* Users section - Admin only *@
         <MudText Typo="Typo.h5" Class="mb-3">@L["nav.users"]</MudText>
         <div class="mb-6">
             <UsersSection />
@@ -27,3 +53,24 @@
 <div class="mb-6">
     <QuantityUnitsSection />
 </div>
+
+@code {
+    private bool _mobileAppSetupEnabled = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Check if mobile app setup is enabled (for self-hosted servers)
+        try
+        {
+            var response = await Http.GetFromJsonAsync<MobileAppConfigResponse>("api/setup/mobile-app/config");
+            _mobileAppSetupEnabled = response?.IsEnabled ?? false;
+        }
+        catch
+        {
+            // If we can't fetch the config, assume it's disabled
+            _mobileAppSetupEnabled = false;
+        }
+    }
+
+    private record MobileAppConfigResponse(bool IsEnabled, bool IsConfigured);
+}
