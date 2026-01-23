@@ -34,7 +34,18 @@ public static class InfrastructureStartup
 
         services.AddScoped<IAuthenticationService, AuthenticationService>();
         services.AddScoped<ISetupService, SetupService>();
-        services.AddScoped<IEmailService, SmtpEmailService>();
+
+        // Register email service based on configuration
+        var emailSettings = configuration.GetSection(EmailSettings.SectionName).Get<EmailSettings>();
+        if (emailSettings?.Provider == EmailProvider.AwsSes)
+        {
+            services.AddScoped<IEmailService, AwsSesEmailService>();
+        }
+        else
+        {
+            services.AddScoped<IEmailService, SmtpEmailService>();
+        }
+
         services.AddScoped<IPasswordResetService, PasswordResetService>();
         services.AddScoped<IUserManagementService, UserManagementService>();
         services.AddScoped<IUserProfileService, UserProfileService>();
