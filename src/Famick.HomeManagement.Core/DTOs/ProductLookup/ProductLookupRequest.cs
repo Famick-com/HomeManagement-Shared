@@ -6,14 +6,20 @@ namespace Famick.HomeManagement.Core.DTOs.ProductLookup;
 public enum ProductSearchMode
 {
     /// <summary>
-    /// Search all enabled plugins (USDA, Open Food Facts, store integrations, etc.)
+    /// Search local products first, then all enabled plugins (USDA, Open Food Facts, store integrations, etc.)
+    /// Local products always appear first in results.
     /// </summary>
     AllSources = 0,
 
     /// <summary>
     /// Only search plugins that implement IStoreIntegrationPlugin (connected stores)
     /// </summary>
-    StoreIntegrationsOnly = 1
+    StoreIntegrationsOnly = 1,
+
+    /// <summary>
+    /// Only search local products database (no external plugins)
+    /// </summary>
+    LocalProductsOnly = 2
 }
 
 /// <summary>

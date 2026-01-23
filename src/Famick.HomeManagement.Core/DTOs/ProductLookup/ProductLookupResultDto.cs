@@ -3,25 +3,38 @@ using Famick.HomeManagement.Core.Interfaces.Plugins;
 namespace Famick.HomeManagement.Core.DTOs.ProductLookup;
 
 /// <summary>
-/// Result from product lookup that can come from either
-/// product plugins (USDA, Open Food Facts) or store integrations (Kroger)
+/// Result from product lookup that can come from local database,
+/// product plugins (USDA, Open Food Facts), or store integrations (Kroger)
 /// </summary>
 public class ProductLookupResultDto
 {
     /// <summary>
-    /// Source type: "ProductPlugin" or "StoreIntegration"
+    /// Source type: "LocalProduct", "ProductPlugin", or "StoreIntegration"
     /// </summary>
     public string SourceType { get; set; } = string.Empty;
 
     /// <summary>
-    /// Plugin ID that provided this result (e.g., "usda", "kroger")
+    /// Plugin ID that provided this result (e.g., "local", "usda", "kroger")
     /// </summary>
     public string PluginId { get; set; } = string.Empty;
 
     /// <summary>
-    /// Human-readable name of the source (e.g., "USDA FoodData Central", "Kroger")
+    /// Human-readable name of the source (e.g., "Local Database", "USDA FoodData Central", "Kroger")
     /// </summary>
     public string PluginDisplayName { get; set; } = string.Empty;
+
+    // ===== Local product fields =====
+
+    /// <summary>
+    /// Local product ID if this result is from the local database.
+    /// Use this to navigate directly to the product or to avoid creating duplicates.
+    /// </summary>
+    public Guid? LocalProductId { get; set; }
+
+    /// <summary>
+    /// True if this result is from the local product database
+    /// </summary>
+    public bool IsLocalProduct { get; set; }
 
     // ===== Common product fields =====
 
