@@ -1,5 +1,6 @@
-using System.Net;
-using System.Net.Mail;
+using Amazon;
+using Amazon.SimpleEmail;
+using Amazon.SimpleEmail.Model;
 using Famick.HomeManagement.Core.Configuration;
 using Famick.HomeManagement.Core.Interfaces;
 using Microsoft.Extensions.Logging;
@@ -8,19 +9,46 @@ using Microsoft.Extensions.Options;
 namespace Famick.HomeManagement.Infrastructure.Services;
 
 /// <summary>
-/// SMTP-based email service implementation
+/// AWS SES-based email service implementation
 /// </summary>
-public class SmtpEmailService : IEmailService
+public class AwsSesEmailService : IEmailService, IDisposable
 {
     private readonly EmailSettings _settings;
-    private readonly ILogger<SmtpEmailService> _logger;
+    private readonly ILogger<AwsSesEmailService> _logger;
+    private readonly IAmazonSimpleEmailService _sesClient;
+    private bool _disposed;
 
-    public SmtpEmailService(
+    public AwsSesEmailService(
         IOptions<EmailSettings> settings,
-        ILogger<SmtpEmailService> logger)
+        ILogger<AwsSesEmailService> logger)
     {
         _settings = settings.Value;
         _logger = logger;
+        _sesClient = CreateSesClient();
+    }
+
+    private IAmazonSimpleEmailService CreateSesClient()
+    {
+        var region = RegionEndpoint.GetBySystemName(_settings.AwsSes.Region);
+
+        if (_settings.AwsSes.UseInstanceCredentials)
+        {
+            // Use IAM role credentials (EC2, ECS, App Runner, Lambda)
+            return new AmazonSimpleEmailServiceClient(region);
+        }
+
+        // Use explicit credentials
+        if (string.IsNullOrEmpty(_settings.AwsSes.AccessKeyId) ||
+            string.IsNullOrEmpty(_settings.AwsSes.SecretAccessKey))
+        {
+            throw new InvalidOperationException(
+                "AWS SES credentials not configured. Set UseInstanceCredentials=true or provide AccessKeyId and SecretAccessKey.");
+        }
+
+        return new AmazonSimpleEmailServiceClient(
+            _settings.AwsSes.AccessKeyId,
+            _settings.AwsSes.SecretAccessKey,
+            region);
     }
 
     /// <inheritdoc />
@@ -50,6 +78,20 @@ public class SmtpEmailService : IEmailService
         await SendEmailAsync(toEmail, subject, htmlBody, textBody, cancellationToken);
     }
 
+    /// <inheritdoc />
+    public async Task SendWelcomeEmailAsync(
+        string toEmail,
+        string userName,
+        string temporaryPassword,
+        CancellationToken cancellationToken = default)
+    {
+        var subject = "Welcome to Famick Home Management";
+        var htmlBody = GenerateWelcomeEmailHtml(userName, toEmail, temporaryPassword);
+        var textBody = GenerateWelcomeEmailText(userName, toEmail, temporaryPassword);
+
+        await SendEmailAsync(toEmail, subject, htmlBody, textBody, cancellationToken);
+    }
+
     private async Task SendEmailAsync(
         string toEmail,
         string subject,
@@ -57,57 +99,79 @@ public class SmtpEmailService : IEmailService
         string textBody,
         CancellationToken cancellationToken)
     {
-        if (string.IsNullOrEmpty(_settings.Smtp.Host))
+        if (string.IsNullOrEmpty(_settings.FromEmail))
         {
-            _logger.LogWarning("SMTP host not configured. Email to {Email} not sent.", toEmail);
+            _logger.LogWarning("From email not configured. Email to {Email} not sent.", toEmail);
             return;
         }
 
         try
         {
-            using var client = new SmtpClient(_settings.Smtp.Host, _settings.Smtp.Port)
+            var request = new SendEmailRequest
             {
-                EnableSsl = _settings.Smtp.EnableSsl,
-                Credentials = !string.IsNullOrEmpty(_settings.Smtp.Username)
-                    ? new NetworkCredential(_settings.Smtp.Username, _settings.Smtp.Password)
-                    : null
+                Source = string.IsNullOrEmpty(_settings.FromName)
+                    ? _settings.FromEmail
+                    : $"{_settings.FromName} <{_settings.FromEmail}>",
+                Destination = new Destination
+                {
+                    ToAddresses = new List<string> { toEmail }
+                },
+                Message = new Message
+                {
+                    Subject = new Content(subject),
+                    Body = new Body
+                    {
+                        Html = new Content
+                        {
+                            Charset = "UTF-8",
+                            Data = htmlBody
+                        },
+                        Text = new Content
+                        {
+                            Charset = "UTF-8",
+                            Data = textBody
+                        }
+                    }
+                }
             };
-
-            using var message = new MailMessage
-            {
-                From = new MailAddress(_settings.FromEmail, _settings.FromName),
-                Subject = subject,
-                IsBodyHtml = true,
-                Body = htmlBody
-            };
-
-            message.To.Add(toEmail);
 
             // Add reply-to addresses if configured
-            foreach (var replyTo in _settings.ReplyToAddresses)
+            if (_settings.ReplyToAddresses.Count > 0)
             {
-                message.ReplyToList.Add(replyTo);
+                request.ReplyToAddresses = _settings.ReplyToAddresses;
             }
 
-            // Add plain text alternative
-            var plainTextView = AlternateView.CreateAlternateViewFromString(
-                textBody, null, "text/plain");
-            var htmlView = AlternateView.CreateAlternateViewFromString(
-                htmlBody, null, "text/html");
+            // Add configuration set if specified
+            if (!string.IsNullOrEmpty(_settings.AwsSes.ConfigurationSetName))
+            {
+                request.ConfigurationSetName = _settings.AwsSes.ConfigurationSetName;
+            }
 
-            message.AlternateViews.Add(plainTextView);
-            message.AlternateViews.Add(htmlView);
+            var response = await _sesClient.SendEmailAsync(request, cancellationToken);
 
-            await client.SendMailAsync(message, cancellationToken);
-
-            _logger.LogInformation("Email sent successfully to {Email}", toEmail);
+            _logger.LogInformation(
+                "Email sent successfully via SES to {Email}. MessageId: {MessageId}",
+                toEmail,
+                response.MessageId);
+        }
+        catch (MessageRejectedException ex)
+        {
+            _logger.LogError(ex, "SES rejected email to {Email}. Error: {Error}", toEmail, ex.Message);
+            throw;
+        }
+        catch (MailFromDomainNotVerifiedException ex)
+        {
+            _logger.LogError(ex, "SES mail from domain not verified for {Email}", toEmail);
+            throw;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to send email to {Email}", toEmail);
+            _logger.LogError(ex, "Failed to send email via SES to {Email}", toEmail);
             throw;
         }
     }
+
+    #region Email Templates (shared with SmtpEmailService - consider extracting to shared class)
 
     private static string GeneratePasswordResetEmailHtml(string userName, string resetLink)
     {
@@ -200,20 +264,6 @@ public class SmtpEmailService : IEmailService
             """;
     }
 
-    /// <inheritdoc />
-    public async Task SendWelcomeEmailAsync(
-        string toEmail,
-        string userName,
-        string temporaryPassword,
-        CancellationToken cancellationToken = default)
-    {
-        var subject = "Welcome to Famick Home Management";
-        var htmlBody = GenerateWelcomeEmailHtml(userName, toEmail, temporaryPassword);
-        var textBody = GenerateWelcomeEmailText(userName, toEmail, temporaryPassword);
-
-        await SendEmailAsync(toEmail, subject, htmlBody, textBody, cancellationToken);
-    }
-
     private static string GenerateWelcomeEmailHtml(string userName, string email, string temporaryPassword)
     {
         return $$"""
@@ -262,5 +312,16 @@ public class SmtpEmailService : IEmailService
 
             If you did not expect this email, please contact your administrator.
             """;
+    }
+
+    #endregion
+
+    public void Dispose()
+    {
+        if (!_disposed)
+        {
+            _sesClient.Dispose();
+            _disposed = true;
+        }
     }
 }
