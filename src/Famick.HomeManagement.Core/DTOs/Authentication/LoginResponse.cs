@@ -28,7 +28,7 @@ public class LoginResponse
     /// <summary>
     /// User's tenant information
     /// </summary>
-    public TenantDto Tenant { get; set; } = null!;
+    public TenantInfoDto Tenant { get; set; } = null!;
 }
 
 /// <summary>
@@ -73,9 +73,9 @@ public class UserDto
 }
 
 /// <summary>
-/// Tenant information DTO
+/// Tenant information for authentication context
 /// </summary>
-public class TenantDto
+public class TenantInfoDto
 {
     /// <summary>
     /// Tenant ID
