@@ -24,6 +24,20 @@ public class SmtpEmailService : IEmailService
     }
 
     /// <inheritdoc />
+    public async Task SendEmailVerificationAsync(
+        string toEmail,
+        string householdName,
+        string verificationLink,
+        CancellationToken cancellationToken = default)
+    {
+        var subject = "Verify Your Email - Famick Home Management";
+        var htmlBody = GenerateEmailVerificationHtml(householdName, verificationLink);
+        var textBody = GenerateEmailVerificationText(householdName, verificationLink);
+
+        await SendEmailAsync(toEmail, subject, htmlBody, textBody, cancellationToken);
+    }
+
+    /// <inheritdoc />
     public async Task SendPasswordResetEmailAsync(
         string toEmail,
         string userName,
@@ -107,6 +121,71 @@ public class SmtpEmailService : IEmailService
             _logger.LogError(ex, "Failed to send email to {Email}", toEmail);
             throw;
         }
+    }
+
+    private static string GenerateEmailVerificationHtml(string householdName, string verificationLink)
+    {
+        // Extract token from the link for manual entry fallback
+        var token = verificationLink.Contains("token=")
+            ? verificationLink.Split("token=")[1]
+            : verificationLink;
+
+        return $$"""
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <meta charset="utf-8">
+                <style>
+                    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+                    .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+                    .button { display: inline-block; padding: 12px 24px; background-color: #1976D2;
+                               color: white; text-decoration: none; border-radius: 4px; margin: 20px 0; }
+                    .token-box { background-color: #f5f5f5; padding: 15px; border-radius: 4px;
+                                  font-family: monospace; word-break: break-all; margin: 15px 0; }
+                    .footer { margin-top: 30px; font-size: 12px; color: #666; }
+                </style>
+            </head>
+            <body>
+                <div class="container">
+                    <h2>Verify Your Email</h2>
+                    <p>Welcome to Famick Home Management!</p>
+                    <p>You're creating a new household called <strong>{{householdName}}</strong>.</p>
+                    <p>Click the button below to verify your email and complete your registration:</p>
+                    <a href="{{verificationLink}}" class="button">Verify Email</a>
+                    <p>This link will expire in 24 hours.</p>
+                    <p><strong>If the button doesn't open the app</strong>, copy this verification token and paste it in the app:</p>
+                    <div class="token-box">{{token}}</div>
+                    <p>If you didn't request this, you can safely ignore this email.</p>
+                </div>
+            </body>
+            </html>
+            """;
+    }
+
+    private static string GenerateEmailVerificationText(string householdName, string verificationLink)
+    {
+        // Extract token from the link for manual entry fallback
+        var token = verificationLink.Contains("token=")
+            ? verificationLink.Split("token=")[1]
+            : verificationLink;
+
+        return $"""
+            Verify Your Email
+
+            Welcome to Famick Home Management!
+
+            You're creating a new household called {householdName}.
+
+            Click the link below to verify your email and complete your registration:
+            {verificationLink}
+
+            If the link doesn't open the app, copy this verification token and paste it in the app:
+            {token}
+
+            This link will expire in 24 hours.
+
+            If you didn't request this, you can safely ignore this email.
+            """;
     }
 
     private static string GeneratePasswordResetEmailHtml(string userName, string resetLink)

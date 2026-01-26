@@ -6,6 +6,19 @@ namespace Famick.HomeManagement.Core.Interfaces;
 public interface IEmailService
 {
     /// <summary>
+    /// Sends an email verification link for new user registration
+    /// </summary>
+    /// <param name="toEmail">The recipient's email address</param>
+    /// <param name="householdName">The household name being registered</param>
+    /// <param name="verificationLink">The email verification link (deep link for mobile)</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    Task SendEmailVerificationAsync(
+        string toEmail,
+        string householdName,
+        string verificationLink,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Sends a password reset email to the user
     /// </summary>
     /// <param name="toEmail">The recipient's email address</param>
