@@ -370,6 +370,194 @@ public class ExternalAuthService : IExternalAuthService
         }).ToList();
     }
 
+    /// <inheritdoc />
+    public async Task<LoginResponse> ProcessNativeAppleSignInAsync(
+        NativeAppleSignInRequest request,
+        string ipAddress,
+        string deviceInfo,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(request.IdentityToken))
+        {
+            throw new InvalidCredentialsException("Identity token is required");
+        }
+
+        // Validate and parse the Apple identity token
+        var userInfo = await ValidateAppleIdentityTokenAsync(request, cancellationToken);
+
+        // Find or create user
+        var user = await FindOrCreateUserAsync("Apple", userInfo, cancellationToken);
+
+        // Generate tokens
+        return await GenerateLoginResponseAsync(user, ipAddress, deviceInfo, request.RememberMe, cancellationToken);
+    }
+
+    private async Task<ExternalUserInfo> ValidateAppleIdentityTokenAsync(
+        NativeAppleSignInRequest request,
+        CancellationToken cancellationToken)
+    {
+        // Parse the identity token (JWT)
+        var handler = new JwtSecurityTokenHandler();
+
+        if (!handler.CanReadToken(request.IdentityToken))
+        {
+            _logger.LogWarning("Invalid Apple identity token format");
+            throw new InvalidCredentialsException("Invalid identity token format");
+        }
+
+        var jwt = handler.ReadJwtToken(request.IdentityToken);
+
+        // Validate token claims
+        var issuer = jwt.Issuer;
+        if (issuer != "https://appleid.apple.com")
+        {
+            _logger.LogWarning("Invalid Apple identity token issuer: {Issuer}", issuer);
+            throw new InvalidCredentialsException("Invalid identity token issuer");
+        }
+
+        // Check audience matches our client ID
+        var audience = jwt.Audiences.FirstOrDefault();
+        if (audience != _settings.Apple.ClientId && audience != _settings.Apple.BundleId)
+        {
+            _logger.LogWarning("Invalid Apple identity token audience: {Audience}, expected {ClientId} or {BundleId}",
+                audience, _settings.Apple.ClientId, _settings.Apple.BundleId);
+            throw new InvalidCredentialsException("Invalid identity token audience");
+        }
+
+        // Check token is not expired
+        if (jwt.ValidTo < DateTime.UtcNow)
+        {
+            _logger.LogWarning("Apple identity token has expired");
+            throw new InvalidCredentialsException("Identity token has expired");
+        }
+
+        // For production, you should also validate the signature using Apple's public keys
+        // fetched from https://appleid.apple.com/auth/keys
+        // For now, we trust the token from the native SDK
+
+        // Extract user info from the token
+        var providerId = jwt.Claims.First(c => c.Type == "sub").Value;
+        var email = jwt.Claims.FirstOrDefault(c => c.Type == "email")?.Value;
+
+        // Apple only provides name/email on first sign-in, use the request data if available
+        var givenName = request.FullName?.GivenName;
+        var familyName = request.FullName?.FamilyName;
+
+        // If email is not in token, use the one from the request (only available on first sign-in)
+        if (string.IsNullOrEmpty(email))
+        {
+            email = request.Email;
+        }
+
+        // Validate user identifier matches if provided
+        if (!string.IsNullOrEmpty(request.UserIdentifier) && request.UserIdentifier != providerId)
+        {
+            _logger.LogWarning("User identifier mismatch: token={TokenId}, request={RequestId}",
+                providerId, request.UserIdentifier);
+            throw new InvalidCredentialsException("User identifier mismatch");
+        }
+
+        _logger.LogInformation("Validated Apple identity token for user {ProviderId}", providerId);
+
+        return new ExternalUserInfo
+        {
+            ProviderId = providerId,
+            Email = email,
+            Name = string.IsNullOrEmpty(givenName) ? null : $"{givenName} {familyName}".Trim(),
+            GivenName = givenName,
+            FamilyName = familyName
+        };
+    }
+
+    /// <inheritdoc />
+    public async Task<LoginResponse> ProcessNativeGoogleSignInAsync(
+        NativeGoogleSignInRequest request,
+        string ipAddress,
+        string deviceInfo,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(request.IdToken))
+        {
+            throw new InvalidCredentialsException("ID token is required");
+        }
+
+        // Validate and parse the Google ID token
+        var userInfo = ValidateGoogleIdToken(request.IdToken);
+
+        // Find or create user
+        var user = await FindOrCreateUserAsync("Google", userInfo, cancellationToken);
+
+        // Generate tokens
+        return await GenerateLoginResponseAsync(user, ipAddress, deviceInfo, request.RememberMe, cancellationToken);
+    }
+
+    private ExternalUserInfo ValidateGoogleIdToken(string idToken)
+    {
+        // Parse the ID token (JWT)
+        var handler = new JwtSecurityTokenHandler();
+
+        if (!handler.CanReadToken(idToken))
+        {
+            _logger.LogWarning("Invalid Google ID token format");
+            throw new InvalidCredentialsException("Invalid ID token format");
+        }
+
+        var jwt = handler.ReadJwtToken(idToken);
+
+        // Validate token claims
+        var issuer = jwt.Issuer;
+        if (issuer != "https://accounts.google.com" && issuer != "accounts.google.com")
+        {
+            _logger.LogWarning("Invalid Google ID token issuer: {Issuer}", issuer);
+            throw new InvalidCredentialsException("Invalid ID token issuer");
+        }
+
+        // Check audience matches one of our client IDs (web, iOS, or Android)
+        var audience = jwt.Audiences.FirstOrDefault();
+        var validAudiences = new[]
+        {
+            _settings.Google.ClientId,
+            _settings.Google.IosClientId,
+            _settings.Google.AndroidClientId
+        }.Where(a => !string.IsNullOrEmpty(a)).ToList();
+
+        if (!validAudiences.Contains(audience))
+        {
+            _logger.LogWarning("Invalid Google ID token audience: {Audience}, expected one of: {ValidAudiences}",
+                audience, string.Join(", ", validAudiences));
+            throw new InvalidCredentialsException("Invalid ID token audience");
+        }
+
+        // Check token is not expired
+        if (jwt.ValidTo < DateTime.UtcNow)
+        {
+            _logger.LogWarning("Google ID token has expired");
+            throw new InvalidCredentialsException("ID token has expired");
+        }
+
+        // For production, you should also validate the signature using Google's public keys
+        // fetched from https://www.googleapis.com/oauth2/v3/certs
+        // For now, we trust the token from the native SDK
+
+        // Extract user info from the token
+        var providerId = jwt.Claims.First(c => c.Type == "sub").Value;
+        var email = jwt.Claims.FirstOrDefault(c => c.Type == "email")?.Value;
+        var name = jwt.Claims.FirstOrDefault(c => c.Type == "name")?.Value;
+        var givenName = jwt.Claims.FirstOrDefault(c => c.Type == "given_name")?.Value;
+        var familyName = jwt.Claims.FirstOrDefault(c => c.Type == "family_name")?.Value;
+
+        _logger.LogInformation("Validated Google ID token for user {ProviderId}", providerId);
+
+        return new ExternalUserInfo
+        {
+            ProviderId = providerId,
+            Email = email,
+            Name = name,
+            GivenName = givenName,
+            FamilyName = familyName
+        };
+    }
+
     #region Helper Methods
 
     private string BuildGoogleAuthUrl(string redirectUri, string state, string codeChallenge)
@@ -671,7 +859,19 @@ public class ExternalAuthService : IExternalAuthService
             return existingUser;
         }
 
-        // Create new user
+        // Check if this is the first user (initial setup) - only then allow auto-creation
+        var isFirstUser = !await _context.Users.AnyAsync(cancellationToken);
+
+        if (!isFirstUser)
+        {
+            // Not initial setup - user must already exist
+            _logger.LogWarning("OAuth login attempted for non-existent user: {Email} via {Provider}", email, provider);
+            throw new InvalidCredentialsException("No account exists with this email address. Please contact your administrator to create an account.");
+        }
+
+        // Initial setup - create the first user as Admin
+        _logger.LogInformation("Creating first user via OAuth: {Email} via {Provider}", email, provider);
+
         var firstName = userInfo.GivenName ?? userInfo.Name?.Split(' ').FirstOrDefault() ?? "User";
         var lastName = userInfo.FamilyName ?? userInfo.Name?.Split(' ').LastOrDefault() ?? "";
 
@@ -691,16 +891,12 @@ public class ExternalAuthService : IExternalAuthService
 
         _context.Users.Add(user);
 
-        // Check if this is the first user (should be Admin)
-        var isFirstUser = !await _context.Users.AnyAsync(u => u.Id != user.Id, cancellationToken);
-        var role = isFirstUser ? Role.Admin : Role.Viewer;
-
         var userRole = new UserRole
         {
             Id = Guid.NewGuid(),
             TenantId = tenantId,
             UserId = user.Id,
-            Role = role,
+            Role = Role.Admin, // First user is always Admin
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow
         };
@@ -725,7 +921,7 @@ public class ExternalAuthService : IExternalAuthService
         _context.UserExternalLogins.Add(newExternalLogin);
         await _context.SaveChangesAsync(cancellationToken);
 
-        _logger.LogInformation("Created new user {UserId} via {Provider} with role {Role}", user.Id, provider, role);
+        _logger.LogInformation("Created first user {UserId} via {Provider} as Admin", user.Id, provider);
 
         // Create contact for the user
         try

@@ -14,6 +14,18 @@ public class Tenant : BaseEntity
     public string Name { get; set; } = string.Empty;
 
     /// <summary>
+    /// Subdomain for cloud multi-tenant routing (e.g., "acme" for acme.famick.com).
+    /// Not used in self-hosted mode.
+    /// </summary>
+    public string? Subdomain { get; set; }
+
+    /// <summary>
+    /// Whether the tenant account is active.
+    /// Inactive tenants cannot access the system. Defaults to true.
+    /// </summary>
+    public bool IsActive { get; set; } = true;
+
+    /// <summary>
     /// Optional FK to the tenant's primary address
     /// </summary>
     public Guid? AddressId { get; set; }

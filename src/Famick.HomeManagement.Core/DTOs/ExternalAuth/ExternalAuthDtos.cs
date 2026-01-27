@@ -107,6 +107,67 @@ public class AuthConfigurationDto
 }
 
 /// <summary>
+/// Request for native Apple Sign in (iOS)
+/// </summary>
+public class NativeAppleSignInRequest
+{
+    /// <summary>
+    /// The identity token (JWT) from Apple's native Sign in with Apple
+    /// </summary>
+    public string IdentityToken { get; set; } = string.Empty;
+
+    /// <summary>
+    /// The authorization code from Apple (can be used for server-to-server validation)
+    /// </summary>
+    public string? AuthorizationCode { get; set; }
+
+    /// <summary>
+    /// User's full name (only provided on first sign in)
+    /// </summary>
+    public AppleUserName? FullName { get; set; }
+
+    /// <summary>
+    /// User's email (only provided on first sign in, may be relay email)
+    /// </summary>
+    public string? Email { get; set; }
+
+    /// <summary>
+    /// Apple's stable user identifier
+    /// </summary>
+    public string? UserIdentifier { get; set; }
+
+    /// <summary>
+    /// Whether to extend the refresh token expiration
+    /// </summary>
+    public bool RememberMe { get; set; }
+}
+
+/// <summary>
+/// User's name from Apple Sign in
+/// </summary>
+public class AppleUserName
+{
+    public string? GivenName { get; set; }
+    public string? FamilyName { get; set; }
+}
+
+/// <summary>
+/// Request for native Google Sign in (iOS and Android)
+/// </summary>
+public class NativeGoogleSignInRequest
+{
+    /// <summary>
+    /// The ID token (JWT) from Google's native Sign-In SDK
+    /// </summary>
+    public string IdToken { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Whether to extend the refresh token expiration
+    /// </summary>
+    public bool RememberMe { get; set; }
+}
+
+/// <summary>
 /// Information about a linked external account
 /// </summary>
 public class LinkedAccountDto
