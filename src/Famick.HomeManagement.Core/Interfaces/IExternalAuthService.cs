@@ -92,4 +92,32 @@ public interface IExternalAuthService
     Task<List<LinkedAccountDto>> GetLinkedAccountsAsync(
         Guid userId,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Processes native Apple Sign in from iOS devices
+    /// </summary>
+    /// <param name="request">Request containing identity token from native Sign in with Apple</param>
+    /// <param name="ipAddress">Client IP address</param>
+    /// <param name="deviceInfo">Device information</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>Login response with tokens</returns>
+    Task<LoginResponse> ProcessNativeAppleSignInAsync(
+        NativeAppleSignInRequest request,
+        string ipAddress,
+        string deviceInfo,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Processes native Google Sign in from iOS and Android devices
+    /// </summary>
+    /// <param name="request">Request containing ID token from native Google Sign-In SDK</param>
+    /// <param name="ipAddress">Client IP address</param>
+    /// <param name="deviceInfo">Device information</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>Login response with tokens</returns>
+    Task<LoginResponse> ProcessNativeGoogleSignInAsync(
+        NativeGoogleSignInRequest request,
+        string ipAddress,
+        string deviceInfo,
+        CancellationToken cancellationToken = default);
 }

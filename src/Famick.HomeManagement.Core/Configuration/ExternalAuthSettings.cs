@@ -69,6 +69,12 @@ public class AppleAuthSettings
     public string PrivateKey { get; set; } = string.Empty;
 
     /// <summary>
+    /// iOS App Bundle ID (for native Sign in with Apple).
+    /// The identity token audience will be this value instead of ClientId for native iOS apps.
+    /// </summary>
+    public string BundleId { get; set; } = string.Empty;
+
+    /// <summary>
     /// Whether this provider is properly configured
     /// </summary>
     public bool IsConfigured => Enabled &&
@@ -89,7 +95,7 @@ public class GoogleAuthSettings
     public bool Enabled { get; set; }
 
     /// <summary>
-    /// Google OAuth Client ID
+    /// Google OAuth Client ID (Web)
     /// </summary>
     public string ClientId { get; set; } = string.Empty;
 
@@ -97,6 +103,18 @@ public class GoogleAuthSettings
     /// Google OAuth Client Secret
     /// </summary>
     public string ClientSecret { get; set; } = string.Empty;
+
+    /// <summary>
+    /// iOS Client ID for native Google Sign-In.
+    /// Create this in Google Cloud Console under "iOS" application type.
+    /// </summary>
+    public string IosClientId { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Android Client ID for native Google Sign-In.
+    /// Create this in Google Cloud Console under "Android" application type.
+    /// </summary>
+    public string AndroidClientId { get; set; } = string.Empty;
 
     /// <summary>
     /// Whether this provider is properly configured
