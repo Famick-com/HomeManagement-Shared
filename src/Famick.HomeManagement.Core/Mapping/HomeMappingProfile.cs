@@ -13,6 +13,9 @@ public class HomeMappingProfile : Profile
             .ForMember(dest => dest.Utilities,
                 opt => opt.MapFrom(src => src.Utilities));
 
+        // PropertyLink -> PropertyLinkDto
+        CreateMap<PropertyLink, PropertyLinkDto>();
+
         // HomeSetupRequest -> Home
         CreateMap<HomeSetupRequest, Home>()
             .ForMember(dest => dest.Id, opt => opt.Ignore())
@@ -21,6 +24,7 @@ public class HomeMappingProfile : Profile
             .ForMember(dest => dest.UpdatedAt, opt => opt.Ignore())
             .ForMember(dest => dest.IsSetupComplete, opt => opt.Ignore())
             .ForMember(dest => dest.Utilities, opt => opt.Ignore())
+            .ForMember(dest => dest.PropertyLinks, opt => opt.Ignore())
             // Maintenance fields not in setup request
             .ForMember(dest => dest.AcFilterReplacementIntervalDays, opt => opt.Ignore())
             .ForMember(dest => dest.FridgeWaterFilterType, opt => opt.Ignore())
@@ -47,7 +51,8 @@ public class HomeMappingProfile : Profile
             .ForMember(dest => dest.CreatedAt, opt => opt.Ignore())
             .ForMember(dest => dest.UpdatedAt, opt => opt.Ignore())
             .ForMember(dest => dest.IsSetupComplete, opt => opt.Ignore())
-            .ForMember(dest => dest.Utilities, opt => opt.Ignore());
+            .ForMember(dest => dest.Utilities, opt => opt.Ignore())
+            .ForMember(dest => dest.PropertyLinks, opt => opt.Ignore());
 
         // HomeUtility -> HomeUtilityDto
         CreateMap<HomeUtility, HomeUtilityDto>();

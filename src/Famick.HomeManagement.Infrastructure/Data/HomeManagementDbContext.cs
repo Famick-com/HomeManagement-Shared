@@ -80,6 +80,14 @@ public class HomeManagementDbContext : DbContext
     // My Home
     public DbSet<Home> Homes => Set<Home>();
     public DbSet<HomeUtility> HomeUtilities => Set<HomeUtility>();
+    public DbSet<PropertyLink> PropertyLinks => Set<PropertyLink>();
+
+    // Vehicles
+    public DbSet<Vehicle> Vehicles => Set<Vehicle>();
+    public DbSet<VehicleMileageLog> VehicleMileageLogs => Set<VehicleMileageLog>();
+    public DbSet<VehicleDocument> VehicleDocuments => Set<VehicleDocument>();
+    public DbSet<VehicleMaintenanceRecord> VehicleMaintenanceRecords => Set<VehicleMaintenanceRecord>();
+    public DbSet<VehicleMaintenanceSchedule> VehicleMaintenanceSchedules => Set<VehicleMaintenanceSchedule>();
 
     // Equipment
     public DbSet<Equipment> Equipment => Set<Equipment>();

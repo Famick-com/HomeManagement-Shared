@@ -222,4 +222,83 @@ public class HomeController : ApiControllerBase
     }
 
     #endregion
+
+    #region Property Links
+
+    /// <summary>
+    /// Gets all property links for the home
+    /// </summary>
+    [HttpGet("property-links")]
+    [ProducesResponseType(typeof(List<PropertyLinkDto>), 200)]
+    [ProducesResponseType(401)]
+    public async Task<IActionResult> GetPropertyLinks(CancellationToken cancellationToken)
+    {
+        _logger.LogInformation("Getting property links for tenant {TenantId}", TenantId);
+
+        var links = await _homeService.GetPropertyLinksAsync(cancellationToken);
+
+        return ApiResponse(links);
+    }
+
+    /// <summary>
+    /// Adds a property link to the home
+    /// </summary>
+    [HttpPost("property-links")]
+    [Authorize(Policy = "RequireEditor")]
+    [ProducesResponseType(typeof(PropertyLinkDto), 201)]
+    [ProducesResponseType(400)]
+    [ProducesResponseType(401)]
+    [ProducesResponseType(404)]
+    public async Task<IActionResult> AddPropertyLink(
+        [FromBody] CreatePropertyLinkRequest request,
+        CancellationToken cancellationToken)
+    {
+        _logger.LogInformation("Adding property link {Label} for tenant {TenantId}", request.Label, TenantId);
+
+        var link = await _homeService.AddPropertyLinkAsync(request, cancellationToken);
+
+        return CreatedAtAction(nameof(GetPropertyLinks), link);
+    }
+
+    /// <summary>
+    /// Updates a property link
+    /// </summary>
+    [HttpPut("property-links/{id}")]
+    [Authorize(Policy = "RequireEditor")]
+    [ProducesResponseType(typeof(PropertyLinkDto), 200)]
+    [ProducesResponseType(400)]
+    [ProducesResponseType(401)]
+    [ProducesResponseType(404)]
+    public async Task<IActionResult> UpdatePropertyLink(
+        Guid id,
+        [FromBody] UpdatePropertyLinkRequest request,
+        CancellationToken cancellationToken)
+    {
+        _logger.LogInformation("Updating property link {LinkId} for tenant {TenantId}", id, TenantId);
+
+        var link = await _homeService.UpdatePropertyLinkAsync(id, request, cancellationToken);
+
+        return ApiResponse(link);
+    }
+
+    /// <summary>
+    /// Deletes a property link
+    /// </summary>
+    [HttpDelete("property-links/{id}")]
+    [Authorize(Policy = "RequireEditor")]
+    [ProducesResponseType(204)]
+    [ProducesResponseType(401)]
+    [ProducesResponseType(404)]
+    public async Task<IActionResult> DeletePropertyLink(
+        Guid id,
+        CancellationToken cancellationToken)
+    {
+        _logger.LogInformation("Deleting property link {LinkId} for tenant {TenantId}", id, TenantId);
+
+        await _homeService.DeletePropertyLinkAsync(id, cancellationToken);
+
+        return NoContent();
+    }
+
+    #endregion
 }

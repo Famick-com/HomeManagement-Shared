@@ -170,5 +170,10 @@ public class Home : BaseTenantEntity
     /// </summary>
     public virtual ICollection<HomeUtility> Utilities { get; set; } = new List<HomeUtility>();
 
+    /// <summary>
+    /// External links associated with this property (county records, Zillow, etc.)
+    /// </summary>
+    public virtual ICollection<PropertyLink> PropertyLinks { get; set; } = new List<PropertyLink>();
+
     #endregion
 }

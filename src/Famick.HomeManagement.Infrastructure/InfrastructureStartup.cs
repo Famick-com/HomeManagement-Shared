@@ -68,6 +68,8 @@ public static class InfrastructureStartup
         services.AddScoped<ITenantService, TenantService>();
         services.AddScoped<IContactService, ContactService>();
         services.AddScoped<ITodoItemService, TodoItemService>();
+        services.AddScoped<IVehicleService, VehicleService>();
+        services.AddScoped<IWizardService, WizardService>();
 
         // Configure External Authentication
         services.Configure<ExternalAuthSettings>(configuration.GetSection("ExternalAuth"));
