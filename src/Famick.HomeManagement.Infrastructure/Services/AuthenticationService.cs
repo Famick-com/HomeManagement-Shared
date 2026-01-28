@@ -131,11 +131,10 @@ public class AuthenticationService : IAuthenticationService
         CancellationToken cancellationToken = default)
     {
         // Find user by email (case-insensitive)
+        // IgnoreQueryFilters() is used because login needs to find the user across all tenants
+        // to determine which tenant they belong to (tenant context isn't established yet)
         var user = await _context.Users
-            // Note: .Include(u => u.Tenant) removed - cloud-specific navigation property
-            .Include(u => u.UserPermissions)
-                .ThenInclude(up => up.Permission)
-            .Include(u => u.UserRoles)
+            .IgnoreQueryFilters()
             .FirstOrDefaultAsync(u => u.Email == request.Email.ToLower(), cancellationToken);
 
         if (user == null)
@@ -143,6 +142,21 @@ public class AuthenticationService : IAuthenticationService
             _logger.LogWarning("Login attempt with non-existent email: {Email}", request.Email);
             throw new InvalidCredentialsException();
         }
+
+        // Load navigation properties separately with filter bypass
+        // (IgnoreQueryFilters doesn't propagate to Include)
+        await _context.Entry(user)
+            .Collection(u => u.UserPermissions)
+            .Query()
+            .IgnoreQueryFilters()
+            .Include(up => up.Permission)
+            .LoadAsync(cancellationToken);
+
+        await _context.Entry(user)
+            .Collection(u => u.UserRoles)
+            .Query()
+            .IgnoreQueryFilters()
+            .LoadAsync(cancellationToken);
 
         // Verify password
         if (!_passwordHasher.VerifyPassword(request.Password, user.PasswordHash))
@@ -232,13 +246,10 @@ public class AuthenticationService : IAuthenticationService
     {
         var tokenHash = HashToken(request.RefreshToken);
 
-        // Find refresh token
+        // Find refresh token (bypass tenant filter since token validates cross-tenant)
         var refreshToken = await _context.RefreshTokens
+            .IgnoreQueryFilters()
             .Include(rt => rt.User)
-                // Note: .ThenInclude(u => u.Tenant) removed - cloud-specific
-            .Include(rt => rt.User.UserPermissions)
-                .ThenInclude(up => up.Permission)
-            .Include(rt => rt.User.UserRoles)
             .FirstOrDefaultAsync(rt => rt.TokenHash == tokenHash, cancellationToken);
 
         if (refreshToken == null || !refreshToken.IsActive)
@@ -246,6 +257,20 @@ public class AuthenticationService : IAuthenticationService
             _logger.LogWarning("Refresh token not found or inactive. IP: {IpAddress}", ipAddress);
             throw new InvalidCredentialsException("Invalid or expired refresh token");
         }
+
+        // Load user's permissions and roles separately with filter bypass
+        await _context.Entry(refreshToken.User)
+            .Collection(u => u.UserPermissions)
+            .Query()
+            .IgnoreQueryFilters()
+            .Include(up => up.Permission)
+            .LoadAsync(cancellationToken);
+
+        await _context.Entry(refreshToken.User)
+            .Collection(u => u.UserRoles)
+            .Query()
+            .IgnoreQueryFilters()
+            .LoadAsync(cancellationToken);
 
         // Check user is still active
         if (!refreshToken.User.IsActive)
