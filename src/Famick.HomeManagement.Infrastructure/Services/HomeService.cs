@@ -170,4 +170,112 @@ public class HomeService : IHomeService
 
         _logger.LogInformation("Utility deleted: {Id}", utilityId);
     }
+
+    #region Property Links
+
+    public async Task<List<PropertyLinkDto>> GetPropertyLinksAsync(
+        CancellationToken cancellationToken = default)
+    {
+        _logger.LogInformation("Getting property links");
+
+        var home = await _context.Homes.FirstOrDefaultAsync(cancellationToken);
+        if (home == null)
+        {
+            return new List<PropertyLinkDto>();
+        }
+
+        var links = await _context.PropertyLinks
+            .Where(p => p.HomeId == home.Id)
+            .OrderBy(p => p.SortOrder)
+            .ToListAsync(cancellationToken);
+
+        return _mapper.Map<List<PropertyLinkDto>>(links);
+    }
+
+    public async Task<PropertyLinkDto> AddPropertyLinkAsync(
+        CreatePropertyLinkRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        _logger.LogInformation("Adding property link: {Label}", request.Label);
+
+        var home = await _context.Homes.FirstOrDefaultAsync(cancellationToken);
+        if (home == null)
+        {
+            throw new EntityNotFoundException("Home", Guid.Empty);
+        }
+
+        // Get next sort order if not provided
+        var sortOrder = request.SortOrder;
+        if (!sortOrder.HasValue)
+        {
+            var maxOrder = await _context.PropertyLinks
+                .Where(p => p.HomeId == home.Id)
+                .MaxAsync(p => (int?)p.SortOrder, cancellationToken) ?? 0;
+            sortOrder = maxOrder + 1;
+        }
+
+        var link = new PropertyLink
+        {
+            Id = Guid.NewGuid(),
+            HomeId = home.Id,
+            Url = request.Url,
+            Label = request.Label,
+            SortOrder = sortOrder.Value
+        };
+
+        _context.PropertyLinks.Add(link);
+        await _context.SaveChangesAsync(cancellationToken);
+
+        _logger.LogInformation("Property link added: {Id}", link.Id);
+
+        return _mapper.Map<PropertyLinkDto>(link);
+    }
+
+    public async Task<PropertyLinkDto> UpdatePropertyLinkAsync(
+        Guid linkId,
+        UpdatePropertyLinkRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        _logger.LogInformation("Updating property link: {LinkId}", linkId);
+
+        var link = await _context.PropertyLinks
+            .FirstOrDefaultAsync(p => p.Id == linkId, cancellationToken);
+
+        if (link == null)
+        {
+            throw new EntityNotFoundException(nameof(PropertyLink), linkId);
+        }
+
+        link.Url = request.Url;
+        link.Label = request.Label;
+        link.SortOrder = request.SortOrder;
+
+        await _context.SaveChangesAsync(cancellationToken);
+
+        _logger.LogInformation("Property link updated: {Id}", link.Id);
+
+        return _mapper.Map<PropertyLinkDto>(link);
+    }
+
+    public async Task DeletePropertyLinkAsync(
+        Guid linkId,
+        CancellationToken cancellationToken = default)
+    {
+        _logger.LogInformation("Deleting property link: {LinkId}", linkId);
+
+        var link = await _context.PropertyLinks
+            .FirstOrDefaultAsync(p => p.Id == linkId, cancellationToken);
+
+        if (link == null)
+        {
+            throw new EntityNotFoundException(nameof(PropertyLink), linkId);
+        }
+
+        _context.PropertyLinks.Remove(link);
+        await _context.SaveChangesAsync(cancellationToken);
+
+        _logger.LogInformation("Property link deleted: {Id}", linkId);
+    }
+
+    #endregion
 }

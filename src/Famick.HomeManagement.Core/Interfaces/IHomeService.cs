@@ -52,4 +52,36 @@ public interface IHomeService
     Task DeleteUtilityAsync(
         Guid utilityId,
         CancellationToken cancellationToken = default);
+
+    #region Property Links
+
+    /// <summary>
+    /// Gets all property links for the home
+    /// </summary>
+    Task<List<PropertyLinkDto>> GetPropertyLinksAsync(
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Adds a property link to the home
+    /// </summary>
+    Task<PropertyLinkDto> AddPropertyLinkAsync(
+        CreatePropertyLinkRequest request,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Updates a property link
+    /// </summary>
+    Task<PropertyLinkDto> UpdatePropertyLinkAsync(
+        Guid linkId,
+        UpdatePropertyLinkRequest request,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Deletes a property link
+    /// </summary>
+    Task DeletePropertyLinkAsync(
+        Guid linkId,
+        CancellationToken cancellationToken = default);
+
+    #endregion
 }
