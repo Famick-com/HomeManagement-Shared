@@ -4,10 +4,17 @@
 @using Famick.HomeManagement.Core.DTOs.ShoppingLists
 @using Famick.HomeManagement.Core.DTOs.Chores
 @using Famick.HomeManagement.Core.DTOs.TodoItems
+@using Famick.HomeManagement.Core.DTOs.Tenant
 @using Famick.HomeManagement.UI.Services
 @inject IApiClient ApiClient
 @inject NavigationManager Navigation
 @inject ILocalizer L
+
+@if (_checkingSetup)
+{
+    <MudProgressLinear Color="Color.Primary" Indeterminate="true" />
+    return;
+}
 
 <PageTitle>@L["nav.dashboard"] - Home Management</PageTitle>
 
@@ -148,6 +155,7 @@
 </style>
 
 @code {
+    private bool _checkingSetup = true;
     private StockStatisticsDto? _statistics;
     private ShoppingListDashboardDto? _shoppingDashboard;
     private int? _choresDue;
@@ -156,12 +164,45 @@
 
     protected override async Task OnInitializedAsync()
     {
+        if (await NeedsSetupAsync())
+        {
+            Navigation.NavigateTo("/home-setup");
+            return;
+        }
+
+        _checkingSetup = false;
+
         await Task.WhenAll(
             LoadStatisticsAsync(),
             LoadShoppingDashboardAsync(),
             LoadChoresDashboardAsync(),
             LoadTodosDashboardAsync());
     }
+
+    private async Task<bool> NeedsSetupAsync()
+    {
+        try
+        {
+            var setupResult = await ApiClient.GetAsync<SetupStatusResponse>("api/v1/home/setup-status");
+            if (setupResult.IsSuccess && setupResult.Data?.IsSetupComplete == true)
+            {
+                // Setup is complete, but also check tenant name
+                var tenantResult = await ApiClient.GetAsync<TenantDto>("api/v1/tenant");
+                if (tenantResult.IsSuccess && !string.IsNullOrWhiteSpace(tenantResult.Data?.Name))
+                {
+                    return false;
+                }
+            }
+            return true;
+        }
+        catch
+        {
+            // On error, don't block the user — show the dashboard
+            return false;
+        }
+    }
+
+    private record SetupStatusResponse(bool IsSetupComplete);
 
     private async Task LoadStatisticsAsync()
     {
