@@ -20,6 +20,13 @@ public interface IWizardService
         CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Creates or updates the current user's contact record
+    /// </summary>
+    Task<HouseholdMemberDto> SaveCurrentUserContactAsync(
+        SaveCurrentUserContactRequest request,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Adds a household member
     /// </summary>
     Task<HouseholdMemberDto> AddHouseholdMemberAsync(
@@ -46,6 +53,27 @@ public interface IWizardService
     /// </summary>
     Task<DuplicateContactResultDto> CheckDuplicateContactAsync(
         CheckDuplicateContactRequest request,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Saves household info (page 1: tenant name + address)
+    /// </summary>
+    Task SaveHouseholdInfoAsync(
+        HouseholdInfoDto info,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Saves home statistics (page 3: property basics + HOA)
+    /// </summary>
+    Task SaveHomeStatisticsAsync(
+        HomeStatisticsDto stats,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Saves maintenance items (page 4: HVAC + water + safety)
+    /// </summary>
+    Task SaveMaintenanceItemsAsync(
+        MaintenanceItemsDto items,
         CancellationToken cancellationToken = default);
 
     /// <summary>

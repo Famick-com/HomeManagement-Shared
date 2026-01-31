@@ -250,13 +250,11 @@ public class RegistrationService : IRegistrationService
             };
         }
 
-        // Create tenant
+        // Create new tenant for this household
         var tenant = new Tenant
         {
             Id = Guid.NewGuid(),
-            Name = verificationToken.HouseholdName,
-            CreatedAt = DateTime.UtcNow,
-            UpdatedAt = DateTime.UtcNow
+            Name = verificationToken.HouseholdName
         };
 
         _context.Tenants.Add(tenant);
@@ -280,9 +278,27 @@ public class RegistrationService : IRegistrationService
 
         _context.Users.Add(user);
 
-        // Note: Home record is not created during registration.
-        // The Home entity represents physical property details (square footage, etc.)
-        // and should be set up through the My Home setup wizard after login.
+        // Assign Admin role to the first user (household creator)
+        var userRole = new UserRole
+        {
+            Id = Guid.NewGuid(),
+            UserId = user.Id,
+            TenantId = tenant.Id,
+            Role = Domain.Enums.Role.Admin
+        };
+
+        _context.UserRoles.Add(userRole);
+
+        // Create the Home record for this tenant
+        var home = new Home
+        {
+            Id = Guid.NewGuid(),
+            TenantId = tenant.Id,
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow
+        };
+
+        _context.Homes.Add(home);
 
         // If OAuth, create external login record
         if (!string.IsNullOrEmpty(request.Provider) && !string.IsNullOrEmpty(request.ProviderToken))

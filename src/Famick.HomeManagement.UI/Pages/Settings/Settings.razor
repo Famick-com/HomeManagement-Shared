@@ -42,6 +42,26 @@
     </Authorized>
 </AuthorizeView>
 
+@* Home Setup section *@
+<MudText Typo="Typo.h5" Class="mb-3">@L["settings.homeSetup.title"]</MudText>
+<div class="mb-6">
+    <MudCard Outlined="true" Class="cursor-pointer" @onclick="@(() => Navigation.NavigateTo("/home-setup"))">
+        <MudCardContent>
+            <div class="d-flex align-center gap-4">
+                <MudIcon Icon="@Icons.Material.Filled.HomeRepairService" Size="Size.Large" Color="Color.Primary" />
+                <div>
+                    <MudText Typo="Typo.subtitle1">@L["settings.homeSetup.rerun"]</MudText>
+                    <MudText Typo="Typo.body2" Color="Color.Secondary">
+                        @L["settings.homeSetup.rerunDescription"]
+                    </MudText>
+                </div>
+                <MudSpacer />
+                <MudIcon Icon="@Icons.Material.Filled.ChevronRight" />
+            </div>
+        </MudCardContent>
+    </MudCard>
+</div>
+
 @* Store Integrations section *@
 <MudText Typo="Typo.h5" Class="mb-3">@L["nav.storeIntegrations"]</MudText>
 <div class="mb-6">

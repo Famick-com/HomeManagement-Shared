@@ -183,7 +183,8 @@ public class LocalizationService : ILocalizationService
     {
         try
         {
-            var jsonPath = $"_content/Famick.HomeManagement.UI/locales/{languageCode}.json";
+            var cacheBuster = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+            var jsonPath = $"_content/Famick.HomeManagement.UI/locales/{languageCode}.json?v={cacheBuster}";
             var response = await _httpClient.GetStreamAsync(jsonPath);
             var doc = await JsonDocument.ParseAsync(response);
 

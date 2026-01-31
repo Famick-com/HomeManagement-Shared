@@ -64,7 +64,7 @@ public class TokenService : ITokenService
         // Add roles as separate claims
         foreach (var role in roles ?? Enumerable.Empty<Role>())
         {
-            claims.Add(new Claim(ClaimTypes.Role, role.ToString()));
+            claims.Add(new Claim("role", role.ToString()));
         }
 
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_secretKey));
