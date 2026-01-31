@@ -57,7 +57,7 @@ public class ApiAuthStateProvider : AuthenticationStateProvider
                                 claims = ParseClaimsFromJwt(token);
                                 if (claims != null && claims.Any())
                                 {
-                                    var refreshedIdentity = new ClaimsIdentity(claims, "jwt", "sub", "role");
+                                    var refreshedIdentity = new ClaimsIdentity(claims, "jwt", "name", "role");
                                     return new AuthenticationState(new ClaimsPrincipal(refreshedIdentity));
                                 }
                             }
@@ -69,7 +69,7 @@ public class ApiAuthStateProvider : AuthenticationStateProvider
                 }
             }
 
-            var identity = new ClaimsIdentity(claims, "jwt", "sub", "role");
+            var identity = new ClaimsIdentity(claims, "jwt", "name", "role");
             var user = new ClaimsPrincipal(identity);
             return new AuthenticationState(user);
         }
