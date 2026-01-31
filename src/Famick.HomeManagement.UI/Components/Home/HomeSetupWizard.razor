@@ -1,344 +1,136 @@
 @inject IApiClient ApiClient
 @inject ISnackbar Snackbar
 @inject ILocalizer L
-@using Famick.HomeManagement.Core.DTOs.Home
-@using Famick.HomeManagement.Core.DTOs.Tenant
-@using Famick.HomeManagement.Core.DTOs.Common
-@using Famick.HomeManagement.UI.Components.Common
+@using Famick.HomeManagement.Core.DTOs.Wizard
+@using Famick.HomeManagement.UI.Components.Home.SetupWizard.Steps
 
 <MudPaper Elevation="2" Class="pa-6">
-    <MudText Typo="Typo.h5" Class="mb-4">@L["home.setupWizard.title"]</MudText>
-    <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-6">@L["home.setupWizard.description"]</MudText>
+    <MudText Typo="Typo.h5" Class="mb-2">@L["home.setupWizard.title"]</MudText>
+    <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-4">@L["home.setupWizard.description"]</MudText>
 
-    <MudStepper @bind-ActiveIndex="_currentStep">
-        @* Step 0: Household *@
-        <MudStep Title="@L["tenant.household"]">
-            <MudForm @ref="_form0" @bind-IsValid="_step0Valid">
-                <MudStack Spacing="3">
-                    <MudTextField @bind-Value="_tenantRequest.Name"
-                                  Label="@L["tenant.householdName"]"
-                                  HelperText="@L["tenant.householdNameHelp"]"
-                                  Variant="Variant.Outlined"
-                                  Required="true"
-                                  RequiredError="@L["validation.required", L["tenant.householdName"]]" />
+    @if (_isLoading)
+    {
+        <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+    }
+    else
+    {
+        <MudStepper @bind-ActiveIndex="_currentStep" NonLinear="true">
+            <MudStep Title="@L["home.setupWizard.step.householdInfo"]" />
+            <MudStep Title="@L["home.setupWizard.step.householdMembers"]" />
+            <MudStep Title="@L["home.setupWizard.step.homeStatistics"]" />
+            <MudStep Title="@L["home.setupWizard.step.maintenanceItems"]" />
+            <MudStep Title="@L["home.setupWizard.step.vehicles"]" />
+        </MudStepper>
 
-                    <MudDivider Class="my-2" />
-                    <MudText Typo="Typo.subtitle2">@L["tenant.address"]</MudText>
-
-                    <AddressForm Address="_addressEditModel" ReadOnly="false" />
-
-                    <MudStack Row="true" Justify="Justify.FlexEnd" Class="mt-2">
-                        <MudButton Variant="Variant.Outlined"
-                                   Color="Color.Secondary"
-                                   StartIcon="@Icons.Material.Filled.LocationOn"
-                                   OnClick="NormalizeAddress"
-                                   Disabled="@(_isNormalizing || !_addressEditModel.HasContent)">
-                            @if (_isNormalizing)
-                            {
-                                <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
-                            }
-                            @L["address.normalize"]
-                        </MudButton>
-                    </MudStack>
-                </MudStack>
-            </MudForm>
-        </MudStep>
-
-        @* Step 1: Property Basics *@
-        <MudStep Title="@L["home.setupWizard.step1"]">
-            <MudForm @ref="_form1" @bind-IsValid="_step1Valid">
-                <MudStack Spacing="3">
-                    <MudTextField @bind-Value="_request.Unit"
-                                  Label="@L["home.unit"]"
-                                  Variant="Variant.Outlined" />
-
-                    <MudGrid>
-                        <MudItem xs="6" md="3">
-                            <MudNumericField T="int?" @bind-Value="_request.YearBuilt"
-                                             Label="@L["home.yearBuilt"]"
-                                             Variant="Variant.Outlined" />
-                        </MudItem>
-                        <MudItem xs="6" md="3">
-                            <MudNumericField T="int?" @bind-Value="_request.SquareFootage"
-                                             Label="@L["home.squareFootage"]"
-                                             Variant="Variant.Outlined" />
-                        </MudItem>
-                        <MudItem xs="6" md="3">
-                            <MudNumericField T="int?" @bind-Value="_request.Bedrooms"
-                                             Label="@L["home.bedrooms"]"
-                                             Variant="Variant.Outlined" />
-                        </MudItem>
-                        <MudItem xs="6" md="3">
-                            <MudNumericField T="decimal?" @bind-Value="_request.Bathrooms"
-                                             Label="@L["home.bathrooms"]"
-                                             Variant="Variant.Outlined"
-                                             Step="0.5M" />
-                        </MudItem>
-                    </MudGrid>
-
-                    <MudDivider Class="my-2" />
-                    <MudText Typo="Typo.subtitle2">@L["home.hoaOptional"]</MudText>
-
-                    <MudGrid>
-                        <MudItem xs="12" md="4">
-                            <MudTextField @bind-Value="_request.HoaName"
-                                          Label="@L["home.hoaName"]"
-                                          Variant="Variant.Outlined" />
-                        </MudItem>
-                        <MudItem xs="12" md="4">
-                            <MudTextField @bind-Value="_request.HoaContactInfo"
-                                          Label="@L["home.hoaContact"]"
-                                          Variant="Variant.Outlined" />
-                        </MudItem>
-                        <MudItem xs="12" md="4">
-                            <MudTextField @bind-Value="_request.HoaRulesLink"
-                                          Label="@L["home.hoaRulesLink"]"
-                                          Variant="Variant.Outlined" />
-                        </MudItem>
-                    </MudGrid>
-                </MudStack>
-            </MudForm>
-        </MudStep>
-
-        @* Step 2: HVAC *@
-        <MudStep Title="@L["home.setupWizard.step2"]">
-            <MudForm @ref="_form2" @bind-IsValid="_step2Valid">
-                <MudStack Spacing="3">
-                    <MudAlert Severity="Severity.Info" Class="mb-2">
-                        @L["home.setupWizard.hvacInfo"]
-                    </MudAlert>
-
-                    <MudTextField @bind-Value="_request.AcFilterSizes"
-                                  Label="@L["home.acFilterSizes"]"
-                                  HelperText="@L["home.acFilterSizesHelp"]"
-                                  Variant="Variant.Outlined"
-                                  Placeholder="20x25x1, 16x20x1" />
-                </MudStack>
-            </MudForm>
-        </MudStep>
-
-        @* Step 3: Safety *@
-        <MudStep Title="@L["home.setupWizard.step3"]">
-            <MudForm @ref="_form3" @bind-IsValid="_step3Valid">
-                <MudStack Spacing="3">
-                    <MudAlert Severity="Severity.Info" Class="mb-2">
-                        @L["home.setupWizard.safetyInfo"]
-                    </MudAlert>
-
-                    <MudTextField @bind-Value="_request.SmokeCoDetectorBatteryType"
-                                  Label="@L["home.batteryType"]"
-                                  HelperText="@L["home.batteryTypeHelp"]"
-                                  Variant="Variant.Outlined"
-                                  Placeholder="9V, AA, 10-year sealed" />
-                </MudStack>
-            </MudForm>
-        </MudStep>
-    </MudStepper>
-
-    <MudStack Row="true" Justify="Justify.SpaceBetween" Class="mt-6">
-        <MudButton Variant="Variant.Outlined"
-                   OnClick="PreviousStep"
-                   Disabled="@(_currentStep == 0)">
-            @L["common.back"]
-        </MudButton>
-
-        @if (_currentStep < 3)
-        {
-            <MudButton Variant="Variant.Filled"
-                       Color="Color.Primary"
-                       OnClick="NextStep"
-                       Disabled="@(!IsCurrentStepValid())">
-                @L["common.next"]
-            </MudButton>
-        }
-        else
-        {
-            <MudButton Variant="Variant.Filled"
-                       Color="Color.Primary"
-                       OnClick="CompleteSetup"
-                       Disabled="@(_isSaving || !IsCurrentStepValid())">
-                @if (_isSaving)
-                {
-                    <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
-                }
-                @L["home.setupWizard.complete"]
-            </MudButton>
-        }
-    </MudStack>
+        <div class="mt-4">
+            @switch (_currentStep)
+            {
+                case 0:
+                    <HouseholdInfoStep Data="_wizardState?.HouseholdInfo"
+                                       OnNext="GoToStep1"
+                                       OnExit="HandleExit" />
+                    break;
+                case 1:
+                    <HouseholdMembersStep Members="_wizardState?.HouseholdMembers ?? new()"
+                                          OnNext="GoToStep2"
+                                          OnBack="GoToStep0"
+                                          OnSkip="GoToStep2"
+                                          OnExit="HandleExit" />
+                    break;
+                case 2:
+                    <HomeStatisticsStep Data="_wizardState?.HomeStatistics"
+                                        OnNext="GoToStep3"
+                                        OnBack="GoToStep1"
+                                        OnSkip="GoToStep3"
+                                        OnExit="HandleExit" />
+                    break;
+                case 3:
+                    <MaintenanceItemsStep Data="_wizardState?.MaintenanceItems"
+                                          OnNext="GoToStep4"
+                                          OnBack="GoToStep2"
+                                          OnSkip="GoToStep4"
+                                          OnExit="HandleExit" />
+                    break;
+                case 4:
+                    <VehiclesStep Vehicles="_wizardState?.Vehicles ?? new()"
+                                  Members="_wizardState?.HouseholdMembers ?? new()"
+                                  OnComplete="HandleComplete"
+                                  OnBack="GoToStep3"
+                                  OnSkip="HandleComplete"
+                                  OnExit="HandleExit" />
+                    break;
+            }
+        </div>
+    }
 </MudPaper>
 
-@* Address Confirmation Dialog *@
-<AddressConfirmationDialog @bind-Visible="_addressConfirmationVisible"
-                           OriginalAddress="_addressEditModel"
-                           NormalizedAddress="_normalizedAddress"
-                           OnConfirm="HandleAddressConfirmation" />
-
 @code {
-    [Parameter]
-    public EventCallback OnSetupComplete { get; set; }
+    [Parameter] public EventCallback OnSetupComplete { get; set; }
+    [Parameter] public bool IsRerun { get; set; }
 
-    private int _currentStep = 0;
-    private bool _isSaving = false;
-    private HomeSetupRequest _request = new();
+    private int _currentStep;
+    private bool _isLoading = true;
+    private WizardStateDto? _wizardState;
 
-    // Tenant state
-    private UpdateTenantRequest _tenantRequest = new();
-    private AddressForm.AddressEditModel _addressEditModel = new();
-    private bool _isNormalizing = false;
-    private bool _addressConfirmationVisible = false;
-    private NormalizedAddressResult? _normalizedAddress;
-
-    private MudForm? _form0;
-    private MudForm? _form1;
-    private MudForm? _form2;
-    private MudForm? _form3;
-    private bool _step0Valid = false;
-    private bool _step1Valid = true;
-    private bool _step2Valid = true;
-    private bool _step3Valid = true;
-
-    private bool IsCurrentStepValid()
+    protected override async Task OnInitializedAsync()
     {
-        return _currentStep switch
-        {
-            0 => _step0Valid,
-            1 => _step1Valid,
-            2 => _step2Valid,
-            3 => _step3Valid,
-            _ => false
-        };
+        await LoadWizardState();
     }
 
-    private void NextStep()
+    private async Task LoadWizardState()
     {
-        if (_currentStep < 3)
-        {
-            _currentStep++;
-        }
-    }
-
-    private void PreviousStep()
-    {
-        if (_currentStep > 0)
-        {
-            _currentStep--;
-        }
-    }
-
-    private async Task NormalizeAddress()
-    {
-        if (!_addressEditModel.HasContent) return;
-
-        _isNormalizing = true;
+        _isLoading = true;
         try
         {
-            var request = new NormalizeAddressRequest
-            {
-                AddressLine1 = _addressEditModel.AddressLine1,
-                AddressLine2 = _addressEditModel.AddressLine2,
-                City = _addressEditModel.City,
-                StateProvince = _addressEditModel.StateProvince,
-                PostalCode = _addressEditModel.PostalCode,
-                Country = _addressEditModel.Country
-            };
-
-            var result = await ApiClient.PostAsync<NormalizeAddressRequest, NormalizedAddressResult>("api/v1/addresses/normalize", request);
+            var result = await ApiClient.GetAsync<WizardStateDto>("api/v1/wizard/state");
             if (result.IsSuccess && result.Data != null)
             {
-                _normalizedAddress = result.Data;
-                _addressConfirmationVisible = true;
+                _wizardState = result.Data;
             }
             else
             {
-                Snackbar.Add(result.ErrorMessage ?? L["address.noMatch"], Severity.Warning);
+                _wizardState = new WizardStateDto();
             }
         }
-        catch (Exception ex)
+        catch
         {
-            Snackbar.Add($"Error normalizing address: {ex.Message}", Severity.Error);
+            _wizardState = new WizardStateDto();
         }
         finally
         {
-            _isNormalizing = false;
+            _isLoading = false;
         }
     }
 
-    private void HandleAddressConfirmation(AddressConfirmationDialog.AddressConfirmationResult result)
+    private async Task GoToStep(int step)
     {
-        if (result.Action == AddressConfirmationDialog.AddressConfirmationAction.UseNormalized && result.NormalizedAddress != null)
-        {
-            _addressEditModel.AddressLine1 = result.NormalizedAddress.AddressLine1;
-            _addressEditModel.AddressLine2 = result.NormalizedAddress.AddressLine2;
-            _addressEditModel.City = result.NormalizedAddress.City;
-            _addressEditModel.StateProvince = result.NormalizedAddress.StateProvince;
-            _addressEditModel.PostalCode = result.NormalizedAddress.PostalCode;
-            _addressEditModel.Country = result.NormalizedAddress.Country;
-            _addressEditModel.CountryCode = result.NormalizedAddress.CountryCode;
-            _addressEditModel.Latitude = result.NormalizedAddress.Latitude;
-            _addressEditModel.Longitude = result.NormalizedAddress.Longitude;
-            _addressEditModel.GeoapifyPlaceId = result.NormalizedAddress.GeoapifyPlaceId;
-            _addressEditModel.FormattedAddress = result.NormalizedAddress.FormattedAddress;
-
-            Snackbar.Add(L["address.normalized"], Severity.Success);
-        }
-
-        _addressConfirmationVisible = false;
-        _normalizedAddress = null;
-    }
-
-    private async Task CompleteSetup()
-    {
-        _isSaving = true;
+        // Reload state so step components get fresh data (e.g., navigating back)
         try
         {
-            // Save tenant first
-            var tenantRequest = new UpdateTenantRequest
+            var result = await ApiClient.GetAsync<WizardStateDto>("api/v1/wizard/state");
+            if (result.IsSuccess && result.Data != null)
             {
-                Name = _tenantRequest.Name,
-                Address = _addressEditModel.HasContent ? new UpdateAddressRequest
-                {
-                    AddressLine1 = _addressEditModel.AddressLine1,
-                    AddressLine2 = _addressEditModel.AddressLine2,
-                    AddressLine3 = _addressEditModel.AddressLine3,
-                    AddressLine4 = _addressEditModel.AddressLine4,
-                    City = _addressEditModel.City,
-                    StateProvince = _addressEditModel.StateProvince,
-                    PostalCode = _addressEditModel.PostalCode,
-                    Country = _addressEditModel.Country,
-                    CountryCode = _addressEditModel.CountryCode,
-                    Latitude = _addressEditModel.Latitude,
-                    Longitude = _addressEditModel.Longitude,
-                    GeoapifyPlaceId = _addressEditModel.GeoapifyPlaceId,
-                    FormattedAddress = _addressEditModel.FormattedAddress
-                } : null
-            };
+                _wizardState = result.Data;
+            }
+        }
+        catch { /* Keep existing state on error */ }
 
-            var tenantResult = await ApiClient.PutAsync<UpdateTenantRequest, Famick.HomeManagement.Core.DTOs.Tenant.TenantDto>("api/v1/tenant", tenantRequest);
-            if (!tenantResult.IsSuccess)
-            {
-                Snackbar.Add(tenantResult.ErrorMessage ?? L["common.error"], Severity.Error);
-                return;
-            }
+        _currentStep = step;
+    }
 
-            // Then complete home setup
-            var result = await ApiClient.PostAsync<HomeSetupRequest, HomeDto>("api/v1/home/setup", _request);
-            if (result.IsSuccess)
-            {
-                Snackbar.Add(L["home.setupWizard.success"], Severity.Success);
-                await OnSetupComplete.InvokeAsync();
-            }
-            else
-            {
-                Snackbar.Add(result.ErrorMessage ?? L["common.error"], Severity.Error);
-            }
-        }
-        catch (Exception ex)
-        {
-            Snackbar.Add($"Error: {ex.Message}", Severity.Error);
-        }
-        finally
-        {
-            _isSaving = false;
-        }
+    private async Task GoToStep0() => await GoToStep(0);
+    private async Task GoToStep1() => await GoToStep(1);
+    private async Task GoToStep2() => await GoToStep(2);
+    private async Task GoToStep3() => await GoToStep(3);
+    private async Task GoToStep4() => await GoToStep(4);
+
+    private async Task HandleComplete()
+    {
+        await OnSetupComplete.InvokeAsync();
+    }
+
+    private async Task HandleExit()
+    {
+        await OnSetupComplete.InvokeAsync();
     }
 }

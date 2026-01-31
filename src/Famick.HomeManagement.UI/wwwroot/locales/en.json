@@ -7,6 +7,7 @@
 
   "common": {
     "save": "Save",
+    "saved": "Saved",
     "cancel": "Cancel",
     "delete": "Delete",
     "edit": "Edit",
@@ -68,7 +69,13 @@
     "openInNewTab": "Open in new tab",
     "upload": "Upload",
     "remove": "Remove",
-    "discard": "Discard"
+    "discard": "Discard",
+    "exitSetup": "Exit Setup",
+    "skip": "Skip",
+    "you": "You",
+    "label": "Label",
+    "url": "URL",
+    "none": "None"
   },
 
   "auth": {
@@ -288,6 +295,11 @@
     "noExternalAuthConfigured": "No external authentication methods are configured.",
     "failedToLoadAccounts": "Failed to load linked accounts. Please try again.",
     "sso": "SSO",
+    "homeSetup": {
+      "title": "Home Setup",
+      "rerun": "Re-run Home Setup Wizard",
+      "rerunDescription": "Update your home details, household members, and maintenance info."
+    },
     "mobileAppSetup": {
       "title": "Mobile App Setup",
       "description": "Connect the Famick mobile app to your self-hosted server.",
@@ -1419,6 +1431,15 @@
     "fridgeFilter": "Fridge Water Filter Type",
     "underSinkFilter": "Under-Sink Filter Type",
     "wholeHouseFilter": "Whole-House Filter Type",
+    "heatingType": "Heating Type",
+    "acType": "AC Type",
+    "waterSystems": "Water Systems",
+    "waterHeaterType": "Water Heater Type",
+    "waterHeaterSize": "Water Heater Size",
+    "safety": "Safety",
+    "propertyLinks": "Property Links",
+    "propertyLinksHelp": "Links to property-related websites (tax records, surveys, etc.)",
+    "addPropertyLink": "Add Property Link",
     "batteryType": "Smoke/CO Detector Battery Type",
     "batteryTypeHelp": "e.g., 9V, AA, 10-year sealed",
     "hvacSchedule": "HVAC Service Schedule",
@@ -1442,8 +1463,30 @@
       "step1": "Property",
       "step2": "HVAC",
       "step3": "Safety",
+      "step": {
+        "householdInfo": "Household Info",
+        "householdInfoDesc": "Enter your household name and address.",
+        "householdMembers": "Household Members",
+        "householdMembersDesc": "Add family members or housemates to your household.",
+        "homeStatistics": "Home Details",
+        "homeStatisticsDesc": "Tell us about your property — size, age, and HOA info.",
+        "maintenanceItems": "Maintenance",
+        "maintenanceItemsDesc": "Record HVAC, water system, and safety details for maintenance tracking.",
+        "vehicles": "Vehicles",
+        "vehiclesDesc": "Add vehicles associated with your household."
+      },
       "hvacInfo": "Knowing your AC filter sizes helps you track when to replace them.",
       "safetyInfo": "Keep track of what battery type your smoke and CO detectors use.",
+      "yourInfo": "Your Info",
+      "addMember": "Add a Household Member",
+      "memberAdded": "Member added successfully",
+      "memberRemoved": "Member removed",
+      "duplicateFound": "Possible duplicate contact found",
+      "duplicateContactWarning": "We found existing contacts that may match this person. Would you like to link an existing contact or create a new one?",
+      "existingContacts": "Existing Contacts",
+      "alreadyMember": "Already a member",
+      "createNew": "Create New",
+      "noVehicles": "No vehicles added yet.",
       "complete": "Complete Setup",
       "success": "Home setup complete!"
     },
@@ -1506,5 +1549,39 @@
     "admin": "Admin",
     "editor": "Editor",
     "viewer": "Viewer"
+  },
+
+  "contact": {
+    "firstName": "First Name",
+    "lastName": "Last Name",
+    "relationship": "Relationship"
+  },
+
+  "relationship": {
+    "spouse": "Spouse",
+    "partner": "Partner",
+    "child": "Child",
+    "parent": "Parent",
+    "sibling": "Sibling",
+    "roommate": "Roommate",
+    "other": "Other"
+  },
+
+  "vehicle": {
+    "name": "Vehicle",
+    "year": "Year",
+    "make": "Make",
+    "model": "Model",
+    "trim": "Trim",
+    "color": "Color",
+    "vin": "VIN",
+    "licensePlate": "License Plate",
+    "mileage": "Mileage",
+    "primaryDriver": "Primary Driver",
+    "add": "Add Vehicle",
+    "edit": "Edit Vehicle",
+    "added": "Vehicle added successfully",
+    "saved": "Vehicle saved successfully",
+    "deleted": "Vehicle deleted successfully"
   }
 }

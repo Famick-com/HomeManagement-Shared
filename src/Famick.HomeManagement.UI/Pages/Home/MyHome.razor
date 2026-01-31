@@ -19,10 +19,6 @@
 {
     <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
 }
-else if (!_isSetupComplete)
-{
-    <HomeSetupWizard OnSetupComplete="HandleSetupComplete" />
-}
 else if (_home != null)
 {
     <MudStack Spacing="3">
@@ -629,7 +625,6 @@ else if (_home != null)
     private bool CanEdit { get; set; }
 
     private bool _isLoading = true;
-    private bool _isSetupComplete = false;
     private bool _isEditing = false;
     private bool _isSaving = false;
     private HomeDto? _home;
@@ -665,27 +660,15 @@ else if (_home != null)
         _isLoading = true;
         try
         {
-            var statusResult = await ApiClient.GetAsync<SetupStatusDto>("api/v1/home/setup-status");
-            if (statusResult.IsSuccess && statusResult.Data != null)
+            var homeResult = await ApiClient.GetAsync<HomeDto>("api/v1/home");
+            if (homeResult.IsSuccess && homeResult.Data != null)
             {
-                _isSetupComplete = statusResult.Data.IsSetupComplete;
+                _home = homeResult.Data;
+                CopyHomeToEditModel();
             }
 
-            if (_isSetupComplete)
-            {
-                var homeResult = await ApiClient.GetAsync<HomeDto>("api/v1/home");
-                if (homeResult.IsSuccess && homeResult.Data != null)
-                {
-                    _home = homeResult.Data;
-                    CopyHomeToEditModel();
-                }
-
-                // Load tenant
-                await LoadTenantAsync();
-
-                // Load equipment
-                await LoadEquipmentAsync();
-            }
+            await LoadTenantAsync();
+            await LoadEquipmentAsync();
         }
         catch (Exception ex)
         {
@@ -800,12 +783,6 @@ else if (_home != null)
                _addressEditModel.StateProvince != _originalAddressEditModel.StateProvince ||
                _addressEditModel.PostalCode != _originalAddressEditModel.PostalCode ||
                _addressEditModel.Country != _originalAddressEditModel.Country;
-    }
-
-    private async Task HandleSetupComplete()
-    {
-        _isSetupComplete = true;
-        await LoadHomeAsync();
     }
 
     private void StartEdit()
@@ -1005,12 +982,6 @@ else if (_home != null)
             InsuranceType.Renters => L["home.insuranceRenters"],
             _ => "—"
         };
-    }
-
-    // Helper class for setup status
-    private class SetupStatusDto
-    {
-        public bool IsSetupComplete { get; set; }
     }
 
     #region Equipment Methods

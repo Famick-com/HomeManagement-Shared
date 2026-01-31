@@ -41,6 +41,60 @@ public class WizardController : ApiControllerBase
     }
 
     /// <summary>
+    /// Saves household info (page 1)
+    /// </summary>
+    [HttpPut("household-info")]
+    [ProducesResponseType(204)]
+    [ProducesResponseType(400)]
+    [ProducesResponseType(401)]
+    public async Task<IActionResult> SaveHouseholdInfo(
+        [FromBody] HouseholdInfoDto request,
+        CancellationToken cancellationToken = default)
+    {
+        _logger.LogInformation("Saving household info for tenant {TenantId}", TenantId);
+
+        await _wizardService.SaveHouseholdInfoAsync(request, cancellationToken);
+
+        return NoContent();
+    }
+
+    /// <summary>
+    /// Saves home statistics (page 3)
+    /// </summary>
+    [HttpPut("home-statistics")]
+    [ProducesResponseType(204)]
+    [ProducesResponseType(400)]
+    [ProducesResponseType(401)]
+    public async Task<IActionResult> SaveHomeStatistics(
+        [FromBody] HomeStatisticsDto request,
+        CancellationToken cancellationToken = default)
+    {
+        _logger.LogInformation("Saving home statistics for tenant {TenantId}", TenantId);
+
+        await _wizardService.SaveHomeStatisticsAsync(request, cancellationToken);
+
+        return NoContent();
+    }
+
+    /// <summary>
+    /// Saves maintenance items (page 4)
+    /// </summary>
+    [HttpPut("maintenance-items")]
+    [ProducesResponseType(204)]
+    [ProducesResponseType(400)]
+    [ProducesResponseType(401)]
+    public async Task<IActionResult> SaveMaintenanceItems(
+        [FromBody] MaintenanceItemsDto request,
+        CancellationToken cancellationToken = default)
+    {
+        _logger.LogInformation("Saving maintenance items for tenant {TenantId}", TenantId);
+
+        await _wizardService.SaveMaintenanceItemsAsync(request, cancellationToken);
+
+        return NoContent();
+    }
+
+    /// <summary>
     /// Gets household members
     /// </summary>
     [HttpGet("members")]
@@ -53,6 +107,24 @@ public class WizardController : ApiControllerBase
         var members = await _wizardService.GetHouseholdMembersAsync(cancellationToken);
 
         return ApiResponse(members);
+    }
+
+    /// <summary>
+    /// Creates or updates the current user's contact record
+    /// </summary>
+    [HttpPut("members/me")]
+    [Authorize(Policy = "RequireEditor")]
+    [ProducesResponseType(typeof(HouseholdMemberDto), 200)]
+    [ProducesResponseType(401)]
+    public async Task<IActionResult> SaveCurrentUserContact(
+        [FromBody] SaveCurrentUserContactRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        _logger.LogInformation("Saving current user contact for tenant {TenantId}", TenantId);
+
+        var member = await _wizardService.SaveCurrentUserContactAsync(request, cancellationToken);
+
+        return ApiResponse(member);
     }
 
     /// <summary>

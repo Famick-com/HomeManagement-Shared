@@ -244,4 +244,27 @@ public static class RelationshipMapper
             _ => null
         };
     }
+
+    /// <summary>
+    /// Infers gender from a relationship type where the type implies a specific gender.
+    /// </summary>
+    public static Gender InferGender(RelationshipType type)
+    {
+        return type switch
+        {
+            RelationshipType.Mother or RelationshipType.Daughter or RelationshipType.Sister or
+            RelationshipType.Grandmother or RelationshipType.Granddaughter or RelationshipType.Aunt or
+            RelationshipType.Niece or RelationshipType.MotherInLaw or RelationshipType.SisterInLaw or
+            RelationshipType.DaughterInLaw or RelationshipType.Stepmother or RelationshipType.Stepdaughter or
+            RelationshipType.Stepsister => Gender.Female,
+
+            RelationshipType.Father or RelationshipType.Son or RelationshipType.Brother or
+            RelationshipType.Grandfather or RelationshipType.Grandson or RelationshipType.Uncle or
+            RelationshipType.Nephew or RelationshipType.FatherInLaw or RelationshipType.BrotherInLaw or
+            RelationshipType.SonInLaw or RelationshipType.Stepfather or RelationshipType.Stepson or
+            RelationshipType.Stepbrother => Gender.Male,
+
+            _ => Gender.Unknown
+        };
+    }
 }

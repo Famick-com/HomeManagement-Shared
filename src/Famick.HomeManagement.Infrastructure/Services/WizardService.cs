@@ -1,10 +1,13 @@
 using AutoMapper;
+using Famick.HomeManagement.Core.DTOs.Contacts;
 using Famick.HomeManagement.Core.DTOs.Home;
 using Famick.HomeManagement.Core.DTOs.Vehicles;
 using Famick.HomeManagement.Core.DTOs.Wizard;
 using Famick.HomeManagement.Core.Exceptions;
+using Famick.HomeManagement.Core.Helpers;
 using Famick.HomeManagement.Core.Interfaces;
 using Famick.HomeManagement.Domain.Entities;
+using Famick.HomeManagement.Domain.Enums;
 using Famick.HomeManagement.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -15,17 +18,23 @@ public class WizardService : IWizardService
 {
     private readonly HomeManagementDbContext _context;
     private readonly ITenantProvider _tenantProvider;
+    private readonly IContactService _contactService;
+    private readonly IUserManagementService _userManagementService;
     private readonly IMapper _mapper;
     private readonly ILogger<WizardService> _logger;
 
     public WizardService(
         HomeManagementDbContext context,
         ITenantProvider tenantProvider,
+        IContactService contactService,
+        IUserManagementService userManagementService,
         IMapper mapper,
         ILogger<WizardService> logger)
     {
         _context = context;
         _tenantProvider = tenantProvider;
+        _contactService = contactService;
+        _userManagementService = userManagementService;
         _mapper = mapper;
         _logger = logger;
     }
@@ -151,18 +160,116 @@ public class WizardService : IWizardService
         var currentUser = await _context.Users
             .FirstOrDefaultAsync(u => u.TenantId == tenantId.Value, cancellationToken);
 
-        return contacts.Select(c => new HouseholdMemberDto
+        // Load relationships where the current user's contact is the source
+        var currentUserContact = currentUser != null
+            ? contacts.FirstOrDefault(c => c.LinkedUserId == currentUser.Id)
+            : null;
+
+        var contactIds = contacts.Select(c => c.Id).ToList();
+        var relationships = currentUserContact != null
+            ? await _context.ContactRelationships
+                .Where(r => r.SourceContactId == currentUserContact.Id && contactIds.Contains(r.TargetContactId))
+                .ToListAsync(cancellationToken)
+            : new List<ContactRelationship>();
+
+        var relationshipByTarget = relationships.ToDictionary(r => r.TargetContactId, r => r.RelationshipType);
+
+        return contacts.Select(c =>
         {
-            ContactId = c.Id,
-            FirstName = c.FirstName ?? string.Empty,
-            LastName = c.LastName,
-            DisplayName = c.DisplayName,
-            ProfileImageFileName = c.ProfileImageFileName,
-            RelationshipType = c.LinkedUserId.HasValue && c.LinkedUserId == currentUser?.Id ? "Self" : null,
-            IsCurrentUser = c.LinkedUserId.HasValue && c.LinkedUserId == currentUser?.Id,
-            HasUserAccount = c.LinkedUserId.HasValue,
-            Email = c.LinkedUser?.Email
+            var isCurrentUser = c.LinkedUserId.HasValue && c.LinkedUserId == currentUser?.Id;
+            relationshipByTarget.TryGetValue(c.Id, out var relType);
+
+            return new HouseholdMemberDto
+            {
+                ContactId = c.Id,
+                FirstName = c.FirstName ?? string.Empty,
+                LastName = c.LastName,
+                DisplayName = c.DisplayName,
+                ProfileImageFileName = c.ProfileImageFileName,
+                RelationshipType = isCurrentUser ? "Self" : (relationshipByTarget.ContainsKey(c.Id) ? relType.ToString() : null),
+                IsCurrentUser = isCurrentUser,
+                HasUserAccount = c.LinkedUserId.HasValue,
+                Email = c.LinkedUser?.Email
+            };
         }).ToList();
+    }
+
+    public async Task<HouseholdMemberDto> SaveCurrentUserContactAsync(
+        SaveCurrentUserContactRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        var tenantId = _tenantProvider.TenantId;
+        if (!tenantId.HasValue)
+            throw new InvalidOperationException("Tenant ID is required");
+
+        var currentUser = await _context.Users
+            .FirstOrDefaultAsync(u => u.TenantId == tenantId.Value, cancellationToken);
+        if (currentUser == null)
+            throw new InvalidOperationException("Current user not found");
+
+        // Update user name
+        currentUser.FirstName = request.FirstName.Trim();
+        currentUser.LastName = request.LastName?.Trim() ?? string.Empty;
+        currentUser.UpdatedAt = DateTime.UtcNow;
+        await _context.SaveChangesAsync(cancellationToken);
+
+        var existingContact = await _context.Contacts
+            .FirstOrDefaultAsync(c => c.LinkedUserId == currentUser.Id, cancellationToken);
+
+        if (existingContact == null)
+        {
+            // Use ContactService to create contact linked to user (handles email, address, user.ContactId)
+            var contactDto = await _contactService.CreateContactForUserAsync(currentUser, cancellationToken);
+
+            // Set household membership
+            var contact = await _context.Contacts.FindAsync(new object[] { contactDto.Id }, cancellationToken);
+            contact!.HouseholdTenantId = tenantId.Value;
+            await _context.SaveChangesAsync(cancellationToken);
+
+            _logger.LogInformation("Current user contact created: {ContactId}", contactDto.Id);
+
+            return new HouseholdMemberDto
+            {
+                ContactId = contactDto.Id,
+                FirstName = contactDto.FirstName ?? string.Empty,
+                LastName = contactDto.LastName,
+                DisplayName = contactDto.DisplayName,
+                RelationshipType = "Self",
+                IsCurrentUser = true,
+                HasUserAccount = true,
+                Email = currentUser.Email
+            };
+        }
+        else
+        {
+            // Update existing contact
+            existingContact.FirstName = request.FirstName.Trim();
+            existingContact.LastName = request.LastName?.Trim();
+            existingContact.HouseholdTenantId = tenantId.Value;
+            existingContact.UsesTenantAddress = true;
+            existingContact.UpdatedAt = DateTime.UtcNow;
+            await _context.SaveChangesAsync(cancellationToken);
+
+            // Ensure bidirectional link exists
+            if (currentUser.ContactId != existingContact.Id)
+            {
+                await _userManagementService.LinkContactAsync(currentUser.Id, existingContact.Id, cancellationToken);
+            }
+
+            _logger.LogInformation("Current user contact updated: {ContactId}", existingContact.Id);
+
+            return new HouseholdMemberDto
+            {
+                ContactId = existingContact.Id,
+                FirstName = existingContact.FirstName ?? string.Empty,
+                LastName = existingContact.LastName,
+                DisplayName = existingContact.DisplayName,
+                RelationshipType = "Self",
+                IsCurrentUser = true,
+                HasUserAccount = true,
+                Email = currentUser.Email
+            };
+        }
     }
 
     public async Task<HouseholdMemberDto> AddHouseholdMemberAsync(
@@ -173,65 +280,98 @@ public class WizardService : IWizardService
 
         var tenantId = _tenantProvider.TenantId;
         if (!tenantId.HasValue)
-        {
             throw new InvalidOperationException("Tenant ID is required");
+
+        // Get current user and their contact for relationship creation
+        var currentUser = await _context.Users
+            .FirstOrDefaultAsync(u => u.TenantId == tenantId.Value, cancellationToken);
+        if (currentUser == null)
+            throw new InvalidOperationException("Current user not found");
+
+        var currentUserContact = await _context.Contacts
+            .FirstOrDefaultAsync(c => c.LinkedUserId == currentUser.Id, cancellationToken);
+
+        // Parse relationship type
+        RelationshipType? relationshipType = null;
+        if (!string.IsNullOrEmpty(request.RelationshipType) &&
+            Enum.TryParse<RelationshipType>(request.RelationshipType, out var parsed))
+        {
+            relationshipType = parsed;
         }
 
-        Contact contact;
+        Guid contactId;
+        string? firstName, lastName, displayName, profileImage;
+        bool hasUserAccount;
 
         if (request.ExistingContactId.HasValue)
         {
             // Link existing contact to household
-            contact = await _context.Contacts
-                .FirstOrDefaultAsync(c => c.Id == request.ExistingContactId.Value, cancellationToken);
+            var contact = await _context.Contacts
+                .FirstOrDefaultAsync(c => c.Id == request.ExistingContactId.Value, cancellationToken)
+                ?? throw new EntityNotFoundException(nameof(Contact), request.ExistingContactId.Value);
 
-            if (contact == null)
-            {
-                throw new EntityNotFoundException(nameof(Contact), request.ExistingContactId.Value);
-            }
-
-            // Update household assignment
             contact.HouseholdTenantId = tenantId.Value;
+            contact.UsesTenantAddress = true;
+            await _context.SaveChangesAsync(cancellationToken);
+
+            contactId = contact.Id;
+            firstName = contact.FirstName;
+            lastName = contact.LastName;
+            displayName = contact.DisplayName;
+            profileImage = contact.ProfileImageFileName;
+            hasUserAccount = contact.LinkedUserId.HasValue;
         }
         else
         {
-            // Get current user for CreatedByUserId
-            var currentUser = await _context.Users
-                .FirstOrDefaultAsync(u => u.TenantId == tenantId.Value, cancellationToken);
-
-            if (currentUser == null)
+            // Create new contact via ContactService
+            var createRequest = new CreateContactRequest
             {
-                throw new InvalidOperationException("Current user not found");
-            }
-
-            // Create new contact
-            contact = new Contact
-            {
-                Id = Guid.NewGuid(),
                 FirstName = request.FirstName,
                 LastName = request.LastName,
-                HouseholdTenantId = tenantId.Value,
-                CreatedByUserId = currentUser.Id,
-                IsActive = true
+                Gender = relationshipType.HasValue
+                    ? RelationshipMapper.InferGender(relationshipType.Value)
+                    : Gender.Unknown
             };
 
-            _context.Contacts.Add(contact);
+            var contactDto = await _contactService.CreateAsync(createRequest, cancellationToken);
+
+            // Set household membership (not part of CreateContactRequest)
+            var contact = await _context.Contacts.FindAsync(new object[] { contactDto.Id }, cancellationToken);
+            contact!.HouseholdTenantId = tenantId.Value;
+            contact.UsesTenantAddress = true;
+            await _context.SaveChangesAsync(cancellationToken);
+
+            contactId = contactDto.Id;
+            firstName = contactDto.FirstName;
+            lastName = contactDto.LastName;
+            displayName = contactDto.DisplayName;
+            profileImage = contactDto.ProfileImageFileName;
+            hasUserAccount = false;
         }
 
-        await _context.SaveChangesAsync(cancellationToken);
+        // Create relationship (with automatic inverse) via ContactService
+        if (relationshipType.HasValue && currentUserContact != null)
+        {
+            await _contactService.AddRelationshipAsync(currentUserContact.Id, new AddRelationshipRequest
+            {
+                TargetContactId = contactId,
+                RelationshipType = relationshipType.Value,
+                CreateInverse = true
+            }, cancellationToken);
+        }
 
-        _logger.LogInformation("Household member added: {ContactId}", contact.Id);
+        _logger.LogInformation("Household member added: {ContactId}", contactId);
 
         return new HouseholdMemberDto
         {
-            ContactId = contact.Id,
-            FirstName = contact.FirstName ?? string.Empty,
-            LastName = contact.LastName,
-            DisplayName = contact.DisplayName,
-            ProfileImageFileName = contact.ProfileImageFileName,
+            ContactId = contactId,
+            FirstName = firstName ?? string.Empty,
+            LastName = lastName,
+            DisplayName = displayName,
+            ProfileImageFileName = profileImage,
             RelationshipType = request.RelationshipType,
             IsCurrentUser = false,
-            HasUserAccount = contact.LinkedUserId.HasValue
+            HasUserAccount = hasUserAccount
         };
     }
 
@@ -244,22 +384,58 @@ public class WizardService : IWizardService
 
         var contact = await _context.Contacts
             .Include(c => c.LinkedUser)
-            .FirstOrDefaultAsync(c => c.Id == contactId, cancellationToken);
-
-        if (contact == null)
-        {
-            throw new EntityNotFoundException(nameof(Contact), contactId);
-        }
-
-        // Note: Relationship is typically stored in ContactRelationship entity,
-        // but for wizard simplicity, we're just returning the DTO with the relationship
-        // A full implementation would create/update ContactRelationship entries
-
-        await _context.SaveChangesAsync(cancellationToken);
+            .FirstOrDefaultAsync(c => c.Id == contactId, cancellationToken)
+            ?? throw new EntityNotFoundException(nameof(Contact), contactId);
 
         var tenantId = _tenantProvider.TenantId;
         var currentUser = await _context.Users
-            .FirstOrDefaultAsync(u => u.TenantId == tenantId.Value, cancellationToken);
+            .FirstOrDefaultAsync(u => u.TenantId == tenantId!.Value, cancellationToken);
+
+        var currentUserContact = currentUser != null
+            ? await _context.Contacts.FirstOrDefaultAsync(c => c.LinkedUserId == currentUser.Id, cancellationToken)
+            : null;
+
+        // Parse new relationship type
+        RelationshipType? newRelType = null;
+        if (!string.IsNullOrEmpty(request.RelationshipType) &&
+            Enum.TryParse<RelationshipType>(request.RelationshipType, out var parsed))
+        {
+            newRelType = parsed;
+        }
+
+        // Update gender inference
+        if (newRelType.HasValue)
+        {
+            contact.Gender = RelationshipMapper.InferGender(newRelType.Value);
+            await _context.SaveChangesAsync(cancellationToken);
+        }
+
+        // Update relationships via ContactService
+        if (currentUserContact != null)
+        {
+            // Remove existing relationships between these two contacts
+            var existingRelationships = await _context.ContactRelationships
+                .Where(r =>
+                    (r.SourceContactId == currentUserContact.Id && r.TargetContactId == contactId) ||
+                    (r.SourceContactId == contactId && r.TargetContactId == currentUserContact.Id))
+                .ToListAsync(cancellationToken);
+
+            foreach (var rel in existingRelationships)
+            {
+                await _contactService.RemoveRelationshipAsync(rel.Id, removeInverse: false, cancellationToken);
+            }
+
+            // Add new relationship with automatic inverse
+            if (newRelType.HasValue)
+            {
+                await _contactService.AddRelationshipAsync(currentUserContact.Id, new AddRelationshipRequest
+                {
+                    TargetContactId = contactId,
+                    RelationshipType = newRelType.Value,
+                    CreateInverse = true
+                }, cancellationToken);
+            }
+        }
 
         return new HouseholdMemberDto
         {
@@ -342,6 +518,86 @@ public class WizardService : IWizardService
                 MatchType = "Exact"
             }).ToList()
         };
+    }
+
+    public async Task SaveHouseholdInfoAsync(HouseholdInfoDto info, CancellationToken cancellationToken = default)
+    {
+        _logger.LogInformation("Saving household info for wizard");
+
+        var tenantId = _tenantProvider.TenantId;
+        if (!tenantId.HasValue)
+            throw new InvalidOperationException("Tenant ID is required");
+
+        var tenant = await _context.Tenants
+            .Include(t => t.Address)
+            .FirstOrDefaultAsync(t => t.Id == tenantId.Value, cancellationToken);
+
+        if (tenant == null)
+            throw new EntityNotFoundException("Tenant", tenantId.Value);
+
+        tenant.Name = info.Name;
+
+        if (tenant.Address == null)
+        {
+            var address = new Address { Id = Guid.NewGuid() };
+            _context.Addresses.Add(address);
+            tenant.Address = address;
+            tenant.AddressId = address.Id;
+        }
+
+        tenant.Address.AddressLine1 = info.Street1;
+        tenant.Address.AddressLine2 = info.Street2;
+        tenant.Address.City = info.City;
+        tenant.Address.StateProvince = info.State;
+        tenant.Address.PostalCode = info.PostalCode;
+        tenant.Address.Country = info.Country;
+
+        await _context.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task SaveHomeStatisticsAsync(HomeStatisticsDto stats, CancellationToken cancellationToken = default)
+    {
+        _logger.LogInformation("Saving home statistics for wizard");
+
+        var home = await _context.Homes.FirstOrDefaultAsync(cancellationToken);
+
+        if (home == null)
+        {
+            home = new Home { Id = Guid.NewGuid() };
+            _context.Homes.Add(home);
+        }
+
+        home.Unit = stats.Unit;
+        home.YearBuilt = stats.YearBuilt;
+        home.SquareFootage = stats.SquareFootage;
+        home.Bedrooms = stats.Bedrooms;
+        home.Bathrooms = stats.Bathrooms;
+        home.HoaName = stats.HoaName;
+        home.HoaContactInfo = stats.HoaContactInfo;
+        home.HoaRulesLink = stats.HoaRulesLink;
+
+        await _context.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task SaveMaintenanceItemsAsync(MaintenanceItemsDto items, CancellationToken cancellationToken = default)
+    {
+        _logger.LogInformation("Saving maintenance items for wizard");
+
+        var home = await _context.Homes.FirstOrDefaultAsync(cancellationToken);
+
+        if (home == null)
+        {
+            home = new Home { Id = Guid.NewGuid() };
+            _context.Homes.Add(home);
+        }
+
+        home.AcFilterSizes = items.AcFilterSizes;
+        home.FridgeWaterFilterType = items.FridgeWaterFilterType;
+        home.UnderSinkFilterType = items.UnderSinkFilterType;
+        home.WholeHouseFilterType = items.WholeHouseFilterType;
+        home.SmokeCoDetectorBatteryType = items.SmokeCoDetectorBatteryType;
+
+        await _context.SaveChangesAsync(cancellationToken);
     }
 
     public async Task CompleteWizardAsync(CancellationToken cancellationToken = default)

@@ -39,6 +39,7 @@ public enum RelationshipType
     BrotherInLaw = 43,
     DaughterInLaw = 44,
     SonInLaw = 45,
+    SiblingInLaw = 46,
 
     // Partners
     Spouse = 50,
@@ -49,10 +50,13 @@ public enum RelationshipType
     // Step-Family
     Stepmother = 60,
     Stepfather = 61,
-    Stepdaughter = 62,
-    Stepson = 63,
-    Stepsister = 64,
-    Stepbrother = 65,
+    Stepparent = 62,
+    Stepdaughter = 63,
+    Stepson = 64,
+    Stepchild = 65,
+    Stepsister = 66,
+    Stepbrother = 67,
+    Stepsibling = 68,
 
     // Professional
     Colleague = 70,
