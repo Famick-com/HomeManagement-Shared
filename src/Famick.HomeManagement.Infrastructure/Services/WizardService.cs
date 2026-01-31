@@ -323,29 +323,31 @@ public class WizardService : IWizardService
         }
         else
         {
-            // Create new contact via ContactService
-            var createRequest = new CreateContactRequest
+            // Create new contact directly (avoid ContactService.CreateAsync which requires
+            // UserId from ITenantProvider claims — not always available in wizard context)
+            var contact = new Contact
             {
+                Id = Guid.NewGuid(),
                 FirstName = request.FirstName,
                 LastName = request.LastName,
                 Gender = relationshipType.HasValue
                     ? RelationshipMapper.InferGender(relationshipType.Value)
-                    : Gender.Unknown
+                    : Gender.Unknown,
+                CreatedByUserId = currentUser.Id,
+                IsActive = true,
+                HouseholdTenantId = tenantId.Value,
+                UsesTenantAddress = true,
+                TenantId = tenantId.Value
             };
 
-            var contactDto = await _contactService.CreateAsync(createRequest, cancellationToken);
-
-            // Set household membership (not part of CreateContactRequest)
-            var contact = await _context.Contacts.FindAsync(new object[] { contactDto.Id }, cancellationToken);
-            contact!.HouseholdTenantId = tenantId.Value;
-            contact.UsesTenantAddress = true;
+            _context.Contacts.Add(contact);
             await _context.SaveChangesAsync(cancellationToken);
 
-            contactId = contactDto.Id;
-            firstName = contactDto.FirstName;
-            lastName = contactDto.LastName;
-            displayName = contactDto.DisplayName;
-            profileImage = contactDto.ProfileImageFileName;
+            contactId = contact.Id;
+            firstName = contact.FirstName;
+            lastName = contact.LastName;
+            displayName = contact.DisplayName;
+            profileImage = contact.ProfileImageFileName;
             hasUserAccount = false;
         }
 
