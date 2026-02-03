@@ -349,6 +349,9 @@ public class HttpApiClient : IApiClient
 
     private async Task SetAuthorizationHeader()
     {
+        // Always clear existing header first to avoid stale token issues
+        _httpClient.DefaultRequestHeaders.Authorization = null;
+
         var token = await _tokenStorage.GetAccessTokenAsync();
         if (!string.IsNullOrEmpty(token))
         {
@@ -357,7 +360,6 @@ public class HttpApiClient : IApiClient
         }
         else
         {
-            _httpClient.DefaultRequestHeaders.Authorization = null;
             Console.WriteLine("[HttpApiClient] No token available - cleared auth header");
         }
     }

@@ -391,6 +391,15 @@ public class StockService : IStockService
 
     private StockLog CreateStockLog(StockEntry entry, string transactionType, decimal amount)
     {
+        var userId = _tenantProvider.UserId;
+        if (!userId.HasValue)
+        {
+            throw new InvalidOperationException(
+                $"User ID not available from authentication context. " +
+                $"TenantId={_tenantProvider.TenantId}, TransactionType={transactionType}, ProductId={entry.ProductId}. " +
+                $"This may indicate an expired or invalid authentication token - try logging out and back in.");
+        }
+
         return new StockLog
         {
             Id = Guid.NewGuid(),
@@ -408,7 +417,7 @@ public class StockService : IStockService
             OpenedDate = entry.OpenedDate,
             CorrelationId = Guid.NewGuid().ToString(),
             Note = entry.Note,
-            UserId = _tenantProvider.UserId ?? throw new InvalidOperationException("User ID not set")
+            UserId = userId.Value
         };
     }
 
