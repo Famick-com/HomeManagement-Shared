@@ -33,11 +33,11 @@ public class ShoppingListMappingProfile : Profile
         CreateMap<ShoppingListItem, ShoppingListItemDto>()
             .ForMember(dest => dest.ProductName,
                 opt => opt.MapFrom(src => src.Product != null ? src.Product.Name : src.ProductName))
-            .ForMember(dest => dest.ProductImageUrl, opt => opt.Ignore()) // Set manually in service
+            .ForMember(dest => dest.ImageUrl, opt => opt.MapFrom(src => src.ImageUrl)) // May be overridden with product image in service
             .ForMember(dest => dest.QuantityUnitName,
                 opt => opt.MapFrom(src => src.Product != null && src.Product.QuantityUnitPurchase != null
                     ? src.Product.QuantityUnitPurchase.Name : null))
-            .ForMember(dest => dest.Price, opt => opt.Ignore()) // Set manually from ProductStoreMetadata
+            .ForMember(dest => dest.Price, opt => opt.MapFrom(src => src.Price))
             .ForMember(dest => dest.TracksBestBeforeDate,
                 opt => opt.MapFrom(src => src.Product != null && src.Product.TracksBestBeforeDate))
             .ForMember(dest => dest.DefaultBestBeforeDays,

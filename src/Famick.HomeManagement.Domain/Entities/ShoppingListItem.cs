@@ -80,6 +80,11 @@ namespace Famick.HomeManagement.Domain.Entities
         public string? ImageUrl { get; set; }
 
         /// <summary>
+        /// Price from store integration or product lookup
+        /// </summary>
+        public decimal? Price { get; set; }
+
+        /// <summary>
         /// Product barcode (UPC/EAN) from store integration
         /// </summary>
         public string? Barcode { get; set; }

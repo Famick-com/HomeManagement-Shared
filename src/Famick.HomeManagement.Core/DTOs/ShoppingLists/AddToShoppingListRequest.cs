@@ -42,4 +42,9 @@ public class AddToShoppingListRequest
     /// Price from store integration
     /// </summary>
     public decimal? Price { get; set; }
+
+    /// <summary>
+    /// Image URL from store integration or product lookup
+    /// </summary>
+    public string? ImageUrl { get; set; }
 }

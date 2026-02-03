@@ -5,7 +5,6 @@ public class ShoppingListItemDto
     public Guid Id { get; set; }
     public Guid? ProductId { get; set; }
     public string? ProductName { get; set; }
-    public string? ProductImageUrl { get; set; }
     public decimal Amount { get; set; }
     public string? QuantityUnitName { get; set; }
     public string? Note { get; set; }
@@ -24,7 +23,7 @@ public class ShoppingListItemDto
     public string? ExternalProductId { get; set; }
     public decimal? Price { get; set; }
 
-    // Store integration fields (for items without linked products)
+    // Image URL (from linked product or store integration)
     public string? ImageUrl { get; set; }
     public string? Barcode { get; set; }
 }

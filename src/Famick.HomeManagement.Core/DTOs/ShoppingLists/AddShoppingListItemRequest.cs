@@ -18,4 +18,7 @@ public class AddShoppingListItemRequest
 
     // Optional: Product name (for items not in local DB)
     public string? ProductName { get; set; }
+
+    // Optional: Image URL from product lookup
+    public string? ImageUrl { get; set; }
 }
