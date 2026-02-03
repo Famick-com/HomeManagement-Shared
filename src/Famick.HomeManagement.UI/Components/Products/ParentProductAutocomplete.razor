@@ -130,16 +130,19 @@
         }
 
         var queryString = string.Join("&", queryParams);
-        var result = await ApiClient.GetAsync<List<ProductDto>>($"api/v1/products?{queryString}");
+        // Add cache-busting parameter to ensure fresh results (prevents browser caching)
+        var cacheBuster = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+        var result = await ApiClient.GetAsync<List<ProductDto>>($"api/v1/products?{queryString}&_ts={cacheBuster}");
 
         var products = new List<ProductDto>();
 
         if (result.IsSuccess && result.Data != null)
         {
             // Filter out the current product and products that are children of the current product
+            // Note: Only apply child filter when CurrentProductId has a value, otherwise null != null is false
             var filtered = result.Data
                 .Where(p => p.Id != CurrentProductId) // Exclude self
-                .Where(p => p.ParentProductId != CurrentProductId) // Exclude products that are children of this product
+                .Where(p => !CurrentProductId.HasValue || p.ParentProductId != CurrentProductId) // Exclude children of current product
                 .Take(50)
                 .ToList();
 

@@ -32,9 +32,10 @@ public class ProductsService : IProductsService
 
     public async Task<ProductDto> CreateAsync(CreateProductRequest request, CancellationToken cancellationToken = default)
     {
-        // Check for duplicate name
+        // Check for duplicate name among active products only
+        // Inactive products don't block new product creation with the same name
         var exists = await _context.Products
-            .AnyAsync(p => p.Name == request.Name, cancellationToken);
+            .AnyAsync(p => p.Name == request.Name && p.IsActive, cancellationToken);
         if (exists)
         {
             throw new DuplicateEntityException(nameof(Product), "Name", request.Name);
@@ -220,9 +221,10 @@ public class ProductsService : IProductsService
             throw new EntityNotFoundException(nameof(Product), id);
         }
 
-        // Check for duplicate name (excluding current product)
+        // Check for duplicate name among active products (excluding current product)
+        // Inactive products don't block renaming to that name
         var duplicateExists = await _context.Products
-            .AnyAsync(p => p.Name == request.Name && p.Id != id, cancellationToken);
+            .AnyAsync(p => p.Name == request.Name && p.Id != id && p.IsActive, cancellationToken);
         if (duplicateExists)
         {
             throw new DuplicateEntityException(nameof(Product), "Name", request.Name);
