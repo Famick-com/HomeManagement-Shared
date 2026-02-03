@@ -117,6 +117,7 @@
                                       RequiredError="@L["auth.emailRequired"]"
                                       Validation="@(new EmailAddressAttribute() { ErrorMessage = L["auth.invalidEmail"] })"
                                       Disabled="@_isLoading"
+                                      UserAttributes="@(new Dictionary<string, object> { { "autocomplete", "username" } })"
                                       Class="mb-4" />
 
                         <MudTextField @bind-Value="_password"
@@ -129,6 +130,7 @@
                                       AdornmentIcon="@(_showPassword ? Icons.Material.Filled.VisibilityOff : Icons.Material.Filled.Visibility)"
                                       OnAdornmentClick="@(() => _showPassword = !_showPassword)"
                                       Disabled="@_isLoading"
+                                      UserAttributes="@(new Dictionary<string, object> { { "autocomplete", "current-password" } })"
                                       Class="mb-4" />
 
                         <MudCheckBox @bind-Value="_rememberMe"
@@ -188,7 +190,7 @@
 </LocalizationInitializer>
 
 @code {
-    private const string CloudServer = "https://hm.famick.com";
+    private const string CloudServer = "https://app.famick.com";
     private const string SelfHostedOption = "__self_hosted__";
 
     private MudForm? _form;
