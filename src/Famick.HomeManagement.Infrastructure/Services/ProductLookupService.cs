@@ -136,6 +136,17 @@ public class ProductLookupService : IProductLookupService
         _logger.LogInformation("Pipeline completed with {Count} results for query '{Query}' ({SearchType})",
             context.Results.Count, cleanedQuery, searchType);
 
+        // If this was a barcode search, set the original search barcode on all results
+        // This allows storing both the scanned barcode (e.g., 12-digit UPC) and the
+        // plugin-returned barcode (e.g., 13-digit EAN) when they differ
+        if (searchType == ProductLookupSearchType.Barcode)
+        {
+            foreach (var result in context.Results)
+            {
+                result.OriginalSearchBarcode = cleanedQuery;
+            }
+        }
+
         return context.Results;
     }
 
@@ -356,11 +367,37 @@ public class ProductLookupService : IProductLookupService
             _dbContext.ProductNutrition.Add(nutrition);
         }
 
-        // Add barcode if not already present
+        // Add barcodes if not already present
+        // We store both the plugin-returned barcode (e.g., 13-digit EAN from Kroger)
+        // and the original scanned barcode (e.g., 12-digit UPC) when they differ
+        var barcodesToAdd = new List<(string barcode, string note)>();
+        var dataSourceNote = $"From {string.Join(", ", result.DataSources.Select(i => i.Key))}";
+
         if (!string.IsNullOrEmpty(result.Barcode))
         {
+            barcodesToAdd.Add((result.Barcode, dataSourceNote));
+        }
+
+        // Also add the original search barcode if it differs from the plugin barcode
+        if (!string.IsNullOrEmpty(result.OriginalSearchBarcode) &&
+            !string.IsNullOrEmpty(result.Barcode) &&
+            !result.OriginalSearchBarcode.Equals(result.Barcode, StringComparison.OrdinalIgnoreCase))
+        {
+            // Check if they normalize to the same value (same product, different format)
+            var normalizedOriginal = ProductLookupPipelineContext.NormalizeBarcode(result.OriginalSearchBarcode);
+            var normalizedPlugin = ProductLookupPipelineContext.NormalizeBarcode(result.Barcode);
+
+            if (normalizedOriginal.Equals(normalizedPlugin, StringComparison.OrdinalIgnoreCase))
+            {
+                // Same product different format - store both for better scanning compatibility
+                barcodesToAdd.Add((result.OriginalSearchBarcode, $"Original scan (UPC format)"));
+            }
+        }
+
+        foreach (var (barcode, note) in barcodesToAdd)
+        {
             var existingBarcode = product.Barcodes
-                .FirstOrDefault(b => b.Barcode.Equals(result.Barcode, StringComparison.OrdinalIgnoreCase));
+                .FirstOrDefault(b => b.Barcode.Equals(barcode, StringComparison.OrdinalIgnoreCase));
 
             if (existingBarcode == null)
             {
@@ -369,8 +406,8 @@ public class ProductLookupService : IProductLookupService
                     Id = Guid.NewGuid(),
                     TenantId = tenantId,
                     ProductId = productId,
-                    Barcode = result.Barcode,
-                    Note = $"From {string.Join(", ", result.DataSources.Select(i => i.Key))}"
+                    Barcode = barcode,
+                    Note = note
                 });
             }
         }
