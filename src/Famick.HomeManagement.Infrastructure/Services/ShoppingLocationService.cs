@@ -265,10 +265,13 @@ public class ShoppingLocationService : IShoppingLocationService
         if (location == null)
             throw new EntityNotFoundException(nameof(ShoppingLocation), locationId);
 
-        // Handle gaps: if user orders [1, 5, 10], we fill in [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+        // Save the user's custom order exactly as provided
         location.AisleOrder = request.OrderedAisles != null && request.OrderedAisles.Count > 0
-            ? FillAisleGaps(request.OrderedAisles)
+            ? request.OrderedAisles
             : null;
+
+        // Explicitly mark JSONB property as modified - EF Core doesn't always detect JSONB changes
+        _context.Entry(location).Property(x => x.AisleOrder).IsModified = true;
 
         await _context.SaveChangesAsync(cancellationToken);
 
@@ -290,78 +293,13 @@ public class ShoppingLocationService : IShoppingLocationService
             throw new EntityNotFoundException(nameof(ShoppingLocation), locationId);
 
         location.AisleOrder = null;
+
+        // Explicitly mark JSONB property as modified - EF Core doesn't always detect JSONB changes
+        _context.Entry(location).Property(x => x.AisleOrder).IsModified = true;
+
         await _context.SaveChangesAsync(cancellationToken);
 
         _logger.LogInformation("Cleared aisle order for shopping location: {LocationId}", locationId);
-    }
-
-    /// <summary>
-    /// Fills gaps in numeric aisle sequences. For example, [1, 5, 10] becomes [1, 2, 3, 4, 5, 6, 7, 8, 9, 10].
-    /// Named aisles (non-numeric) are preserved in their original order at the end.
-    /// </summary>
-    private static List<string> FillAisleGaps(List<string> orderedAisles)
-    {
-        var result = new List<string>();
-        var numericAisles = new List<int>();
-        var namedAisles = new List<(string name, int originalIndex)>();
-
-        for (int i = 0; i < orderedAisles.Count; i++)
-        {
-            if (int.TryParse(orderedAisles[i], out int num))
-                numericAisles.Add(num);
-            else
-                namedAisles.Add((orderedAisles[i], i));
-        }
-
-        // Fill numeric gaps - preserve ordering direction
-        if (numericAisles.Count > 0)
-        {
-            var min = numericAisles.Min();
-            var max = numericAisles.Max();
-
-            // Check if user ordered descending (first numeric > last numeric)
-            var firstNumericIndex = orderedAisles.FindIndex(a => int.TryParse(a, out _));
-            var lastNumericIndex = orderedAisles.FindLastIndex(a => int.TryParse(a, out _));
-
-            if (firstNumericIndex >= 0 && lastNumericIndex >= 0 && firstNumericIndex != lastNumericIndex)
-            {
-                int.TryParse(orderedAisles[firstNumericIndex], out int first);
-                int.TryParse(orderedAisles[lastNumericIndex], out int last);
-
-                if (first > last)
-                {
-                    // Descending order
-                    for (int i = max; i >= min; i--)
-                    {
-                        result.Add(i.ToString());
-                    }
-                }
-                else
-                {
-                    // Ascending order
-                    for (int i = min; i <= max; i++)
-                    {
-                        result.Add(i.ToString());
-                    }
-                }
-            }
-            else
-            {
-                // Single numeric or default ascending
-                for (int i = min; i <= max; i++)
-                {
-                    result.Add(i.ToString());
-                }
-            }
-        }
-
-        // Add named aisles in their original order
-        foreach (var named in namedAisles.OrderBy(n => n.originalIndex))
-        {
-            result.Add(named.name);
-        }
-
-        return result;
     }
 
     /// <summary>
