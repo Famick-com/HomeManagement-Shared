@@ -662,7 +662,8 @@
                 Department = _selectedLookupResult.Department,
                 Price = _selectedLookupResult.Price,
                 Barcode = _selectedLookupResult.Barcode,
-                ProductName = _selectedLookupResult.Name
+                ProductName = _selectedLookupResult.Name,
+                ImageUrl = _selectedLookupResult.ImageUrl
             };
 
             var result = await ApiClient.PostAsync<AddShoppingListItemRequest, ShoppingListItemDto>(

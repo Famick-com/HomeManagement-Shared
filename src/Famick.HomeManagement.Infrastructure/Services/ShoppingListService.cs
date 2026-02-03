@@ -28,6 +28,8 @@ public partial class ShoppingListService : IShoppingListService
     private readonly IStockService _stockService;
     private readonly ITodoItemService _todoItemService;
     private readonly IProductsService _productsService;
+    private readonly IFileAccessTokenService _tokenService;
+    private readonly IFileStorageService _fileStorage;
 
     public ShoppingListService(
         HomeManagementDbContext context,
@@ -37,7 +39,9 @@ public partial class ShoppingListService : IShoppingListService
         IPluginLoader pluginLoader,
         IStockService stockService,
         ITodoItemService todoItemService,
-        IProductsService productsService)
+        IProductsService productsService,
+        IFileAccessTokenService tokenService,
+        IFileStorageService fileStorage)
     {
         _context = context;
         _mapper = mapper;
@@ -47,6 +51,8 @@ public partial class ShoppingListService : IShoppingListService
         _stockService = stockService;
         _todoItemService = todoItemService;
         _productsService = productsService;
+        _tokenService = tokenService;
+        _fileStorage = fileStorage;
     }
 
     [GeneratedRegex(@"aisle\s*[-:]?\s*(\w+)", RegexOptions.IgnoreCase)]
@@ -84,7 +90,10 @@ public partial class ShoppingListService : IShoppingListService
             query = query
                 .Include(sl => sl.Items!)
                     .ThenInclude(i => i.Product)
-                        .ThenInclude(p => p!.QuantityUnitPurchase);
+                        .ThenInclude(p => p!.QuantityUnitPurchase)
+                .Include(sl => sl.Items!)
+                    .ThenInclude(i => i.Product)
+                        .ThenInclude(p => p!.Images);
         }
 
         var shoppingList = await query.FirstOrDefaultAsync(sl => sl.Id == id, cancellationToken);
@@ -93,6 +102,36 @@ public partial class ShoppingListService : IShoppingListService
             return null;
 
         var dto = _mapper.Map<ShoppingListDto>(shoppingList);
+
+        // Populate ImageUrl from product images for items that don't already have one
+        if (includeItems && dto.Items != null && shoppingList.Items != null)
+        {
+            var entityLookup = shoppingList.Items.ToDictionary(i => i.Id);
+            foreach (var item in dto.Items.Where(i => string.IsNullOrEmpty(i.ImageUrl) && i.ProductId.HasValue))
+            {
+                if (entityLookup.TryGetValue(item.Id, out var entity) && entity.Product?.Images != null)
+                {
+                    var primaryImage = entity.Product.Images
+                        .OrderByDescending(img => img.IsPrimary)
+                        .ThenBy(img => img.SortOrder)
+                        .FirstOrDefault();
+
+                    if (primaryImage != null)
+                    {
+                        // Prefer external URL (OpenFoodFacts, etc.) over local download URL
+                        if (!string.IsNullOrEmpty(primaryImage.ExternalUrl))
+                        {
+                            item.ImageUrl = primaryImage.ExternalUrl;
+                        }
+                        else
+                        {
+                            var token = _tokenService.GenerateToken("product-image", primaryImage.Id, primaryImage.TenantId);
+                            item.ImageUrl = _fileStorage.GetProductImageUrl(item.ProductId.Value, primaryImage.Id, token);
+                        }
+                    }
+                }
+            }
+        }
 
         // Apply custom aisle ordering if items exist
         if (dto.Items != null && dto.Items.Count > 0 && shoppingList.ShoppingLocationId != Guid.Empty)
@@ -582,7 +621,9 @@ public partial class ShoppingListService : IShoppingListService
             // Use provided store info if available
             Aisle = request.Aisle,
             Department = request.Department,
-            ExternalProductId = request.ExternalProductId
+            ExternalProductId = request.ExternalProductId,
+            ImageUrl = request.ImageUrl,
+            Price = request.Price
         };
 
         // If store info not provided and lookup is requested, look up product in store

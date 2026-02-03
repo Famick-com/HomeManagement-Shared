@@ -50,10 +50,10 @@
             }
         </MudStack>
 
-        @if (!string.IsNullOrEmpty(Item.ProductImageUrl))
+        @if (!string.IsNullOrEmpty(Item.ImageUrl))
         {
             <MudAvatar Size="Size.Medium" Rounded="true">
-                <MudImage Src="@Item.ProductImageUrl" Alt="@Item.ProductName" />
+                <MudImage Src="@Item.ImageUrl" Alt="@Item.ProductName" />
             </MudAvatar>
         }
     </MudStack>
