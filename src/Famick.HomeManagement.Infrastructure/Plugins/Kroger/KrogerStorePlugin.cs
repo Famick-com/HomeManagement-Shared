@@ -364,18 +364,38 @@ public class KrogerStorePlugin : IStoreIntegrationPlugin, IProductLookupPlugin
             queryParams.Add("filter.locationId", storeLocationId);
         }
 
-        // If query looks like a barcode (all digits), normalize and use productId filter
+        // If query looks like a barcode (all digits), use productId filter with retry logic
         if (Regex.IsMatch(query, @"^\d+$"))
         {
-            var normalizedBarcode = NormalizeBarcode(query);
-            queryParams["filter.productId"] = normalizedBarcode;
+            // First try: search with check digit intact (most products are indexed this way)
+            var normalizedWithCheckDigit = NormalizeBarcodeWithCheckDigit(query);
+            _logger.LogDebug("Kroger search - trying barcode with check digit: {Barcode}", normalizedWithCheckDigit);
+
+            queryParams["filter.productId"] = normalizedWithCheckDigit;
+            var results = await SearchProductsInternalAsync(accessToken, queryParams, ct);
+
+            if (results.Count > 0)
+            {
+                return results;
+            }
+
+            // Fallback: try without check digit (some products are indexed this way)
+            var normalizedWithoutCheckDigit = NormalizeBarcodeWithoutCheckDigit(query);
+            if (normalizedWithoutCheckDigit != normalizedWithCheckDigit)
+            {
+                _logger.LogDebug("Kroger search - trying barcode without check digit: {Barcode}", normalizedWithoutCheckDigit);
+
+                queryParams["filter.productId"] = normalizedWithoutCheckDigit;
+                results = await SearchProductsInternalAsync(accessToken, queryParams, ct);
+            }
+
+            return results;
         }
         else
         {
             queryParams["filter.term"] = query;
+            return await SearchProductsInternalAsync(accessToken, queryParams, ct);
         }
-
-        return await SearchProductsInternalAsync(accessToken, queryParams, ct);
     }
 
     public async Task<StoreProductResult?> GetProductAsync(
@@ -414,17 +434,38 @@ public class KrogerStorePlugin : IStoreIntegrationPlugin, IProductLookupPlugin
         // Use client credentials if no access token provided
         var token = accessToken ?? await GetClientCredentialsTokenAsync(ct);
 
-        var normalizedBarcode = NormalizeBarcode(barcode);
+        // First try: search with check digit intact (most products are indexed this way)
+        var normalizedWithCheckDigit = NormalizeBarcodeWithCheckDigit(barcode);
+        _logger.LogDebug("Kroger barcode lookup - trying with check digit: {Barcode}", normalizedWithCheckDigit);
 
         var queryParams = new Dictionary<string, string>
         {
-            { "filter.productId", normalizedBarcode },
+            { "filter.productId", normalizedWithCheckDigit },
             { "filter.locationId", storeLocationId },
             { "filter.limit", "1" }
         };
 
         var results = await SearchProductsInternalAsync(token, queryParams, ct);
-        return results.FirstOrDefault();
+        if (results.Count > 0)
+        {
+            return results.First();
+        }
+
+        // Fallback: try without check digit (some products are indexed this way)
+        var normalizedWithoutCheckDigit = NormalizeBarcodeWithoutCheckDigit(barcode);
+        if (normalizedWithoutCheckDigit != normalizedWithCheckDigit)
+        {
+            _logger.LogDebug("Kroger barcode lookup - trying without check digit: {Barcode}", normalizedWithoutCheckDigit);
+
+            queryParams["filter.productId"] = normalizedWithoutCheckDigit;
+            results = await SearchProductsInternalAsync(token, queryParams, ct);
+            if (results.Count > 0)
+            {
+                return results.First();
+            }
+        }
+
+        return null;
     }
 
     private async Task<List<StoreProductResult>> SearchProductsInternalAsync(
@@ -545,10 +586,10 @@ public class KrogerStorePlugin : IStoreIntegrationPlugin, IProductLookupPlugin
     #region Barcode Helpers
 
     /// <summary>
-    /// Normalize a barcode for Kroger API search.
-    /// Removes check digit if valid and pads to 13 digits.
+    /// Normalize a barcode for Kroger API search, keeping the check digit.
+    /// Most Kroger products are indexed with the full barcode including check digit.
     /// </summary>
-    private static string NormalizeBarcode(string barcode)
+    private static string NormalizeBarcodeWithCheckDigit(string barcode)
     {
         // Remove any non-numeric characters
         barcode = Regex.Replace(barcode, @"\D", "");
@@ -558,12 +599,29 @@ public class KrogerStorePlugin : IStoreIntegrationPlugin, IProductLookupPlugin
             return barcode;
         }
 
-        // Check if barcode has a valid check digit
+        // Zero-pad to 13 digits on the left (keep check digit)
+        return barcode.PadLeft(13, '0');
+    }
+
+    /// <summary>
+    /// Normalize a barcode for Kroger API search, removing the check digit.
+    /// Some Kroger products are indexed without the check digit.
+    /// </summary>
+    private static string NormalizeBarcodeWithoutCheckDigit(string barcode)
+    {
+        // Remove any non-numeric characters
+        barcode = Regex.Replace(barcode, @"\D", "");
+
+        if (string.IsNullOrEmpty(barcode))
+        {
+            return barcode;
+        }
+
+        // Remove check digit if valid UPC/EAN
         if (barcode.Length == 12 || barcode.Length == 13)
         {
             if (ValidateUpcCheckDigit(barcode))
             {
-                // Remove check digit
                 barcode = barcode[..^1];
             }
         }
