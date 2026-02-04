@@ -19,7 +19,13 @@ public enum ProductSearchMode
     /// <summary>
     /// Only search local products database (no external plugins)
     /// </summary>
-    LocalProductsOnly = 2
+    LocalProductsOnly = 2,
+
+    /// <summary>
+    /// Only search external sources (USDA, Open Food Facts, store integrations, etc.)
+    /// Skips local products. Useful for updating existing products with external metadata.
+    /// </summary>
+    ExternalSourcesOnly = 3
 }
 
 /// <summary>

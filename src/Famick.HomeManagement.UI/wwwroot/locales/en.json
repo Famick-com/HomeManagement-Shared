@@ -598,6 +598,8 @@
     "groupBy": "Group by",
     "groupByNone": "None",
     "ungrouped": "Ungrouped",
+    "updateFromDatabase": "Update from Database",
+    "updateFromDatabaseTooltip": "Search external databases to update product information (barcodes, images, nutrition)",
     "stores": {
       "title": "Store Prices",
       "add": "Add Store",
@@ -864,6 +866,7 @@
     "scanBarcode": "Scan Barcode",
     "myStores": "My Stores",
     "allSources": "All Sources",
+    "externalOnly": "External Only",
     "searchingByBarcode": "Searching by barcode...",
     "searchingByName": "Searching by product name...",
     "resultsCount": "{0} results found",

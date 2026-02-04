@@ -1068,6 +1068,19 @@ public partial class ShoppingListService : IShoppingListService
 
                     _logger.LogInformation("Added stock entry {StockEntryId} for product {ProductId}",
                         stockEntry.Id, item.ProductId);
+
+                    // Update existing product with additional metadata if available
+                    await UpdateProductWithShoppingMetadataAsync(
+                        item.ProductId.Value,
+                        item.Barcode,
+                        item.ImageUrl,
+                        item.ExternalProductId,
+                        item.ShoppingLocationId,
+                        item.Aisle,
+                        item.Shelf,
+                        item.Department,
+                        item.Price,
+                        cancellationToken);
                 }
                 else
                 {
@@ -1124,6 +1137,35 @@ public partial class ShoppingListService : IShoppingListService
                         }
                     }
 
+                    // Link product to store if external product ID is available
+                    if (!string.IsNullOrEmpty(item.ExternalProductId) && item.ShoppingLocationId.HasValue)
+                    {
+                        try
+                        {
+                            var linkRequest = new LinkProductToStoreRequest
+                            {
+                                ExternalProductId = item.ExternalProductId,
+                                Price = item.Price,
+                                Aisle = item.Aisle,
+                                Shelf = item.Shelf,
+                                Department = item.Department
+                            };
+                            await _storeIntegrationService.LinkProductToStoreAsync(
+                                newProduct.Id,
+                                item.ShoppingLocationId.Value,
+                                linkRequest,
+                                cancellationToken);
+                            _logger.LogInformation("Linked product {ProductId} to store {StoreId} with external ID {ExternalId}",
+                                newProduct.Id, item.ShoppingLocationId.Value, item.ExternalProductId);
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.LogWarning(ex, "Failed to link product {ProductId} to store: {Message}",
+                                newProduct.Id, ex.Message);
+                            // Don't fail the whole operation for store linking failure
+                        }
+                    }
+
                     // Add to inventory
                     var addStockRequest = new AddStockRequest
                     {
@@ -1148,6 +1190,12 @@ public partial class ShoppingListService : IShoppingListService
                         Amount = item.Amount,
                         Price = item.Price,
                         Barcode = item.Barcode,
+                        ImageUrl = item.ImageUrl,
+                        ExternalProductId = item.ExternalProductId,
+                        ShoppingLocationId = item.ShoppingLocationId,
+                        Aisle = item.Aisle,
+                        Shelf = item.Shelf,
+                        Department = item.Department,
                         ShoppingListId = request.ShoppingListId,
                         ShoppingListItemId = item.ShoppingListItemId
                     });
@@ -1198,5 +1246,96 @@ public partial class ShoppingListService : IShoppingListService
             response.ItemsAddedToStock, response.TodoItemsCreated, response.Errors.Count);
 
         return response;
+    }
+
+    /// <summary>
+    /// Updates an existing product with metadata from shopping (barcode, image, store linking)
+    /// </summary>
+    private async Task UpdateProductWithShoppingMetadataAsync(
+        Guid productId,
+        string? barcode,
+        string? imageUrl,
+        string? externalProductId,
+        Guid? shoppingLocationId,
+        string? aisle,
+        string? shelf,
+        string? department,
+        decimal? price,
+        CancellationToken cancellationToken)
+    {
+        // Add barcode if provided and product doesn't already have this barcode
+        if (!string.IsNullOrEmpty(barcode))
+        {
+            var existingBarcodes = await _context.ProductBarcodes
+                .Where(pb => pb.ProductId == productId)
+                .Select(pb => pb.Barcode)
+                .ToListAsync(cancellationToken);
+
+            if (!existingBarcodes.Contains(barcode, StringComparer.OrdinalIgnoreCase))
+            {
+                try
+                {
+                    await _productsService.AddBarcodeAsync(productId, barcode, "Added from shopping", cancellationToken);
+                    _logger.LogInformation("Added barcode {Barcode} to existing product {ProductId}", barcode, productId);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Failed to add barcode {Barcode} to product {ProductId}: {Message}",
+                        barcode, productId, ex.Message);
+                }
+            }
+        }
+
+        // Add image if provided and product doesn't already have images
+        if (!string.IsNullOrEmpty(imageUrl))
+        {
+            var hasImages = await _context.ProductImages
+                .AnyAsync(pi => pi.ProductId == productId, cancellationToken);
+
+            if (!hasImages)
+            {
+                try
+                {
+                    var imageResult = await _productsService.AddImageFromUrlAsync(productId, imageUrl, cancellationToken);
+                    if (imageResult != null)
+                    {
+                        _logger.LogInformation("Added image from URL to existing product {ProductId}", productId);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Failed to add image to product {ProductId}: {Message}",
+                        productId, ex.Message);
+                }
+            }
+        }
+
+        // Link product to store if external product ID is available
+        if (!string.IsNullOrEmpty(externalProductId) && shoppingLocationId.HasValue)
+        {
+            try
+            {
+                var linkRequest = new LinkProductToStoreRequest
+                {
+                    ExternalProductId = externalProductId,
+                    Price = price,
+                    Aisle = aisle,
+                    Shelf = shelf,
+                    Department = department
+                };
+                await _storeIntegrationService.LinkProductToStoreAsync(
+                    productId,
+                    shoppingLocationId.Value,
+                    linkRequest,
+                    cancellationToken);
+                _logger.LogInformation("Linked existing product {ProductId} to store {StoreId} with external ID {ExternalId}",
+                    productId, shoppingLocationId.Value, externalProductId);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to link product {ProductId} to store: {Message}",
+                    productId, ex.Message);
+            }
+        }
     }
 }
