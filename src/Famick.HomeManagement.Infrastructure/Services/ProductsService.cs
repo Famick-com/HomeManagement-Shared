@@ -2,6 +2,7 @@ using AutoMapper;
 using Famick.HomeManagement.Core.DTOs.Products;
 using Famick.HomeManagement.Core.Exceptions;
 using Famick.HomeManagement.Core.Interfaces;
+using Famick.HomeManagement.Core.Interfaces.Plugins;
 using Famick.HomeManagement.Domain.Entities;
 using Famick.HomeManagement.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
@@ -317,7 +318,59 @@ public class ProductsService : IProductsService
 
     public async Task<ProductDto?> GetByBarcodeAsync(string barcode, CancellationToken cancellationToken = default)
     {
-        var productBarcode = await _context.ProductBarcodes
+        // Phase 1: Exact match (fast path, covers most cases)
+        var productBarcode = await ProductBarcodesWithIncludes()
+            .FirstOrDefaultAsync(pb => pb.Barcode == barcode, cancellationToken);
+
+        // Phase 2: Variant match (handles EAN-13 <-> UPC-A format mismatches)
+        if (productBarcode == null)
+        {
+            var variants = ProductLookupPipelineContext.GenerateBarcodeVariants(barcode);
+            if (variants.Count > 0)
+            {
+                var variantBarcodes = variants.Select(v => v.Barcode).ToList();
+                productBarcode = await ProductBarcodesWithIncludes()
+                    .FirstOrDefaultAsync(pb => variantBarcodes.Contains(pb.Barcode), cancellationToken);
+            }
+        }
+
+        // Phase 3: Normalized fallback (handles non-standard formats like Kroger padding)
+        if (productBarcode == null)
+        {
+            var normalizedInput = ProductLookupPipelineContext.NormalizeBarcode(barcode);
+            if (!string.IsNullOrEmpty(normalizedInput) && normalizedInput != "0")
+            {
+                // Query candidates that could plausibly match, then filter in-memory
+                var candidates = await ProductBarcodesWithIncludes()
+                    .Where(pb => pb.Barcode.Contains(normalizedInput))
+                    .ToListAsync(cancellationToken);
+
+                productBarcode = candidates.FirstOrDefault(pb =>
+                    ProductLookupPipelineContext.NormalizeBarcode(pb.Barcode) == normalizedInput);
+            }
+        }
+
+        if (productBarcode?.Product == null) return null;
+
+        var dto = _mapper.Map<ProductDto>(productBarcode.Product);
+
+        // Set computed URLs for images with access tokens
+        SetImageUrls(dto.Images, productBarcode.Product.Images.ToList(), dto.Id);
+
+        // Populate stock summary
+        var stockByProduct = await GetStockByProductAndLocationAsync(cancellationToken);
+        if (stockByProduct.TryGetValue(dto.Id, out var stockLocations))
+        {
+            dto.StockByLocation = stockLocations;
+            dto.TotalStockAmount = stockLocations.Sum(s => s.Amount);
+        }
+
+        return dto;
+    }
+
+    private IQueryable<ProductBarcode> ProductBarcodesWithIncludes()
+    {
+        return _context.ProductBarcodes
             .Include(pb => pb.Product)
                 .ThenInclude(p => p.Location)
             .Include(pb => pb.Product)
@@ -335,17 +388,7 @@ public class ProductsService : IProductsService
             .Include(pb => pb.Product)
                 .ThenInclude(p => p.Barcodes)
             .Include(pb => pb.Product)
-                .ThenInclude(p => p.Images)
-            .FirstOrDefaultAsync(pb => pb.Barcode == barcode, cancellationToken);
-
-        if (productBarcode?.Product == null) return null;
-
-        var dto = _mapper.Map<ProductDto>(productBarcode.Product);
-
-        // Set computed URLs for images with access tokens
-        SetImageUrls(dto.Images, productBarcode.Product.Images.ToList(), dto.Id);
-
-        return dto;
+                .ThenInclude(p => p.Images);
     }
 
     public async Task DeleteBarcodeAsync(Guid barcodeId, CancellationToken cancellationToken = default)
