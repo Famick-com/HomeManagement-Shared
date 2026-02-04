@@ -367,49 +367,75 @@ public class ProductLookupService : IProductLookupService
             _dbContext.ProductNutrition.Add(nutrition);
         }
 
-        // Add barcodes if not already present
-        // We store both the plugin-returned barcode (e.g., 13-digit EAN from Kroger)
-        // and the original scanned barcode (e.g., 12-digit UPC) when they differ
-        var barcodesToAdd = new List<(string barcode, string note)>();
-        var dataSourceNote = $"From {string.Join(", ", result.DataSources.Select(i => i.Key))}";
+        // Add barcodes in all formats for maximum scanning compatibility
+        // Generate variants from both the plugin-returned barcode and the original scan barcode
+        var allVariants = new HashSet<BarcodeVariant>();
+        var inputBarcodes = new List<string>();
 
         if (!string.IsNullOrEmpty(result.Barcode))
         {
-            barcodesToAdd.Add((result.Barcode, dataSourceNote));
+            inputBarcodes.Add(result.Barcode);
         }
 
-        // Also add the original search barcode if it differs from the plugin barcode
-        if (!string.IsNullOrEmpty(result.OriginalSearchBarcode) &&
-            !string.IsNullOrEmpty(result.Barcode) &&
-            !result.OriginalSearchBarcode.Equals(result.Barcode, StringComparison.OrdinalIgnoreCase))
+        if (!string.IsNullOrEmpty(result.OriginalSearchBarcode))
         {
-            // Check if they normalize to the same value (same product, different format)
-            var normalizedOriginal = ProductLookupPipelineContext.NormalizeBarcode(result.OriginalSearchBarcode);
-            var normalizedPlugin = ProductLookupPipelineContext.NormalizeBarcode(result.Barcode);
+            inputBarcodes.Add(result.OriginalSearchBarcode);
+        }
 
-            if (normalizedOriginal.Equals(normalizedPlugin, StringComparison.OrdinalIgnoreCase))
+        // Generate all format variants for each input barcode
+        foreach (var inputBarcode in inputBarcodes)
+        {
+            var variants = ProductLookupPipelineContext.GenerateBarcodeVariants(inputBarcode);
+            foreach (var variant in variants)
             {
-                // Same product different format - store both for better scanning compatibility
-                barcodesToAdd.Add((result.OriginalSearchBarcode, $"Original scan (UPC format)"));
+                allVariants.Add(variant);
             }
         }
 
-        foreach (var (barcode, note) in barcodesToAdd)
+        // If no variants were generated (e.g., non-US EAN-13), fall back to storing raw barcodes
+        if (allVariants.Count == 0)
         {
-            var existingBarcode = product.Barcodes
-                .FirstOrDefault(b => b.Barcode.Equals(barcode, StringComparison.OrdinalIgnoreCase));
-
-            if (existingBarcode == null)
+            var dataSourceNote = $"From {string.Join(", ", result.DataSources.Select(i => i.Key))}";
+            foreach (var inputBarcode in inputBarcodes.Distinct(StringComparer.OrdinalIgnoreCase))
             {
-                _dbContext.ProductBarcodes.Add(new ProductBarcode
-                {
-                    Id = Guid.NewGuid(),
-                    TenantId = tenantId,
-                    ProductId = productId,
-                    Barcode = barcode,
-                    Note = note
-                });
+                allVariants.Add(new BarcodeVariant(inputBarcode, "Unknown", dataSourceNote));
             }
+        }
+
+        // Add each barcode variant if not already present
+        foreach (var variant in allVariants)
+        {
+            // Check if barcode already exists on this product
+            var existingOnProduct = product.Barcodes
+                .FirstOrDefault(b => b.Barcode.Equals(variant.Barcode, StringComparison.OrdinalIgnoreCase));
+
+            if (existingOnProduct != null)
+            {
+                continue; // Already on this product
+            }
+
+            // Check if barcode exists on ANY product in this tenant (unique constraint)
+            var existingInTenant = await _dbContext.ProductBarcodes
+                .AnyAsync(b => b.TenantId == tenantId &&
+                              b.Barcode == variant.Barcode &&
+                              b.ProductId != productId, ct);
+
+            if (existingInTenant)
+            {
+                _logger.LogWarning(
+                    "Barcode {Barcode} ({Format}) already exists on another product in tenant {TenantId}, skipping",
+                    variant.Barcode, variant.Format, tenantId);
+                continue;
+            }
+
+            _dbContext.ProductBarcodes.Add(new ProductBarcode
+            {
+                Id = Guid.NewGuid(),
+                TenantId = tenantId,
+                ProductId = productId,
+                Barcode = variant.Barcode,
+                Note = variant.Note
+            });
         }
 
         // Add external image if available and not already present
