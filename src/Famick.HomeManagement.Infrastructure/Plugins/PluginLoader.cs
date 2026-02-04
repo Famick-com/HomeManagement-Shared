@@ -67,7 +67,12 @@ public class PluginLoader : IPluginLoader
 
         if (!File.Exists(configPath))
         {
-            _logger.LogWarning("Plugin configuration file not found at {Path}. No plugins will be loaded.", configPath);
+            // No config file - auto-load all built-in plugins with default settings
+            _logger.LogInformation(
+                "Plugin configuration file not found at {Path}. Auto-loading {Count} built-in plugins.",
+                configPath, _builtinPlugins.Count);
+
+            await LoadBuiltinPluginsAsync(ct);
             return;
         }
 
@@ -110,6 +115,42 @@ public class PluginLoader : IPluginLoader
         {
             _logger.LogError(ex, "Failed to load plugins from {Path}", configPath);
         }
+    }
+
+    /// <summary>
+    /// Auto-load all built-in plugins when no config.json exists.
+    /// This ensures product lookup works out of the box without manual configuration.
+    /// </summary>
+    private async Task LoadBuiltinPluginsAsync(CancellationToken ct)
+    {
+        foreach (var (pluginId, plugin) in _builtinPlugins)
+        {
+            try
+            {
+                // Create a default config entry
+                var entry = new PluginConfigEntry
+                {
+                    Id = pluginId,
+                    Enabled = true,
+                    Builtin = true,
+                    DisplayName = plugin.DisplayName
+                };
+                _configurations.Add(entry);
+
+                // Initialize plugin with no config (uses defaults)
+                await plugin.InitAsync(null, ct);
+                _plugins.Add(plugin);
+
+                _logger.LogInformation("Auto-loaded built-in plugin {PluginId} ({DisplayName}) v{Version}",
+                    plugin.PluginId, plugin.DisplayName, plugin.Version);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to auto-load built-in plugin {PluginId}", pluginId);
+            }
+        }
+
+        _logger.LogInformation("Auto-loaded {Count} built-in plugins", _plugins.Count);
     }
 
     private PluginConfigEntry? ParsePluginEntry(JsonElement element)
