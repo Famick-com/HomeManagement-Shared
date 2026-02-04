@@ -65,4 +65,29 @@ public class MoveToInventoryItem
     /// Storage location ID for this item in inventory
     /// </summary>
     public Guid? LocationId { get; set; }
+
+    /// <summary>
+    /// External product ID from store integration (for linking product to store)
+    /// </summary>
+    public string? ExternalProductId { get; set; }
+
+    /// <summary>
+    /// Shopping location ID (store) for linking product to store metadata
+    /// </summary>
+    public Guid? ShoppingLocationId { get; set; }
+
+    /// <summary>
+    /// Aisle location in store
+    /// </summary>
+    public string? Aisle { get; set; }
+
+    /// <summary>
+    /// Shelf location in store
+    /// </summary>
+    public string? Shelf { get; set; }
+
+    /// <summary>
+    /// Department in store
+    /// </summary>
+    public string? Department { get; set; }
 }

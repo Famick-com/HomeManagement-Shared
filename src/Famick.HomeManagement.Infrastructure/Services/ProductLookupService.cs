@@ -86,13 +86,21 @@ public class ProductLookupService : IProductLookupService
         // Create pipeline context
         var context = new ProductLookupPipelineContext(cleanedQuery, searchType, maxResults);
 
-        // ALWAYS search local products first - they take priority
-        var localResults = await SearchLocalProductsAsync(cleanedQuery, searchType, maxResults, ct);
-        if (localResults.Any())
+        // Search local products first unless ExternalSourcesOnly mode
+        if (searchMode != ProductSearchMode.ExternalSourcesOnly)
         {
-            context.AddResults(localResults);
-            _logger.LogInformation("Found {Count} local products for query '{Query}'",
-                localResults.Count, cleanedQuery);
+            var localResults = await SearchLocalProductsAsync(cleanedQuery, searchType, maxResults, ct);
+            if (localResults.Any())
+            {
+                context.AddResults(localResults);
+                _logger.LogInformation("Found {Count} local products for query '{Query}'",
+                    localResults.Count, cleanedQuery);
+            }
+        }
+        else
+        {
+            _logger.LogInformation("ExternalSourcesOnly mode - skipping local products search for query '{Query}'",
+                cleanedQuery);
         }
 
         // If LocalProductsOnly mode, return immediately without searching external plugins

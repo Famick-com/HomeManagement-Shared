@@ -40,8 +40,8 @@
                 }
             </MudStack>
 
-            @* Search mode toggle (only show if connected store integrations exist) *@
-            @if (_hasConnectedStoreIntegrations)
+            @* Search mode toggle *@
+            @if (_hasConnectedStoreIntegrations || IsUpdatingExistingProduct)
             {
                 <MudToggleGroup T="ProductSearchMode"
                                 @bind-Value="_searchMode"
@@ -50,12 +50,24 @@
                                 Rounded="true"
                                 CheckMark="true"
                                 Class="mb-1">
-                    <MudToggleItem Value="ProductSearchMode.StoreIntegrationsOnly">
-                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
-                            <MudIcon Icon="@Icons.Material.Filled.Store" Size="Size.Small" />
-                            <MudText Typo="Typo.body2">@L["productLookup.myStores"]</MudText>
-                        </MudStack>
-                    </MudToggleItem>
+                    @if (IsUpdatingExistingProduct)
+                    {
+                        <MudToggleItem Value="ProductSearchMode.ExternalSourcesOnly">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                                <MudIcon Icon="@Icons.Material.Filled.CloudDownload" Size="Size.Small" />
+                                <MudText Typo="Typo.body2">@L["productLookup.externalOnly"]</MudText>
+                            </MudStack>
+                        </MudToggleItem>
+                    }
+                    @if (_hasConnectedStoreIntegrations)
+                    {
+                        <MudToggleItem Value="ProductSearchMode.StoreIntegrationsOnly">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                                <MudIcon Icon="@Icons.Material.Filled.Store" Size="Size.Small" />
+                                <MudText Typo="Typo.body2">@L["productLookup.myStores"]</MudText>
+                            </MudStack>
+                        </MudToggleItem>
+                    }
                     <MudToggleItem Value="ProductSearchMode.AllSources">
                         <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
                             <MudIcon Icon="@Icons.Material.Filled.Search" Size="Size.Small" />
@@ -270,6 +282,13 @@
     [Parameter]
     public Guid? PreferredShoppingLocationId { get; set; }
 
+    /// <summary>
+    /// When true, defaults to ExternalSourcesOnly mode to skip local products.
+    /// Useful when updating an existing product with external metadata.
+    /// </summary>
+    [Parameter]
+    public bool IsUpdatingExistingProduct { get; set; }
+
     private string _searchQuery = string.Empty;
     private bool _isSearching;
     private bool _hasSearched;
@@ -310,8 +329,13 @@
                 // Check if any store integration is connected and doesn't require re-auth
                 _hasConnectedStoreIntegrations = result.Data.Any(p => p.IsConnected && !p.RequiresReauth);
 
-                // Default to store-only search if connected stores exist
-                if (_hasConnectedStoreIntegrations)
+                // When updating an existing product, default to external sources only
+                if (IsUpdatingExistingProduct)
+                {
+                    _searchMode = ProductSearchMode.ExternalSourcesOnly;
+                }
+                // Otherwise default to store-only search if connected stores exist
+                else if (_hasConnectedStoreIntegrations)
                 {
                     _searchMode = ProductSearchMode.StoreIntegrationsOnly;
                 }
@@ -319,8 +343,12 @@
         }
         catch
         {
-            // Silently fail - default to all sources
+            // Silently fail - default to external sources if updating, otherwise all sources
             _hasConnectedStoreIntegrations = false;
+            if (IsUpdatingExistingProduct)
+            {
+                _searchMode = ProductSearchMode.ExternalSourcesOnly;
+            }
         }
     }
 
