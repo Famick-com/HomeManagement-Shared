@@ -125,7 +125,7 @@
         <MudButton Variant="Variant.Filled"
                    Color="Color.Primary"
                    OnClick="Submit"
-                   Disabled="@(!_formValid || _isSaving || _selectedList == null)">
+                   Disabled="@(_isSaving || _selectedList == null)">
             @if (_isSaving)
             {
                 <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />

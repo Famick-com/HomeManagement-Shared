@@ -72,6 +72,13 @@
         <MudSelectItem T="string" Value="@("dueSoon")">@L["stock.statusDueSoon"]</MudSelectItem>
         <MudSelectItem T="string" Value="@("belowMinStock")">@L["stock.statusBelowMin"]</MudSelectItem>
     </MudSelect>
+
+    <MudSelect T="string" @bind-Value="_groupBy" Label="@L["stock.groupBy"]"
+               Variant="Variant.Outlined" Margin="Margin.Dense" Dense="true"
+               AnchorOrigin="Origin.BottomCenter" Style="min-width: 150px;">
+        <MudSelectItem T="string" Value="@("none")">@L["products.groupByNone"]</MudSelectItem>
+        <MudSelectItem T="string" Value="@("productGroup")">@L["products.groupByProductGroup"]</MudSelectItem>
+    </MudSelect>
 </MudStack>
 
 @* Loading State *@
@@ -83,7 +90,122 @@
 @* Data Table *@
 @if (_items.Count > 0)
 {
-    <MudTable T="StockOverviewItemDto" Items="@_items" Dense="true" Hover="true">
+    @if (_groupBy == "productGroup")
+    {
+        <MudExpansionPanels MultiExpansion="true">
+            @foreach (var group in _groupedByProductGroup)
+            {
+                <MudExpansionPanel IsInitiallyExpanded="true" Class="mb-2">
+                    <TitleContent>
+                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Class="flex-grow-1">
+                            <MudIcon Icon="@Icons.Material.Filled.Inventory" Size="Size.Small" Color="Color.Primary" />
+                            <MudText Typo="Typo.subtitle1" Style="font-weight: 600;">
+                                @(string.IsNullOrEmpty(group.Key) ? L["products.ungrouped"] : group.Key)
+                            </MudText>
+                            <MudChip T="string" Size="Size.Small" Color="Color.Default" Variant="Variant.Text">
+                                @group.Count() @(group.Count() == 1 ? "product" : "products")
+                            </MudChip>
+                        </MudStack>
+                    </TitleContent>
+                    <ChildContent>
+                        <MudTable T="StockOverviewItemDto" Items="@group" Dense="true" Hover="true" Elevation="0">
+                            <HeaderContent>
+                                <MudTh Style="width: 48px;"></MudTh>
+                                <MudTh Style="width: 180px;"></MudTh>
+                                <MudTh>@L["stock.product"]</MudTh>
+                                <MudTh>@L["stock.amount"]</MudTh>
+                                <MudTh>@L["stock.nextDueDate"]</MudTh>
+                            </HeaderContent>
+                            <RowTemplate>
+                                <MudTd>
+                                    @if (context.IsParentProduct && context.ChildProductCount > 0)
+                                    {
+                                        <MudIconButton Icon="@(IsExpanded(context.ProductId) ? Icons.Material.Filled.ExpandLess : Icons.Material.Filled.ExpandMore)"
+                                                       Size="Size.Small"
+                                                       OnClick="@(() => ToggleExpand(context.ProductId))" />
+                                    }
+                                </MudTd>
+                                <MudTd>
+                                    <MudStack Row="true" Spacing="1">
+                                        <MudTooltip Text="@(CanEdit ? L["stock.consumeOne"] : L["common.viewerNoPermission"])">
+                                            <MudIconButton Icon="@Icons.Material.Filled.RemoveCircle" Size="Size.Small"
+                                                           Color="Color.Error"
+                                                           OnClick="@(() => QuickConsume(context, 1))"
+                                                           Disabled="@(!CanEdit || context.TotalAmount < 1)" />
+                                        </MudTooltip>
+                                        <MudTooltip Text="@(CanEdit ? L["stock.consumeAll"] : L["common.viewerNoPermission"])">
+                                            <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small"
+                                                           Color="Color.Error"
+                                                           OnClick="@(() => QuickConsumeAll(context))"
+                                                           Disabled="@(!CanEdit || context.TotalAmount <= 0)" />
+                                        </MudTooltip>
+                                        <MudTooltip Text="@(CanEdit ? L["stock.addOne"] : L["common.viewerNoPermission"])">
+                                            <MudIconButton Icon="@Icons.Material.Filled.AddCircle" Size="Size.Small"
+                                                           Color="Color.Success"
+                                                           OnClick="@(() => QuickAdd(context))"
+                                                           Disabled="@(!CanEdit)" />
+                                        </MudTooltip>
+                                        <MudTooltip Text="@(CanEdit ? L["stock.addToShoppingList"] : L["common.viewerNoPermission"])">
+                                            <MudIconButton Icon="@Icons.Material.Filled.AddShoppingCart" Size="Size.Small"
+                                                           Color="Color.Info"
+                                                           OnClick="@(() => OpenAddToShoppingListDialog(context))"
+                                                           Disabled="@(!CanEdit)" />
+                                        </MudTooltip>
+                                    </MudStack>
+                                </MudTd>
+                                <MudTd>
+                                    <MudStack Spacing="0">
+                                        <MudStack Row="true" Spacing="1" AlignItems="AlignItems.Center">
+                                            <MudText>@context.ProductName</MudText>
+                                            @if (context.IsParentProduct && context.ChildProductCount > 0)
+                                            {
+                                                <MudChip T="string" Size="Size.Small" Color="Color.Primary" Variant="Variant.Outlined"
+                                                         Style="height: 20px; font-size: 0.7rem;">
+                                                    @L["products.variantCount", context.ChildProductCount]
+                                                </MudChip>
+                                            }
+                                        </MudStack>
+                                    </MudStack>
+                                </MudTd>
+                                <MudTd>
+                                    <MudStack Row="true" Spacing="1" AlignItems="AlignItems.Center">
+                                        <MudText>@context.TotalAmount.ToString("0.##")</MudText>
+                                        <MudText Color="Color.Secondary">@context.QuantityUnitName</MudText>
+                                        @if (context.IsBelowMinStock)
+                                        {
+                                            <MudText Typo="Typo.caption" Color="Color.Warning">
+                                                (min: @context.MinStockAmount.ToString("0.##"))
+                                            </MudText>
+                                        }
+                                    </MudStack>
+                                </MudTd>
+                                <MudTd>
+                                    @if (context.NextDueDate.HasValue)
+                                    {
+                                        <MudStack Spacing="0">
+                                            <MudText Color="@GetDueDateColor(context)">
+                                                @context.NextDueDate.Value.ToString("yyyy-MM-dd")
+                                            </MudText>
+                                            <MudText Typo="Typo.caption" Color="@GetDueDateColor(context)">
+                                                @GetRelativeTime(context.DaysUntilDue)
+                                            </MudText>
+                                        </MudStack>
+                                    }
+                                    else
+                                    {
+                                        <MudText Color="Color.Secondary">@L["common.unknown"]</MudText>
+                                    }
+                                </MudTd>
+                            </RowTemplate>
+                        </MudTable>
+                    </ChildContent>
+                </MudExpansionPanel>
+            }
+        </MudExpansionPanels>
+    }
+    else
+    {
+        <MudTable T="StockOverviewItemDto" Items="@_items" Dense="true" Hover="true">
         <HeaderContent>
             <MudTh Style="width: 48px;"></MudTh>
             <MudTh Style="width: 180px;"></MudTh>
@@ -242,6 +364,7 @@
             }
         </ChildRowContent>
     </MudTable>
+    }
 }
 else if (!_isLoading)
 {
@@ -260,7 +383,13 @@ else if (!_isLoading)
     private Guid? _selectedLocationId;
     private Guid? _selectedProductGroupId;
     private string? _currentStatus;
+    private string _groupBy = "none";
     private HashSet<Guid> _expandedProducts = new();
+
+    private IEnumerable<IGrouping<string, StockOverviewItemDto>> _groupedByProductGroup => _items
+        .GroupBy(i => i.ProductGroupName ?? "")
+        .OrderBy(g => string.IsNullOrEmpty(g.Key) ? 1 : 0)
+        .ThenBy(g => g.Key);
 
     private bool IsExpanded(Guid productId) => _expandedProducts.Contains(productId);
 

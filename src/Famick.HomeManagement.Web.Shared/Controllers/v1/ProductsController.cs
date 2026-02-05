@@ -347,6 +347,57 @@ public class ProductsController : ApiControllerBase
     }
 
     /// <summary>
+    /// Adds an image to a product from a URL
+    /// </summary>
+    /// <param name="id">Product ID</param>
+    /// <param name="request">Request containing the image URL</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>The uploaded image info</returns>
+    [HttpPost("{id}/images/from-url")]
+    [ProducesResponseType(typeof(ProductImageDto), 201)]
+    [ProducesResponseType(400)]
+    [ProducesResponseType(401)]
+    [ProducesResponseType(404)]
+    [ProducesResponseType(500)]
+    public async Task<IActionResult> AddImageFromUrl(
+        Guid id,
+        [FromBody] AddImageFromUrlRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(request?.ImageUrl))
+        {
+            return BadRequest(new { error_message = "Image URL is required" });
+        }
+
+        // Validate URL format
+        if (!Uri.TryCreate(request.ImageUrl, UriKind.Absolute, out var uri) ||
+            (uri.Scheme != "http" && uri.Scheme != "https"))
+        {
+            return BadRequest(new { error_message = "Invalid image URL. Must be a valid HTTP or HTTPS URL." });
+        }
+
+        _logger.LogInformation("Adding image from URL to product {ProductId} for tenant {TenantId}: {ImageUrl}",
+            id, TenantId, request.ImageUrl);
+
+        try
+        {
+            var image = await _productsService.AddImageFromUrlAsync(id, request.ImageUrl, cancellationToken);
+
+            if (image == null)
+            {
+                return NotFoundResponse($"Product with ID {id} not found");
+            }
+
+            return CreatedAtAction(nameof(GetImages), new { id }, image);
+        }
+        catch (Exception ex) when (ex is HttpRequestException || ex is TaskCanceledException)
+        {
+            _logger.LogWarning(ex, "Failed to fetch image from URL: {ImageUrl}", request.ImageUrl);
+            return BadRequest(new { error_message = "Failed to fetch image from URL. The URL may be inaccessible or the request timed out." });
+        }
+    }
+
+    /// <summary>
     /// Gets all images for a product
     /// </summary>
     /// <param name="id">Product ID</param>
@@ -390,16 +441,18 @@ public class ProductsController : ApiControllerBase
         _logger.LogInformation("Downloading image {ImageId} for product {ProductId}", imageId, productId);
 
         // First, get the image to validate it exists
-        var image = await _productsService.GetImageByIdAsync(productId, imageId, cancellationToken);
+        // Use IgnoreFilters since this is an anonymous endpoint - access is validated by token, not tenant context
+        var image = await _productsService.GetImageByIdIgnoreFiltersAsync(productId, imageId, cancellationToken);
         if (image == null)
         {
             return NotFoundResponse("Image not found");
         }
 
         // Check authorization: either authenticated user OR valid token
+        // Use image.TenantId since this is an anonymous endpoint - TenantId from base controller won't be set
         var isAuthenticated = User.Identity?.IsAuthenticated == true;
         var hasValidToken = !string.IsNullOrEmpty(token) &&
-            _tokenService.ValidateToken(token, "product-image", imageId, TenantId);
+            _tokenService.ValidateToken(token, "product-image", imageId, image.TenantId);
 
         if (!isAuthenticated && !hasValidToken)
         {

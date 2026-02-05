@@ -21,7 +21,10 @@ public interface IUserManagementService
     /// <summary>
     /// Create a new user
     /// </summary>
-    Task<CreateUserResponse> CreateUserAsync(CreateUserRequest request, CancellationToken cancellationToken = default);
+    /// <param name="request">The create user request</param>
+    /// <param name="baseUrl">The base URL of the application for login link in welcome email</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    Task<CreateUserResponse> CreateUserAsync(CreateUserRequest request, string baseUrl, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Update an existing user

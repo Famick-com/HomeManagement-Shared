@@ -139,7 +139,8 @@ public class UsersController : ApiControllerBase
 
         try
         {
-            var response = await _userManagementService.CreateUserAsync(request, cancellationToken);
+            var baseUrl = $"{Request.Scheme}://{Request.Host}";
+            var response = await _userManagementService.CreateUserAsync(request, baseUrl, cancellationToken);
             return CreatedAtAction(nameof(GetById), new { id = response.UserId }, response);
         }
         catch (DuplicateEntityException ex)

@@ -284,16 +284,17 @@ public class SmtpEmailService : IEmailService
         string toEmail,
         string userName,
         string temporaryPassword,
+        string loginUrl,
         CancellationToken cancellationToken = default)
     {
         var subject = "Welcome to Famick Home Management";
-        var htmlBody = GenerateWelcomeEmailHtml(userName, toEmail, temporaryPassword);
-        var textBody = GenerateWelcomeEmailText(userName, toEmail, temporaryPassword);
+        var htmlBody = GenerateWelcomeEmailHtml(userName, toEmail, temporaryPassword, loginUrl);
+        var textBody = GenerateWelcomeEmailText(userName, toEmail, temporaryPassword, loginUrl);
 
         await SendEmailAsync(toEmail, subject, htmlBody, textBody, cancellationToken);
     }
 
-    private static string GenerateWelcomeEmailHtml(string userName, string email, string temporaryPassword)
+    private static string GenerateWelcomeEmailHtml(string userName, string email, string temporaryPassword, string loginUrl)
     {
         return $$"""
             <!DOCTYPE html>
@@ -303,9 +304,12 @@ public class SmtpEmailService : IEmailService
                 <style>
                     body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
                     .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+                    .button { display: inline-block; padding: 12px 24px; background-color: #1976D2;
+                               color: white; text-decoration: none; border-radius: 4px; margin: 20px 0; }
                     .credentials { background-color: #f5f5f5; padding: 15px; border-radius: 4px; margin: 20px 0; }
                     .credentials p { margin: 5px 0; }
                     .warning { color: #d32f2f; font-weight: bold; }
+                    .footer { margin-top: 30px; font-size: 12px; color: #666; }
                 </style>
             </head>
             <body>
@@ -317,15 +321,20 @@ public class SmtpEmailService : IEmailService
                         <p><strong>Email:</strong> {{email}}</p>
                         <p><strong>Temporary Password:</strong> {{temporaryPassword}}</p>
                     </div>
+                    <a href="{{loginUrl}}" class="button">Login to Famick</a>
                     <p class="warning">Please change your password after your first login.</p>
                     <p>If you did not expect this email, please contact your administrator.</p>
+                    <div class="footer">
+                        <p>If the button doesn't work, copy and paste this link into your browser:</p>
+                        <p>{{loginUrl}}</p>
+                    </div>
                 </div>
             </body>
             </html>
             """;
     }
 
-    private static string GenerateWelcomeEmailText(string userName, string email, string temporaryPassword)
+    private static string GenerateWelcomeEmailText(string userName, string email, string temporaryPassword, string loginUrl)
     {
         return $"""
             Welcome to Famick Home Management
@@ -336,6 +345,8 @@ public class SmtpEmailService : IEmailService
 
             Email: {email}
             Temporary Password: {temporaryPassword}
+
+            Login here: {loginUrl}
 
             Please change your password after your first login.
 

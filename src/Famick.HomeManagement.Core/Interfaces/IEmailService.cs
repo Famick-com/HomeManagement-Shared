@@ -48,10 +48,12 @@ public interface IEmailService
     /// <param name="toEmail">The recipient's email address</param>
     /// <param name="userName">The user's display name</param>
     /// <param name="temporaryPassword">The temporary password for initial login</param>
+    /// <param name="loginUrl">The URL where the user can log in</param>
     /// <param name="cancellationToken">Cancellation token</param>
     Task SendWelcomeEmailAsync(
         string toEmail,
         string userName,
         string temporaryPassword,
+        string loginUrl,
         CancellationToken cancellationToken = default);
 }

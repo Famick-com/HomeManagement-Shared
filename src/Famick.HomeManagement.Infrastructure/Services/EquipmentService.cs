@@ -251,6 +251,7 @@ public class EquipmentService : IEquipmentService
             Name = equipment.Name,
             Icon = equipment.Icon,
             Location = equipment.Location,
+            CategoryId = equipment.CategoryId,
             CategoryName = equipment.Category?.Name,
             WarrantyExpirationDate = equipment.WarrantyExpirationDate,
             Children = children.Select(c => BuildTreeNode(c, allEquipment)).ToList()
@@ -845,6 +846,7 @@ public class EquipmentService : IEquipmentService
             Name = equipment.Name,
             Icon = equipment.Icon,
             Location = equipment.Location,
+            CategoryId = equipment.CategoryId,
             CategoryName = equipment.Category?.Name,
             WarrantyExpirationDate = equipment.WarrantyExpirationDate,
             HasParent = equipment.ParentEquipmentId.HasValue,

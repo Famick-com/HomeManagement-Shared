@@ -21,6 +21,7 @@
     }
     else
     {
+        <MudSelectItem T="Guid?" Value="@((Guid?)null)">@L["common.allLocations"]</MudSelectItem>
         @foreach (var location in _locations)
         {
             <MudSelectItem T="Guid?" Value="@location.Id">
@@ -47,19 +48,16 @@
     {
         await LoadLocationsAsync();
 
-        // Try to restore selected location from session
-        if (!SelectedLocationId.HasValue)
+        // Try to restore selected location from session, otherwise default to "All Locations" (null)
+        var savedLocationId = await SessionService.GetSelectedLocationIdAsync();
+        if (savedLocationId.HasValue && _locations.Any(l => l.Id == savedLocationId.Value))
         {
-            var savedLocationId = await SessionService.GetSelectedLocationIdAsync();
-            if (savedLocationId.HasValue && _locations.Any(l => l.Id == savedLocationId.Value))
-            {
-                await OnLocationChanged(savedLocationId.Value);
-            }
-            else if (_locations.Count > 0)
-            {
-                // Select first location by default
-                await OnLocationChanged(_locations[0].Id);
-            }
+            await OnLocationChanged(savedLocationId.Value);
+        }
+        else
+        {
+            // Default to "All Locations" (null)
+            await OnLocationChanged(null);
         }
     }
 

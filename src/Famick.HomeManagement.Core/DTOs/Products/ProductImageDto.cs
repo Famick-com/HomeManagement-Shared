@@ -7,6 +7,7 @@ public class ProductImageDto
 {
     public Guid Id { get; set; }
     public Guid ProductId { get; set; }
+    public Guid TenantId { get; set; }
     public string FileName { get; set; } = string.Empty;
     public string OriginalFileName { get; set; } = string.Empty;
     public string ContentType { get; set; } = string.Empty;
