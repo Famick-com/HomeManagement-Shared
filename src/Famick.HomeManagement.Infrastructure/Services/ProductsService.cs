@@ -489,14 +489,22 @@ public class ProductsService : IProductsService
                 fileName = $"product-image{extension}";
             }
 
-            await using var imageStream = await response.Content.ReadAsStreamAsync(cancellationToken);
-            var fileSize = response.Content.Headers.ContentLength ?? imageStream.Length;
+            // Buffer the network stream to memory so we can determine size and read it fully
+            await using var networkStream = await response.Content.ReadAsStreamAsync(cancellationToken);
+            using var memoryStream = new MemoryStream();
+            await networkStream.CopyToAsync(memoryStream, cancellationToken);
+            memoryStream.Position = 0;
 
-            return await AddImageAsync(productId, imageStream, fileName, contentType, fileSize, cancellationToken);
+            var fileSize = memoryStream.Length;
+            if (fileSize == 0)
+                return null;
+
+            return await AddImageAsync(productId, memoryStream, fileName, contentType, fileSize, cancellationToken);
         }
-        catch
+        catch (Exception ex)
         {
-            // Silently fail - image download is not critical
+            // Log the error for debugging
+            Console.WriteLine($"Failed to add image from URL {imageUrl} for product {productId}: {ex.Message}");
             return null;
         }
     }
@@ -526,6 +534,19 @@ public class ProductsService : IProductsService
         var dto = _mapper.Map<ProductImageDto>(image);
         var token = _tokenService.GenerateToken("product-image", image.Id, image.TenantId);
         dto.Url = _fileStorage.GetProductImageUrl(productId, imageId, token);
+        return dto;
+    }
+
+    public async Task<ProductImageDto?> GetImageByIdIgnoreFiltersAsync(Guid productId, Guid imageId, CancellationToken cancellationToken = default)
+    {
+        // Used by anonymous download endpoint - bypasses tenant filter since access is validated by token
+        var image = await _context.ProductImages
+            .IgnoreQueryFilters()
+            .FirstOrDefaultAsync(pi => pi.ProductId == productId && pi.Id == imageId, cancellationToken);
+
+        if (image == null) return null;
+
+        var dto = _mapper.Map<ProductImageDto>(image);
         return dto;
     }
 

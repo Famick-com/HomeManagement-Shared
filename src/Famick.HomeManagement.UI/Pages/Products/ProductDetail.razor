@@ -7,6 +7,7 @@
 @inject ISnackbar Snackbar
 @inject ILocalizer L
 @using Famick.HomeManagement.UI.Components.Products
+@using Famick.HomeManagement.UI.Components.Shopping
 @using Famick.HomeManagement.UI.Components.Common
 @using Famick.HomeManagement.Core.DTOs.Products
 @using Famick.HomeManagement.Core.DTOs.Locations
@@ -295,6 +296,7 @@ else
                                          Images="@_images"
                                          ReadOnly="@(IsNew || !CanEdit)"
                                          OnImageUploaded="HandleImageUploaded"
+                                         OnImageUrlAdded="HandleImageFromUrl"
                                          OnImageDeleted="HandleImageDeleted"
                                          OnPrimaryChanged="HandleImagePrimaryChanged" />
 
@@ -365,6 +367,13 @@ else
                                 @L["products.updateFromDatabase"]
                             </MudButton>
                         </MudTooltip>
+
+                        <MudButton Variant="Variant.Outlined"
+                                   Color="Color.Primary"
+                                   StartIcon="@Icons.Material.Filled.AddShoppingCart"
+                                   OnClick="OpenAddToShoppingListDialog">
+                            @L["shopping.addToList"]
+                        </MudButton>
                     }
 
                     <MudButton Variant="Variant.Outlined"
@@ -419,6 +428,14 @@ else
                             @L["products.updateFromDatabase"]
                         </MudButton>
                     </MudTooltip>
+
+                    <MudButton Variant="Variant.Outlined"
+                               Color="Color.Primary"
+                               StartIcon="@Icons.Material.Filled.AddShoppingCart"
+                               OnClick="OpenAddToShoppingListDialog"
+                               FullWidth="true">
+                        @L["shopping.addToList"]
+                    </MudButton>
                 }
 
                 <MudButton Variant="Variant.Outlined"
@@ -806,6 +823,24 @@ else
         }
     }
 
+    private async Task OpenAddToShoppingListDialog()
+    {
+        if (IsNew || !Id.HasValue) return;
+
+        var primaryImage = _images?.FirstOrDefault(i => i.IsPrimary)
+            ?? _images?.FirstOrDefault();
+
+        var parameters = new DialogParameters<AddToShoppingListDialog>
+        {
+            { x => x.ProductId, Id.Value },
+            { x => x.ProductName, _name },
+            { x => x.ImageUrl, primaryImage?.ThumbnailDisplayUrl }
+        };
+
+        var options = new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true };
+        await DialogService.ShowAsync<AddToShoppingListDialog>(L["shopping.addToList"], parameters, options);
+    }
+
     private async Task HandleBarcodeAdded(ProductBarcodeDto barcode)
     {
         if (IsNew) return;
@@ -1022,6 +1057,32 @@ else
         catch (Exception)
         {
             Snackbar.Add(L["errors.generic"], Severity.Error);
+        }
+    }
+
+    private async Task HandleImageFromUrl(string imageUrl)
+    {
+        if (IsNew) return;
+
+        try
+        {
+            var request = new AddImageFromUrlRequest { ImageUrl = imageUrl };
+            var result = await ApiClient.PostAsync<AddImageFromUrlRequest, ProductImageDto>($"api/v1/products/{Id}/images/from-url", request);
+
+            if (result.IsSuccess && result.Data != null)
+            {
+                _images.Add(result.Data);
+                Snackbar.Add(L["products.imageUploaded"], Severity.Success);
+                StateHasChanged();
+            }
+            else
+            {
+                Snackbar.Add(result.ErrorMessage ?? L["products.uploadFailed"], Severity.Error);
+            }
+        }
+        catch (Exception)
+        {
+            Snackbar.Add(L["products.uploadFailed"], Severity.Error);
         }
     }
 

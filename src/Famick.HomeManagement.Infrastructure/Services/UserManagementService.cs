@@ -65,7 +65,7 @@ public class UserManagementService : IUserManagementService
     }
 
     /// <inheritdoc />
-    public async Task<CreateUserResponse> CreateUserAsync(CreateUserRequest request, CancellationToken cancellationToken = default)
+    public async Task<CreateUserResponse> CreateUserAsync(CreateUserRequest request, string baseUrl, CancellationToken cancellationToken = default)
     {
         var email = request.Email.ToLower().Trim();
 
@@ -150,6 +150,7 @@ public class UserManagementService : IUserManagementService
                     email,
                     $"{request.FirstName} {request.LastName}".Trim(),
                     password,
+                    baseUrl,
                     cancellationToken);
                 welcomeEmailSent = true;
             }
