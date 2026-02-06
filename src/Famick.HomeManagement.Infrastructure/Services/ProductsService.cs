@@ -526,20 +526,8 @@ public class ProductsService : IProductsService
 
     public async Task<ProductImageDto?> GetImageByIdAsync(Guid productId, Guid imageId, CancellationToken cancellationToken = default)
     {
-        var image = await _context.ProductImages
-            .FirstOrDefaultAsync(pi => pi.ProductId == productId && pi.Id == imageId, cancellationToken);
-
-        if (image == null) return null;
-
-        var dto = _mapper.Map<ProductImageDto>(image);
-        var token = _tokenService.GenerateToken("product-image", image.Id, image.TenantId);
-        dto.Url = _fileStorage.GetProductImageUrl(productId, imageId, token);
-        return dto;
-    }
-
-    public async Task<ProductImageDto?> GetImageByIdIgnoreFiltersAsync(Guid productId, Guid imageId, CancellationToken cancellationToken = default)
-    {
-        // Used by anonymous download endpoint - bypasses tenant filter since access is validated by token
+        // Uses IgnoreQueryFilters since this is used for download endpoints where
+        // access is validated via token or authenticated user context
         var image = await _context.ProductImages
             .IgnoreQueryFilters()
             .FirstOrDefaultAsync(pi => pi.ProductId == productId && pi.Id == imageId, cancellationToken);
@@ -547,6 +535,8 @@ public class ProductsService : IProductsService
         if (image == null) return null;
 
         var dto = _mapper.Map<ProductImageDto>(image);
+        var token = _tokenService.GenerateToken("product-image", image.Id, image.TenantId);
+        dto.Url = _fileStorage.GetProductImageUrl(productId, imageId, token);
         return dto;
     }
 
