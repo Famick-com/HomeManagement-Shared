@@ -8,6 +8,7 @@
 @inject ILocalizer L
 @inject IJSRuntime JS
 @using Famick.HomeManagement.Core.DTOs.Equipment
+@using Famick.HomeManagement.UI.Components.Equipment
 @using Microsoft.AspNetCore.Components.Forms
 
 <MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-4">
@@ -248,7 +249,7 @@ else
                         <MudTooltip Text="@(CanEdit ? null : L["common.viewerNoPermission"])" Disabled="@CanEdit">
                             <MudFileUpload T="IBrowserFile"
                                            Accept=".pdf,.jpg,.jpeg,.png,.gif,.webp,.doc,.docx,.xls,.xlsx,.txt"
-                                           FilesChanged="UploadDocument"
+                                           FilesChanged="OnDocumentFileSelected"
                                            MaximumFileCount="1"
                                            Disabled="@(!CanEdit)">
                                 <ActivatorContent>
@@ -317,6 +318,13 @@ else
                     <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="mb-2">
                         <MudText Typo="Typo.subtitle1">@(_previewDocument.DisplayName ?? _previewDocument.OriginalFileName)</MudText>
                         <MudStack Row="true" Spacing="1">
+                            <MudTooltip Text="@L["common.edit"]">
+                                <MudIconButton Icon="@Icons.Material.Filled.Edit"
+                                               Color="Color.Default"
+                                               Size="Size.Small"
+                                               OnClick="() => EditDocument(_previewDocument)"
+                                               Disabled="@(!CanEdit)" />
+                            </MudTooltip>
                             <MudTooltip Text="Download">
                                 <MudIconButton Icon="@Icons.Material.Filled.Download"
                                                Color="Color.Primary"
@@ -599,10 +607,32 @@ else
         }
     }
 
-    private async Task UploadDocument(IBrowserFile file)
+    private async Task OnDocumentFileSelected(IBrowserFile file)
     {
         if (file == null || Id == null) return;
 
+        // Open dialog to get metadata before uploading
+        var parameters = new DialogParameters<EquipmentDocumentDialog>
+        {
+            { x => x.IsEditMode, false },
+            { x => x.FileName, file.Name },
+            { x => x.FileSize, file.Size },
+            { x => x.Tags, _tags }
+        };
+
+        var options = new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true };
+        var dialog = await DialogService.ShowAsync<EquipmentDocumentDialog>(
+            L["equipment.documents.uploadDocument"], parameters, options);
+        var result = await dialog.Result;
+
+        if (result != null && !result.Canceled && result.Data is EquipmentDocumentDialog.EquipmentDocumentDialogResult dialogResult)
+        {
+            await UploadDocumentWithMetadata(file, dialogResult.DisplayName, dialogResult.TagId);
+        }
+    }
+
+    private async Task UploadDocumentWithMetadata(IBrowserFile file, string? displayName, Guid? tagId)
+    {
         _isUploading = true;
         try
         {
@@ -615,6 +645,16 @@ else
             var fileContent = new StreamContent(memoryStream);
             fileContent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(file.ContentType);
             content.Add(fileContent, "file", file.Name);
+
+            // Add metadata fields
+            if (!string.IsNullOrWhiteSpace(displayName))
+            {
+                content.Add(new StringContent(displayName), "displayName");
+            }
+            if (tagId.HasValue)
+            {
+                content.Add(new StringContent(tagId.Value.ToString()), "tagId");
+            }
 
             var result = await ApiClient.PostMultipartAsync<EquipmentDocumentDto>($"api/v1/equipment/{Id}/documents", content);
             if (result.IsSuccess && result.Data != null)
@@ -634,6 +674,67 @@ else
         finally
         {
             _isUploading = false;
+        }
+    }
+
+    private async Task EditDocument(EquipmentDocumentDto doc)
+    {
+        var parameters = new DialogParameters<EquipmentDocumentDialog>
+        {
+            { x => x.IsEditMode, true },
+            { x => x.FileName, doc.OriginalFileName },
+            { x => x.Tags, _tags },
+            { x => x.InitialDisplayName, doc.DisplayName },
+            { x => x.InitialTagId, doc.TagId }
+        };
+
+        var options = new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true };
+        var dialog = await DialogService.ShowAsync<EquipmentDocumentDialog>(
+            L["equipment.documents.editDocument"], parameters, options);
+        var result = await dialog.Result;
+
+        if (result != null && !result.Canceled && result.Data is EquipmentDocumentDialog.EquipmentDocumentDialogResult dialogResult)
+        {
+            await UpdateDocumentMetadata(doc, dialogResult.DisplayName, dialogResult.TagId);
+        }
+    }
+
+    private async Task UpdateDocumentMetadata(EquipmentDocumentDto doc, string? displayName, Guid? tagId)
+    {
+        try
+        {
+            var request = new UpdateEquipmentDocumentRequest
+            {
+                DisplayName = displayName,
+                TagId = tagId,
+                SortOrder = doc.SortOrder
+            };
+
+            var result = await ApiClient.PutAsync<UpdateEquipmentDocumentRequest, EquipmentDocumentDto>($"api/v1/equipment/documents/{doc.Id}", request);
+            if (result.IsSuccess && result.Data != null)
+            {
+                // Update the document in the list
+                var index = _documents.FindIndex(d => d.Id == doc.Id);
+                if (index >= 0)
+                {
+                    _documents[index] = result.Data;
+                }
+                // Update preview if this is the currently previewed document
+                if (_previewDocument?.Id == doc.Id)
+                {
+                    _previewDocument = result.Data;
+                }
+                Snackbar.Add(L["equipment.documents.updated"], Severity.Success);
+                StateHasChanged();
+            }
+            else
+            {
+                Snackbar.Add(result.ErrorMessage ?? L["common.error"], Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error updating: {ex.Message}", Severity.Error);
         }
     }
 
