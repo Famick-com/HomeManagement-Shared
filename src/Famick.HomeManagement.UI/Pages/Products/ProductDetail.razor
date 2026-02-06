@@ -73,7 +73,11 @@ else
                                                    CanEdit="@CanEdit"
                                                    InheritedLocationId="@_locationId"
                                                    InheritedQuantityUnitIdStock="@_stockUnitId"
-                                                   InheritedQuantityUnitIdPurchase="@_purchaseUnitId" />
+                                                   InheritedQuantityUnitIdPurchase="@_purchaseUnitId"
+                                                   InheritedProductGroupId="@_productGroupId" />
+
+                        <ProductGroupAutocomplete @bind-SelectedProductGroupId="_productGroupId"
+                                                  CanEdit="@CanEdit" />
 
                         <MudSelect T="Guid" @bind-Value="_locationId"
                                    Label="@L["products.location"]"
@@ -496,6 +500,7 @@ else
     private string? _description;
     private ProductDto? _selectedParentProduct;
     private bool _isParentProduct;
+    private Guid? _productGroupId;
     private Guid _locationId;
     private Guid _purchaseUnitId;
     private Guid _stockUnitId;
@@ -538,6 +543,7 @@ else
     private string? _originalServingUnit;
     private decimal? _originalServingsPerContainer;
     private Guid? _originalParentProductId;
+    private Guid? _originalProductGroupId;
 
     private bool IsDirty => !IsNew && (
         _name != _originalName ||
@@ -553,7 +559,8 @@ else
         _servingSize != _originalServingSize ||
         _servingUnit != _originalServingUnit ||
         _servingsPerContainer != _originalServingsPerContainer ||
-        _selectedParentProduct?.Id != _originalParentProductId);
+        _selectedParentProduct?.Id != _originalParentProductId ||
+        _productGroupId != _originalProductGroupId);
 
     // Track last loaded Id to detect navigation to different product
     private Guid? _lastLoadedId;
@@ -648,6 +655,9 @@ else
                 // Check if this product has children (is a parent product)
                 _isParentProduct = product.IsParentProduct;
 
+                // Load product group ID
+                _productGroupId = product.ProductGroupId;
+
                 // Load child products
                 _childProducts = product.ChildProducts ?? new();
 
@@ -714,7 +724,8 @@ else
                     ServingSize = _servingSize,
                     ServingUnit = _servingUnit,
                     ServingsPerContainer = _servingsPerContainer,
-                    ParentProductId = _selectedParentProduct?.Id
+                    ParentProductId = _selectedParentProduct?.Id,
+                    ProductGroupId = _productGroupId
                 };
 
                 var result = await ApiClient.PostAsync<CreateProductRequest, ProductDto>("api/v1/products", request);
@@ -755,7 +766,8 @@ else
                     ServingSize = _servingSize,
                     ServingUnit = _servingUnit,
                     ServingsPerContainer = _servingsPerContainer,
-                    ParentProductId = _selectedParentProduct?.Id
+                    ParentProductId = _selectedParentProduct?.Id,
+                    ProductGroupId = _productGroupId
                 };
 
                 var result = await ApiClient.PutAsync<UpdateProductRequest, ProductDto>($"api/v1/products/{Id}", request);
@@ -1365,7 +1377,8 @@ else
                     ServingSize = _servingSize,
                     ServingUnit = _servingUnit,
                     ServingsPerContainer = _servingsPerContainer,
-                    ParentProductId = _selectedParentProduct?.Id
+                    ParentProductId = _selectedParentProduct?.Id,
+                    ProductGroupId = _productGroupId
                 };
 
                 var result = await ApiClient.PostAsync<CreateProductRequest, ProductDto>("api/v1/products", request);
@@ -1399,7 +1412,8 @@ else
                     ServingSize = _servingSize,
                     ServingUnit = _servingUnit,
                     ServingsPerContainer = _servingsPerContainer,
-                    ParentProductId = _selectedParentProduct?.Id
+                    ParentProductId = _selectedParentProduct?.Id,
+                    ProductGroupId = _productGroupId
                 };
 
                 var result = await ApiClient.PutAsync<UpdateProductRequest, ProductDto>($"api/v1/products/{Id}", request);
@@ -1443,6 +1457,7 @@ else
         _originalServingUnit = _servingUnit;
         _originalServingsPerContainer = _servingsPerContainer;
         _originalParentProductId = _selectedParentProduct?.Id;
+        _originalProductGroupId = _productGroupId;
     }
 
     private void NavigateToChildProduct(Guid childId)
