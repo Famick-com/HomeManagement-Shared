@@ -440,23 +440,24 @@ public class ProductsController : ApiControllerBase
     {
         _logger.LogInformation("Downloading image {ImageId} for product {ProductId}", imageId, productId);
 
-        // First, get the image to validate it exists
-        // Use IgnoreFilters since this is an anonymous endpoint - access is validated by token, not tenant context
-        var image = await _productsService.GetImageByIdIgnoreFiltersAsync(productId, imageId, cancellationToken);
+        // Validate access and get expected tenant ID
+        var expectedTenantId = ValidateFileAccess(_tokenService, token, "product-image", imageId);
+        if (!expectedTenantId.HasValue)
+        {
+            return Unauthorized();
+        }
+
+        // Load image (uses IgnoreQueryFilters)
+        var image = await _productsService.GetImageByIdAsync(productId, imageId, cancellationToken);
         if (image == null)
         {
             return NotFoundResponse("Image not found");
         }
 
-        // Check authorization: either authenticated user OR valid token
-        // Use image.TenantId since this is an anonymous endpoint - TenantId from base controller won't be set
-        var isAuthenticated = User.Identity?.IsAuthenticated == true;
-        var hasValidToken = !string.IsNullOrEmpty(token) &&
-            _tokenService.ValidateToken(token, "product-image", imageId, image.TenantId);
-
-        if (!isAuthenticated && !hasValidToken)
+        // Validate tenant access
+        if (!ValidateTenantAccess(image.TenantId, expectedTenantId.Value))
         {
-            return Unauthorized();
+            return NotFoundResponse("Image not found");
         }
 
         var filePath = _fileStorage.GetProductImagePath(productId, image.FileName);
