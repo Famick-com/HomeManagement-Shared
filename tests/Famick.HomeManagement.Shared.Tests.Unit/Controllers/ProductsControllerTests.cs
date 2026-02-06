@@ -221,6 +221,121 @@ public class ProductsControllerTests
 
     #endregion
 
+    #region AddImageFromUrl Tests
+
+    [Fact]
+    public async Task AddImageFromUrl_WithValidUrl_ReturnsCreated()
+    {
+        // Arrange
+        var productId = Guid.NewGuid();
+        var request = new AddImageFromUrlRequest { ImageUrl = "https://example.com/image.jpg" };
+        var uploadedImage = new ProductImageDto
+        {
+            Id = Guid.NewGuid(),
+            ProductId = productId,
+            FileName = "image_12345.jpg",
+            OriginalFileName = "image.jpg",
+            ContentType = "image/jpeg",
+            FileSize = 12345
+        };
+
+        _mockProductsService
+            .Setup(s => s.AddImageFromUrlAsync(productId, request.ImageUrl, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(uploadedImage);
+
+        // Act
+        var result = await _controller.AddImageFromUrl(productId, request, CancellationToken.None);
+
+        // Assert
+        var createdResult = result.Should().BeOfType<CreatedAtActionResult>().Subject;
+        var returnedImage = createdResult.Value.Should().BeAssignableTo<ProductImageDto>().Subject;
+        returnedImage.ProductId.Should().Be(productId);
+        returnedImage.ContentType.Should().Be("image/jpeg");
+    }
+
+    [Fact]
+    public async Task AddImageFromUrl_WithEmptyUrl_ReturnsBadRequest()
+    {
+        // Arrange
+        var productId = Guid.NewGuid();
+        var request = new AddImageFromUrlRequest { ImageUrl = "" };
+
+        // Act
+        var result = await _controller.AddImageFromUrl(productId, request, CancellationToken.None);
+
+        // Assert
+        result.Should().BeOfType<BadRequestObjectResult>();
+    }
+
+    [Fact]
+    public async Task AddImageFromUrl_WithNullRequest_ReturnsBadRequest()
+    {
+        // Arrange
+        var productId = Guid.NewGuid();
+        var request = new AddImageFromUrlRequest { ImageUrl = null! };
+
+        // Act
+        var result = await _controller.AddImageFromUrl(productId, request, CancellationToken.None);
+
+        // Assert
+        result.Should().BeOfType<BadRequestObjectResult>();
+    }
+
+    [Fact]
+    public async Task AddImageFromUrl_WithInvalidUrl_ReturnsBadRequest()
+    {
+        // Arrange
+        var productId = Guid.NewGuid();
+        var request = new AddImageFromUrlRequest { ImageUrl = "not-a-valid-url" };
+
+        // Act
+        var result = await _controller.AddImageFromUrl(productId, request, CancellationToken.None);
+
+        // Assert
+        result.Should().BeOfType<BadRequestObjectResult>();
+    }
+
+    [Fact]
+    public async Task AddImageFromUrl_ProductNotFound_ReturnsNotFound()
+    {
+        // Arrange
+        var productId = Guid.NewGuid();
+        var request = new AddImageFromUrlRequest { ImageUrl = "https://example.com/image.jpg" };
+
+        _mockProductsService
+            .Setup(s => s.AddImageFromUrlAsync(productId, request.ImageUrl, It.IsAny<CancellationToken>()))
+            .ReturnsAsync((ProductImageDto?)null);
+
+        // Act
+        var result = await _controller.AddImageFromUrl(productId, request, CancellationToken.None);
+
+        // Assert
+        result.Should().BeOfType<NotFoundObjectResult>();
+    }
+
+    [Fact]
+    public async Task AddImageFromUrl_ServiceCalledWithCorrectParameters()
+    {
+        // Arrange
+        var productId = Guid.NewGuid();
+        var imageUrl = "https://example.com/product-image.png";
+        var request = new AddImageFromUrlRequest { ImageUrl = imageUrl };
+
+        _mockProductsService
+            .Setup(s => s.AddImageFromUrlAsync(productId, imageUrl, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ProductImageDto { Id = Guid.NewGuid(), ProductId = productId });
+
+        // Act
+        await _controller.AddImageFromUrl(productId, request, CancellationToken.None);
+
+        // Assert
+        _mockProductsService.Verify(
+            s => s.AddImageFromUrlAsync(productId, imageUrl, It.IsAny<CancellationToken>()),
+            Times.Once);
+    }
+
+    #endregion
+
     #region Helper Methods
 
     private static ProductDto CreateProduct(string barcode)
