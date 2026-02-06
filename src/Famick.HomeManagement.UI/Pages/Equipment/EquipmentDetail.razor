@@ -318,6 +318,15 @@ else
                     <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="mb-2">
                         <MudText Typo="Typo.subtitle1">@(_previewDocument.DisplayName ?? _previewDocument.OriginalFileName)</MudText>
                         <MudStack Row="true" Spacing="1">
+                            @if (IsPreviewableType(_previewDocument.ContentType))
+                            {
+                                <MudTooltip Text="@L["equipment.documents.expandPreview"]">
+                                    <MudIconButton Icon="@Icons.Material.Filled.Fullscreen"
+                                                   Color="Color.Default"
+                                                   Size="Size.Small"
+                                                   OnClick="() => ExpandPreview(_previewDocument)" />
+                                </MudTooltip>
+                            }
                             <MudTooltip Text="@L["common.edit"]">
                                 <MudIconButton Icon="@Icons.Material.Filled.Edit"
                                                Color="Color.Default"
@@ -345,8 +354,9 @@ else
                     {
                         <MudImage Src="@_previewDocument.Url"
                                   Alt="@_previewDocument.OriginalFileName"
-                                  Style="max-width: 100%; max-height: 500px; object-fit: contain;"
-                                  Elevation="0" />
+                                  Style="max-width: 100%; max-height: 500px; object-fit: contain; cursor: pointer;"
+                                  Elevation="0"
+                                  @onclick="() => ExpandPreview(_previewDocument)" />
                     }
                     else if (_previewDocument.ContentType == "application/pdf")
                     {
@@ -873,6 +883,32 @@ else
     private static bool IsImageType(string contentType)
     {
         return contentType.StartsWith("image/");
+    }
+
+    private static bool IsPreviewableType(string contentType)
+    {
+        return contentType.StartsWith("image/") || contentType == "application/pdf";
+    }
+
+    private async Task ExpandPreview(EquipmentDocumentDto doc)
+    {
+        var parameters = new DialogParameters<EquipmentDocumentPreviewDialog>
+        {
+            { x => x.Document, doc }
+        };
+
+        var options = new DialogOptions
+        {
+            MaxWidth = MaxWidth.ExtraLarge,
+            FullWidth = true,
+            CloseButton = true,
+            CloseOnEscapeKey = true
+        };
+
+        await DialogService.ShowAsync<EquipmentDocumentPreviewDialog>(
+            doc.DisplayName ?? doc.OriginalFileName,
+            parameters,
+            options);
     }
 
     private static string FormatFileSize(long bytes)
