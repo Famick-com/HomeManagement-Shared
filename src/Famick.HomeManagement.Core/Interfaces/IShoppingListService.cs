@@ -101,4 +101,55 @@ public interface IShoppingListService
     Task<MoveToInventoryResponse> MoveToInventoryAsync(
         MoveToInventoryRequest request,
         CancellationToken cancellationToken = default);
+
+    // Child product management (for parent products with variants)
+    /// <summary>
+    /// Gets child products for a parent product on a shopping list item.
+    /// Only returns children with store metadata for the shopping list's store.
+    /// </summary>
+    Task<List<ShoppingListItemChildDto>> GetChildProductsForItemAsync(
+        Guid itemId,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Checks off a specific child product with quantity.
+    /// Updates the parent item's ChildPurchasesJson and potentially marks as purchased.
+    /// </summary>
+    Task<ShoppingListItemDto> CheckOffChildAsync(
+        Guid itemId,
+        CheckOffChildRequest request,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Unchecks a child product purchase entry.
+    /// </summary>
+    Task<ShoppingListItemDto> UncheckChildAsync(
+        Guid itemId,
+        Guid childProductId,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Sends a specific child product to the store's online cart.
+    /// </summary>
+    Task<SendToCartResult> SendChildToCartAsync(
+        Guid listId,
+        Guid itemId,
+        SendChildToCartRequest request,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Adds a child product to a parent item (from store search or existing product).
+    /// </summary>
+    Task<ShoppingListItemDto> AddChildToParentAsync(
+        Guid itemId,
+        AddChildToParentRequest request,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Searches the store for products that can be added as children to a parent item.
+    /// </summary>
+    Task<List<StoreProductSearchResult>> SearchStoreForChildAsync(
+        Guid itemId,
+        string query,
+        CancellationToken cancellationToken = default);
 }

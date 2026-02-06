@@ -680,4 +680,243 @@ public class ShoppingListsController : ApiControllerBase
     }
 
     #endregion
+
+    #region Child Product Management
+
+    /// <summary>
+    /// Gets child products for a parent product on a shopping list item.
+    /// Only returns children with store metadata for the shopping list's store.
+    /// </summary>
+    /// <param name="id">Shopping list ID</param>
+    /// <param name="itemId">Shopping list item ID (must be a parent product)</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>List of child products with store metadata</returns>
+    [HttpGet("{id}/items/{itemId}/children")]
+    [ProducesResponseType(typeof(List<ShoppingListItemChildDto>), 200)]
+    [ProducesResponseType(401)]
+    [ProducesResponseType(404)]
+    [ProducesResponseType(500)]
+    public async Task<IActionResult> GetChildProducts(
+        Guid id,
+        Guid itemId,
+        CancellationToken cancellationToken)
+    {
+        _logger.LogInformation("Getting child products for item {ItemId} in list {ListId} for tenant {TenantId}",
+            itemId, id, TenantId);
+
+        try
+        {
+            var children = await _shoppingListService.GetChildProductsForItemAsync(itemId, cancellationToken);
+            return ApiResponse(children);
+        }
+        catch (EntityNotFoundException)
+        {
+            return NotFoundResponse($"Shopping list item {itemId} not found");
+        }
+    }
+
+    /// <summary>
+    /// Checks off a specific child product with quantity.
+    /// </summary>
+    /// <param name="id">Shopping list ID</param>
+    /// <param name="itemId">Shopping list item ID (parent product)</param>
+    /// <param name="request">Child check-off request</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>Updated shopping list item</returns>
+    [HttpPost("{id}/items/{itemId}/check-off-child")]
+    [Authorize(Policy = "RequireEditor")]
+    [ProducesResponseType(typeof(ShoppingListItemDto), 200)]
+    [ProducesResponseType(400)]
+    [ProducesResponseType(401)]
+    [ProducesResponseType(404)]
+    [ProducesResponseType(500)]
+    public async Task<IActionResult> CheckOffChild(
+        Guid id,
+        Guid itemId,
+        [FromBody] CheckOffChildRequest request,
+        CancellationToken cancellationToken)
+    {
+        _logger.LogInformation("Checking off child {ChildId} for item {ItemId} in list {ListId} for tenant {TenantId}",
+            request.ChildProductId, itemId, id, TenantId);
+
+        try
+        {
+            var item = await _shoppingListService.CheckOffChildAsync(itemId, request, cancellationToken);
+            return ApiResponse(item);
+        }
+        catch (EntityNotFoundException)
+        {
+            return NotFoundResponse($"Shopping list item {itemId} not found");
+        }
+        catch (DomainException ex)
+        {
+            return ValidationErrorResponse(new Dictionary<string, string[]>
+            {
+                { "ChildProductId", new[] { ex.Message } }
+            });
+        }
+    }
+
+    /// <summary>
+    /// Unchecks a child product purchase entry.
+    /// </summary>
+    /// <param name="id">Shopping list ID</param>
+    /// <param name="itemId">Shopping list item ID (parent product)</param>
+    /// <param name="childProductId">Child product ID to uncheck</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>Updated shopping list item</returns>
+    [HttpPost("{id}/items/{itemId}/uncheck-child/{childProductId}")]
+    [Authorize(Policy = "RequireEditor")]
+    [ProducesResponseType(typeof(ShoppingListItemDto), 200)]
+    [ProducesResponseType(401)]
+    [ProducesResponseType(404)]
+    [ProducesResponseType(500)]
+    public async Task<IActionResult> UncheckChild(
+        Guid id,
+        Guid itemId,
+        Guid childProductId,
+        CancellationToken cancellationToken)
+    {
+        _logger.LogInformation("Unchecking child {ChildId} from item {ItemId} in list {ListId} for tenant {TenantId}",
+            childProductId, itemId, id, TenantId);
+
+        try
+        {
+            var item = await _shoppingListService.UncheckChildAsync(itemId, childProductId, cancellationToken);
+            return ApiResponse(item);
+        }
+        catch (EntityNotFoundException)
+        {
+            return NotFoundResponse($"Shopping list item {itemId} not found");
+        }
+    }
+
+    /// <summary>
+    /// Sends a specific child product to the store's online cart.
+    /// </summary>
+    /// <param name="id">Shopping list ID</param>
+    /// <param name="itemId">Shopping list item ID (parent product)</param>
+    /// <param name="request">Send to cart request</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>Result of cart operation</returns>
+    [HttpPost("{id}/items/{itemId}/send-child-to-cart")]
+    [Authorize(Policy = "RequireEditor")]
+    [ProducesResponseType(typeof(SendToCartResult), 200)]
+    [ProducesResponseType(400)]
+    [ProducesResponseType(401)]
+    [ProducesResponseType(404)]
+    [ProducesResponseType(500)]
+    public async Task<IActionResult> SendChildToCart(
+        Guid id,
+        Guid itemId,
+        [FromBody] SendChildToCartRequest request,
+        CancellationToken cancellationToken)
+    {
+        _logger.LogInformation("Sending child {ChildId} to cart for item {ItemId} in list {ListId} for tenant {TenantId}",
+            request.ChildProductId, itemId, id, TenantId);
+
+        try
+        {
+            var result = await _shoppingListService.SendChildToCartAsync(id, itemId, request, cancellationToken);
+            return ApiResponse(result);
+        }
+        catch (EntityNotFoundException)
+        {
+            return NotFoundResponse($"Shopping list {id} not found");
+        }
+        catch (DomainException ex)
+        {
+            return ValidationErrorResponse(new Dictionary<string, string[]>
+            {
+                { "ChildProductId", new[] { ex.Message } }
+            });
+        }
+    }
+
+    /// <summary>
+    /// Adds a child product to a parent item on the shopping list.
+    /// Can use an existing product or create from store search results.
+    /// </summary>
+    /// <param name="id">Shopping list ID</param>
+    /// <param name="itemId">Shopping list item ID (parent product)</param>
+    /// <param name="request">Add child request</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>Updated shopping list item</returns>
+    [HttpPost("{id}/items/{itemId}/add-child")]
+    [Authorize(Policy = "RequireEditor")]
+    [ProducesResponseType(typeof(ShoppingListItemDto), 200)]
+    [ProducesResponseType(400)]
+    [ProducesResponseType(401)]
+    [ProducesResponseType(404)]
+    [ProducesResponseType(500)]
+    public async Task<IActionResult> AddChild(
+        Guid id,
+        Guid itemId,
+        [FromBody] AddChildToParentRequest request,
+        CancellationToken cancellationToken)
+    {
+        _logger.LogInformation("Adding child to item {ItemId} in list {ListId} for tenant {TenantId}",
+            itemId, id, TenantId);
+
+        try
+        {
+            var item = await _shoppingListService.AddChildToParentAsync(itemId, request, cancellationToken);
+            return ApiResponse(item);
+        }
+        catch (EntityNotFoundException ex)
+        {
+            return NotFoundResponse(ex.Message);
+        }
+        catch (DomainException ex)
+        {
+            return ValidationErrorResponse(new Dictionary<string, string[]>
+            {
+                { "request", new[] { ex.Message } }
+            });
+        }
+    }
+
+    /// <summary>
+    /// Searches the store for products that can be added as children to a parent item.
+    /// </summary>
+    /// <param name="id">Shopping list ID</param>
+    /// <param name="itemId">Shopping list item ID (parent product)</param>
+    /// <param name="query">Search query</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>List of store products that can be added as children</returns>
+    [HttpGet("{id}/items/{itemId}/search-store-children")]
+    [ProducesResponseType(typeof(List<StoreProductSearchResult>), 200)]
+    [ProducesResponseType(400)]
+    [ProducesResponseType(401)]
+    [ProducesResponseType(404)]
+    [ProducesResponseType(500)]
+    public async Task<IActionResult> SearchStoreForChildren(
+        Guid id,
+        Guid itemId,
+        [FromQuery] string query,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(query))
+        {
+            return ValidationErrorResponse(new Dictionary<string, string[]>
+            {
+                { "query", new[] { "Search query is required" } }
+            });
+        }
+
+        _logger.LogInformation("Searching store for children for item {ItemId} in list {ListId} with query '{Query}' for tenant {TenantId}",
+            itemId, id, query, TenantId);
+
+        try
+        {
+            var results = await _shoppingListService.SearchStoreForChildAsync(itemId, query, cancellationToken);
+            return ApiResponse(results);
+        }
+        catch (EntityNotFoundException)
+        {
+            return NotFoundResponse($"Shopping list item {itemId} not found");
+        }
+    }
+
+    #endregion
 }

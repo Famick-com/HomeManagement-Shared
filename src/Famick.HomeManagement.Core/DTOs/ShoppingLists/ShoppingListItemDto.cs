@@ -26,4 +26,45 @@ public class ShoppingListItemDto
     // Image URL (from linked product or store integration)
     public string? ImageUrl { get; set; }
     public string? Barcode { get; set; }
+
+    // Parent/child product support
+    /// <summary>
+    /// Whether this item's product is a parent product with child variants
+    /// </summary>
+    public bool IsParentProduct { get; set; }
+
+    /// <summary>
+    /// Whether this parent product has any child products
+    /// </summary>
+    public bool HasChildren { get; set; }
+
+    /// <summary>
+    /// Number of child products under this parent
+    /// </summary>
+    public int ChildProductCount { get; set; }
+
+    /// <summary>
+    /// Whether any child products have store metadata for the current store
+    /// </summary>
+    public bool HasChildrenAtStore { get; set; }
+
+    /// <summary>
+    /// Total quantity checked off across all child products
+    /// </summary>
+    public decimal ChildPurchasedQuantity { get; set; }
+
+    /// <summary>
+    /// Remaining quantity (Amount - ChildPurchasedQuantity). Can be negative if user bought extra.
+    /// </summary>
+    public decimal RemainingQuantity => Amount - ChildPurchasedQuantity;
+
+    /// <summary>
+    /// Child products with store metadata (populated on demand)
+    /// </summary>
+    public List<ShoppingListItemChildDto>? ChildProducts { get; set; }
+
+    /// <summary>
+    /// Parsed child purchase entries (from ChildPurchasesJson)
+    /// </summary>
+    public List<ChildPurchaseEntry>? ChildPurchases { get; set; }
 }
