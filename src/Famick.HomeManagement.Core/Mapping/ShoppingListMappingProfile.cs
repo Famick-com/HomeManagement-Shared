@@ -43,7 +43,15 @@ public class ShoppingListMappingProfile : Profile
             .ForMember(dest => dest.DefaultBestBeforeDays,
                 opt => opt.MapFrom(src => src.Product != null ? src.Product.DefaultBestBeforeDays : 0))
             .ForMember(dest => dest.DefaultLocationId,
-                opt => opt.MapFrom(src => src.Product != null ? src.Product.LocationId : (Guid?)null));
+                opt => opt.MapFrom(src => src.Product != null ? src.Product.LocationId : (Guid?)null))
+            // Child product fields - populated by service when needed
+            .ForMember(dest => dest.IsParentProduct, opt => opt.Ignore())
+            .ForMember(dest => dest.HasChildren, opt => opt.Ignore())
+            .ForMember(dest => dest.ChildProductCount, opt => opt.Ignore())
+            .ForMember(dest => dest.HasChildrenAtStore, opt => opt.Ignore())
+            .ForMember(dest => dest.ChildPurchasedQuantity, opt => opt.Ignore())
+            .ForMember(dest => dest.ChildProducts, opt => opt.Ignore())
+            .ForMember(dest => dest.ChildPurchases, opt => opt.Ignore());
 
         CreateMap<CreateShoppingListRequest, ShoppingList>()
             .ForMember(dest => dest.Id, opt => opt.Ignore())
@@ -72,7 +80,8 @@ public class ShoppingListMappingProfile : Profile
             .ForMember(dest => dest.Product, opt => opt.Ignore())
             .ForMember(dest => dest.IsPurchased, opt => opt.Ignore())
             .ForMember(dest => dest.PurchasedAt, opt => opt.Ignore())
-            .ForMember(dest => dest.BestBeforeDate, opt => opt.Ignore());
+            .ForMember(dest => dest.BestBeforeDate, opt => opt.Ignore())
+            .ForMember(dest => dest.ChildPurchasesJson, opt => opt.Ignore());
 
         CreateMap<UpdateShoppingListItemRequest, ShoppingListItem>()
             .ForMember(dest => dest.Id, opt => opt.Ignore())
@@ -90,6 +99,7 @@ public class ShoppingListMappingProfile : Profile
             .ForMember(dest => dest.Aisle, opt => opt.Ignore())
             .ForMember(dest => dest.Shelf, opt => opt.Ignore())
             .ForMember(dest => dest.Department, opt => opt.Ignore())
-            .ForMember(dest => dest.ExternalProductId, opt => opt.Ignore());
+            .ForMember(dest => dest.ExternalProductId, opt => opt.Ignore())
+            .ForMember(dest => dest.ChildPurchasesJson, opt => opt.Ignore());
     }
 }

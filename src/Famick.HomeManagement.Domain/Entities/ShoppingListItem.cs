@@ -89,6 +89,12 @@ namespace Famick.HomeManagement.Domain.Entities
         /// </summary>
         public string? Barcode { get; set; }
 
+        /// <summary>
+        /// JSON tracking of child product purchases when item has a parent product.
+        /// Stores an array of ChildPurchaseEntry objects.
+        /// </summary>
+        public string? ChildPurchasesJson { get; set; }
+
         // Navigation properties
         /// <summary>
         /// The shopping list this item belongs to

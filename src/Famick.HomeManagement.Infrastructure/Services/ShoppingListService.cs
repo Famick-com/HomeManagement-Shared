@@ -1338,4 +1338,690 @@ public partial class ShoppingListService : IShoppingListService
             }
         }
     }
+
+    #region Child Product Management
+
+    public async Task<List<ShoppingListItemChildDto>> GetChildProductsForItemAsync(
+        Guid itemId,
+        CancellationToken cancellationToken = default)
+    {
+        _logger.LogInformation("Getting child products for shopping list item: {ItemId}", itemId);
+
+        var item = await _context.ShoppingListItems
+            .Include(i => i.ShoppingList)
+            .Include(i => i.Product)
+                .ThenInclude(p => p!.ChildProducts)
+            .FirstOrDefaultAsync(i => i.Id == itemId, cancellationToken);
+
+        if (item == null)
+        {
+            throw new EntityNotFoundException(nameof(ShoppingListItem), itemId);
+        }
+
+        if (item.Product == null)
+        {
+            return new List<ShoppingListItemChildDto>();
+        }
+
+        // Check if this is a parent product
+        if (!item.Product.ChildProducts.Any())
+        {
+            return new List<ShoppingListItemChildDto>();
+        }
+
+        var storeId = item.ShoppingList?.ShoppingLocationId ?? Guid.Empty;
+        if (storeId == Guid.Empty)
+        {
+            // No store linked, return all children without store metadata
+            return item.Product.ChildProducts
+                .Select(c => new ShoppingListItemChildDto
+                {
+                    ProductId = c.Id,
+                    ProductName = c.Name,
+                    Description = c.Description,
+                    HasStoreMetadata = false
+                })
+                .ToList();
+        }
+
+        // Get child product IDs
+        var childProductIds = item.Product.ChildProducts.Select(c => c.Id).ToList();
+
+        // Get store metadata for children at this store
+        var storeMetadata = await _context.Set<ProductStoreMetadata>()
+            .Where(m => childProductIds.Contains(m.ProductId) && m.ShoppingLocationId == storeId)
+            .ToListAsync(cancellationToken);
+
+        var metadataLookup = storeMetadata.ToDictionary(m => m.ProductId);
+
+        // Parse existing purchases
+        var childPurchases = ParseChildPurchases(item.ChildPurchasesJson);
+        var purchaseLookup = childPurchases
+            .GroupBy(p => p.ChildProductId)
+            .ToDictionary(g => g.Key, g => g.Sum(p => p.Quantity));
+
+        // Build result - only children with store metadata at this store
+        var result = new List<ShoppingListItemChildDto>();
+        foreach (var child in item.Product.ChildProducts)
+        {
+            if (!metadataLookup.TryGetValue(child.Id, out var metadata))
+            {
+                continue; // Skip children without store metadata
+            }
+
+            purchaseLookup.TryGetValue(child.Id, out var purchasedQty);
+
+            result.Add(new ShoppingListItemChildDto
+            {
+                ProductId = child.Id,
+                ProductName = child.Name,
+                Description = child.Description,
+                ExternalProductId = metadata.ExternalProductId,
+                LastKnownPrice = metadata.LastKnownPrice,
+                PriceUnit = metadata.PriceUnit,
+                Aisle = metadata.Aisle,
+                Shelf = metadata.Shelf,
+                Department = metadata.Department,
+                InStock = metadata.InStock,
+                ImageUrl = await GetProductImageUrlAsync(child, cancellationToken),
+                HasStoreMetadata = true,
+                PurchasedQuantity = purchasedQty
+            });
+        }
+
+        _logger.LogInformation("Found {Count} child products with store metadata for item {ItemId}",
+            result.Count, itemId);
+
+        return result;
+    }
+
+    public async Task<ShoppingListItemDto> CheckOffChildAsync(
+        Guid itemId,
+        CheckOffChildRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        _logger.LogInformation("Checking off child product {ChildId} for item {ItemId} with quantity {Quantity}",
+            request.ChildProductId, itemId, request.Quantity);
+
+        var item = await _context.ShoppingListItems
+            .Include(i => i.Product)
+                .ThenInclude(p => p!.ChildProducts)
+            .Include(i => i.Product)
+                .ThenInclude(p => p!.QuantityUnitPurchase)
+            .FirstOrDefaultAsync(i => i.Id == itemId, cancellationToken);
+
+        if (item == null)
+        {
+            throw new EntityNotFoundException(nameof(ShoppingListItem), itemId);
+        }
+
+        if (item.Product == null)
+        {
+            throw new DomainException("Shopping list item does not have a linked product");
+        }
+
+        // Validate that the child is actually a child of this parent
+        var childProduct = item.Product.ChildProducts.FirstOrDefault(c => c.Id == request.ChildProductId);
+        if (childProduct == null)
+        {
+            throw new DomainException($"Product {request.ChildProductId} is not a child of product {item.Product.Id}");
+        }
+
+        // Parse existing purchases and add new entry
+        var purchases = ParseChildPurchases(item.ChildPurchasesJson);
+
+        // Check if there's already an entry for this child - update it
+        var existingEntry = purchases.FirstOrDefault(p => p.ChildProductId == request.ChildProductId);
+        if (existingEntry != null)
+        {
+            existingEntry.Quantity += request.Quantity;
+            existingEntry.PurchasedAt = DateTime.UtcNow;
+        }
+        else
+        {
+            purchases.Add(new ChildPurchaseEntry
+            {
+                ChildProductId = request.ChildProductId,
+                ChildProductName = childProduct.Name,
+                Quantity = request.Quantity,
+                PurchasedAt = DateTime.UtcNow
+            });
+        }
+
+        // Serialize back to JSON
+        item.ChildPurchasesJson = JsonSerializer.Serialize(purchases);
+
+        // Calculate total purchased quantity
+        var totalPurchased = purchases.Sum(p => p.Quantity);
+
+        // Update parent purchased status if we've met or exceeded the amount
+        if (totalPurchased >= item.Amount && !item.IsPurchased)
+        {
+            item.IsPurchased = true;
+            item.PurchasedAt = DateTime.UtcNow;
+            item.BestBeforeDate = request.BestBeforeDate;
+            _logger.LogInformation("Parent item {ItemId} marked as purchased (child total: {Total} >= amount: {Amount})",
+                itemId, totalPurchased, item.Amount);
+        }
+
+        await _context.SaveChangesAsync(cancellationToken);
+
+        return await MapItemToDtoWithChildInfo(item, cancellationToken);
+    }
+
+    public async Task<ShoppingListItemDto> UncheckChildAsync(
+        Guid itemId,
+        Guid childProductId,
+        CancellationToken cancellationToken = default)
+    {
+        _logger.LogInformation("Unchecking child product {ChildId} from item {ItemId}",
+            childProductId, itemId);
+
+        var item = await _context.ShoppingListItems
+            .Include(i => i.Product)
+                .ThenInclude(p => p!.QuantityUnitPurchase)
+            .FirstOrDefaultAsync(i => i.Id == itemId, cancellationToken);
+
+        if (item == null)
+        {
+            throw new EntityNotFoundException(nameof(ShoppingListItem), itemId);
+        }
+
+        // Parse purchases and remove the child entry
+        var purchases = ParseChildPurchases(item.ChildPurchasesJson);
+        var removed = purchases.RemoveAll(p => p.ChildProductId == childProductId);
+
+        if (removed == 0)
+        {
+            _logger.LogWarning("No purchase entry found for child {ChildId} in item {ItemId}",
+                childProductId, itemId);
+        }
+
+        item.ChildPurchasesJson = purchases.Any() ? JsonSerializer.Serialize(purchases) : null;
+
+        // Recalculate parent purchased status
+        var totalPurchased = purchases.Sum(p => p.Quantity);
+        if (item.IsPurchased && totalPurchased < item.Amount)
+        {
+            item.IsPurchased = false;
+            item.PurchasedAt = null;
+            _logger.LogInformation("Parent item {ItemId} unmarked as purchased (child total: {Total} < amount: {Amount})",
+                itemId, totalPurchased, item.Amount);
+        }
+
+        await _context.SaveChangesAsync(cancellationToken);
+
+        return await MapItemToDtoWithChildInfo(item, cancellationToken);
+    }
+
+    public async Task<SendToCartResult> SendChildToCartAsync(
+        Guid listId,
+        Guid itemId,
+        SendChildToCartRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        _logger.LogInformation("Sending child product {ChildId} to cart for item {ItemId} in list {ListId}",
+            request.ChildProductId, itemId, listId);
+
+        var list = await _context.ShoppingLists
+            .Include(l => l.ShoppingLocation)
+            .FirstOrDefaultAsync(l => l.Id == listId, cancellationToken);
+
+        if (list == null)
+        {
+            throw new EntityNotFoundException(nameof(ShoppingList), listId);
+        }
+
+        var shoppingLocation = list.ShoppingLocation;
+        if (shoppingLocation?.IntegrationType == null)
+        {
+            throw new DomainException("Shopping list is not associated with a store integration");
+        }
+
+        // Get the child product's store metadata
+        var childMetadata = await _context.Set<ProductStoreMetadata>()
+            .Include(m => m.Product)
+            .FirstOrDefaultAsync(m =>
+                m.ProductId == request.ChildProductId &&
+                m.ShoppingLocationId == shoppingLocation.Id,
+                cancellationToken);
+
+        if (childMetadata == null || string.IsNullOrEmpty(childMetadata.ExternalProductId))
+        {
+            return new SendToCartResult
+            {
+                Success = false,
+                ItemsFailed = 1,
+                Details = new List<SendToCartItemResult>
+                {
+                    new()
+                    {
+                        ItemId = itemId,
+                        ProductName = "Unknown",
+                        Success = false,
+                        ErrorMessage = "Child product does not have an external product ID for this store"
+                    }
+                }
+            };
+        }
+
+        // Get the plugin
+        var plugin = _pluginLoader.GetPlugin<IStoreIntegrationPlugin>(shoppingLocation.IntegrationType);
+        if (plugin == null || !plugin.Capabilities.HasShoppingCart)
+        {
+            throw new DomainException("Store integration does not support shopping cart");
+        }
+
+        // Get access token
+        var accessToken = await _storeIntegrationService.GetAccessTokenAsync(
+            shoppingLocation.IntegrationType, cancellationToken);
+
+        if (string.IsNullOrEmpty(accessToken))
+        {
+            return new SendToCartResult
+            {
+                Success = false,
+                ItemsFailed = 1,
+                Details = new List<SendToCartItemResult>
+                {
+                    new()
+                    {
+                        ItemId = itemId,
+                        ProductName = childMetadata.Product?.Name ?? "Unknown",
+                        Success = false,
+                        ErrorMessage = "Failed to get access token for store integration"
+                    }
+                }
+            };
+        }
+
+        try
+        {
+            var cartItems = new List<CartItemRequest>
+            {
+                new()
+                {
+                    ExternalProductId = childMetadata.ExternalProductId,
+                    Quantity = request.Quantity
+                }
+            };
+
+            var cartResult = await plugin.AddToCartAsync(
+                accessToken,
+                shoppingLocation.ExternalLocationId!,
+                cartItems,
+                cancellationToken);
+
+            if (cartResult != null)
+            {
+                return new SendToCartResult
+                {
+                    Success = true,
+                    ItemsSent = 1,
+                    Details = new List<SendToCartItemResult>
+                    {
+                        new()
+                        {
+                            ItemId = itemId,
+                            ProductName = childMetadata.Product?.Name ?? "Unknown",
+                            Success = true
+                        }
+                    }
+                };
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error adding child product to cart");
+            return new SendToCartResult
+            {
+                Success = false,
+                ItemsFailed = 1,
+                Details = new List<SendToCartItemResult>
+                {
+                    new()
+                    {
+                        ItemId = itemId,
+                        ProductName = childMetadata.Product?.Name ?? "Unknown",
+                        Success = false,
+                        ErrorMessage = ex.Message
+                    }
+                }
+            };
+        }
+
+        return new SendToCartResult
+        {
+            Success = false,
+            ItemsFailed = 1,
+            Details = new List<SendToCartItemResult>
+            {
+                new()
+                {
+                    ItemId = itemId,
+                    ProductName = childMetadata.Product?.Name ?? "Unknown",
+                    Success = false,
+                    ErrorMessage = "Failed to add to cart"
+                }
+            }
+        };
+    }
+
+    public async Task<ShoppingListItemDto> AddChildToParentAsync(
+        Guid itemId,
+        AddChildToParentRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        _logger.LogInformation("Adding child to parent item {ItemId}", itemId);
+
+        var item = await _context.ShoppingListItems
+            .Include(i => i.ShoppingList)
+                .ThenInclude(sl => sl!.ShoppingLocation)
+            .Include(i => i.Product)
+                .ThenInclude(p => p!.ChildProducts)
+            .Include(i => i.Product)
+                .ThenInclude(p => p!.QuantityUnitPurchase)
+            .FirstOrDefaultAsync(i => i.Id == itemId, cancellationToken);
+
+        if (item == null)
+        {
+            throw new EntityNotFoundException(nameof(ShoppingListItem), itemId);
+        }
+
+        if (item.Product == null)
+        {
+            throw new DomainException("Shopping list item does not have a linked parent product");
+        }
+
+        Product? childProduct = null;
+        var storeId = item.ShoppingList?.ShoppingLocationId ?? Guid.Empty;
+
+        if (request.ProductId.HasValue)
+        {
+            // Link existing product as child
+            childProduct = await _context.Products.FindAsync(new object[] { request.ProductId.Value }, cancellationToken);
+            if (childProduct == null)
+            {
+                throw new EntityNotFoundException(nameof(Product), request.ProductId.Value);
+            }
+
+            // Set parent if not already set
+            if (childProduct.ParentProductId == null)
+            {
+                childProduct.ParentProductId = item.Product.Id;
+            }
+            else if (childProduct.ParentProductId != item.Product.Id)
+            {
+                throw new DomainException("Product is already a child of a different parent product");
+            }
+
+            // Create store metadata if we have store info
+            if (!string.IsNullOrEmpty(request.ExternalProductId) && storeId != Guid.Empty)
+            {
+                var existingMetadata = await _context.Set<ProductStoreMetadata>()
+                    .FirstOrDefaultAsync(m => m.ProductId == childProduct.Id && m.ShoppingLocationId == storeId,
+                        cancellationToken);
+
+                if (existingMetadata == null)
+                {
+                    var metadata = new ProductStoreMetadata
+                    {
+                        Id = Guid.NewGuid(),
+                        ProductId = childProduct.Id,
+                        ShoppingLocationId = storeId,
+                        ExternalProductId = request.ExternalProductId,
+                        TenantId = item.TenantId
+                    };
+                    _context.Set<ProductStoreMetadata>().Add(metadata);
+                }
+            }
+        }
+        else if (!string.IsNullOrEmpty(request.ProductName))
+        {
+            // Create ad-hoc child product
+            var defaultLocation = await _context.Locations
+                .FirstOrDefaultAsync(l => l.Name == "Kitchen", cancellationToken)
+                ?? await _context.Locations
+                    .OrderBy(l => l.Name)
+                    .FirstOrDefaultAsync(cancellationToken);
+
+            var defaultQuantityUnit = await _context.QuantityUnits
+                .OrderBy(q => q.Name)
+                .FirstOrDefaultAsync(cancellationToken);
+
+            if (defaultLocation == null || defaultQuantityUnit == null)
+            {
+                throw new DomainException("Cannot create product: No default location or quantity unit configured");
+            }
+
+            childProduct = new Product
+            {
+                Id = Guid.NewGuid(),
+                Name = request.ProductName,
+                ParentProductId = item.Product.Id,
+                LocationId = defaultLocation.Id,
+                QuantityUnitIdPurchase = defaultQuantityUnit.Id,
+                QuantityUnitIdStock = defaultQuantityUnit.Id,
+                QuantityUnitFactorPurchaseToStock = 1.0m,
+                IsActive = true,
+                TenantId = item.TenantId
+            };
+            _context.Products.Add(childProduct);
+
+            // Create store metadata if we have store info
+            if (!string.IsNullOrEmpty(request.ExternalProductId) && storeId != Guid.Empty)
+            {
+                var metadata = new ProductStoreMetadata
+                {
+                    Id = Guid.NewGuid(),
+                    ProductId = childProduct.Id,
+                    ShoppingLocationId = storeId,
+                    ExternalProductId = request.ExternalProductId,
+                    TenantId = item.TenantId
+                };
+                _context.Set<ProductStoreMetadata>().Add(metadata);
+            }
+        }
+        else
+        {
+            throw new DomainException("Either ProductId or ProductName must be provided");
+        }
+
+        // Add to child purchases
+        var purchases = ParseChildPurchases(item.ChildPurchasesJson);
+        var existingEntry = purchases.FirstOrDefault(p => p.ChildProductId == childProduct.Id);
+        if (existingEntry != null)
+        {
+            existingEntry.Quantity += request.Quantity;
+            existingEntry.PurchasedAt = DateTime.UtcNow;
+        }
+        else
+        {
+            purchases.Add(new ChildPurchaseEntry
+            {
+                ChildProductId = childProduct.Id,
+                ChildProductName = childProduct.Name,
+                Quantity = request.Quantity,
+                ExternalProductId = request.ExternalProductId,
+                PurchasedAt = DateTime.UtcNow
+            });
+        }
+
+        item.ChildPurchasesJson = JsonSerializer.Serialize(purchases);
+
+        // Update parent purchased status
+        var totalPurchased = purchases.Sum(p => p.Quantity);
+        if (totalPurchased >= item.Amount && !item.IsPurchased)
+        {
+            item.IsPurchased = true;
+            item.PurchasedAt = DateTime.UtcNow;
+            item.BestBeforeDate = request.BestBeforeDate;
+        }
+
+        await _context.SaveChangesAsync(cancellationToken);
+
+        _logger.LogInformation("Added child {ChildId} to parent item {ItemId}",
+            childProduct.Id, itemId);
+
+        return await MapItemToDtoWithChildInfo(item, cancellationToken);
+    }
+
+    public async Task<List<StoreProductSearchResult>> SearchStoreForChildAsync(
+        Guid itemId,
+        string query,
+        CancellationToken cancellationToken = default)
+    {
+        _logger.LogInformation("Searching store for child products for item {ItemId} with query '{Query}'",
+            itemId, query);
+
+        var item = await _context.ShoppingListItems
+            .Include(i => i.ShoppingList)
+                .ThenInclude(sl => sl!.ShoppingLocation)
+            .FirstOrDefaultAsync(i => i.Id == itemId, cancellationToken);
+
+        if (item == null)
+        {
+            throw new EntityNotFoundException(nameof(ShoppingListItem), itemId);
+        }
+
+        var shoppingLocation = item.ShoppingList?.ShoppingLocation;
+        if (shoppingLocation?.IntegrationType == null)
+        {
+            return new List<StoreProductSearchResult>();
+        }
+
+        try
+        {
+            var searchRequest = new StoreProductSearchRequest
+            {
+                Query = query,
+                MaxResults = 20
+            };
+
+            var storeResults = await _storeIntegrationService.SearchProductsAtStoreAsync(
+                shoppingLocation.Id,
+                searchRequest,
+                cancellationToken);
+
+            // Check if any results are already linked to local products
+            var externalIds = storeResults
+                .Where(r => !string.IsNullOrEmpty(r.ExternalProductId))
+                .Select(r => r.ExternalProductId!)
+                .ToList();
+
+            var linkedProducts = await _context.Set<ProductStoreMetadata>()
+                .Where(m => m.ShoppingLocationId == shoppingLocation.Id && externalIds.Contains(m.ExternalProductId!))
+                .ToDictionaryAsync(m => m.ExternalProductId!, m => m.ProductId, cancellationToken);
+
+            return storeResults.Select(r => new StoreProductSearchResult
+            {
+                ExternalProductId = r.ExternalProductId ?? string.Empty,
+                ProductName = r.Name ?? "Unknown",
+                Description = r.Description,
+                Price = r.Price,
+                PriceUnit = r.PriceUnit,
+                Aisle = r.Aisle,
+                Department = r.Department,
+                ImageUrl = r.ImageUrl,
+                Barcode = r.Barcode,
+                InStock = r.InStock,
+                LinkedProductId = !string.IsNullOrEmpty(r.ExternalProductId) && linkedProducts.TryGetValue(r.ExternalProductId, out var pid)
+                    ? pid
+                    : null
+            }).ToList();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to search store for child products");
+            return new List<StoreProductSearchResult>();
+        }
+    }
+
+    #endregion
+
+    #region Child Product Helpers
+
+    private static List<ChildPurchaseEntry> ParseChildPurchases(string? json)
+    {
+        if (string.IsNullOrEmpty(json))
+        {
+            return new List<ChildPurchaseEntry>();
+        }
+
+        try
+        {
+            return JsonSerializer.Deserialize<List<ChildPurchaseEntry>>(json)
+                ?? new List<ChildPurchaseEntry>();
+        }
+        catch
+        {
+            return new List<ChildPurchaseEntry>();
+        }
+    }
+
+    private async Task<string?> GetProductImageUrlAsync(Product product, CancellationToken cancellationToken)
+    {
+        var image = await _context.ProductImages
+            .Where(pi => pi.ProductId == product.Id)
+            .OrderByDescending(pi => pi.IsPrimary)
+            .ThenBy(pi => pi.SortOrder)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (image == null)
+        {
+            return null;
+        }
+
+        if (!string.IsNullOrEmpty(image.ExternalUrl))
+        {
+            return image.ExternalUrl;
+        }
+
+        var token = _tokenService.GenerateToken("product-image", image.Id, image.TenantId);
+        return _fileStorage.GetProductImageUrl(product.Id, image.Id, token);
+    }
+
+    private async Task<ShoppingListItemDto> MapItemToDtoWithChildInfo(
+        ShoppingListItem item,
+        CancellationToken cancellationToken)
+    {
+        var dto = _mapper.Map<ShoppingListItemDto>(item);
+
+        if (item.Product != null)
+        {
+            // Count child products
+            var childCount = await _context.Products
+                .CountAsync(p => p.ParentProductId == item.ProductId, cancellationToken);
+
+            dto.IsParentProduct = childCount > 0;
+            dto.HasChildren = childCount > 0;
+            dto.ChildProductCount = childCount;
+
+            // Check if any children have store metadata
+            if (childCount > 0 && item.ShoppingList?.ShoppingLocationId != Guid.Empty)
+            {
+                var storeId = item.ShoppingList?.ShoppingLocationId ?? Guid.Empty;
+                if (storeId != Guid.Empty)
+                {
+                    var childIds = await _context.Products
+                        .Where(p => p.ParentProductId == item.ProductId)
+                        .Select(p => p.Id)
+                        .ToListAsync(cancellationToken);
+
+                    dto.HasChildrenAtStore = await _context.Set<ProductStoreMetadata>()
+                        .AnyAsync(m => childIds.Contains(m.ProductId) && m.ShoppingLocationId == storeId,
+                            cancellationToken);
+                }
+            }
+
+            // Parse child purchases
+            var purchases = ParseChildPurchases(item.ChildPurchasesJson);
+            dto.ChildPurchases = purchases;
+            dto.ChildPurchasedQuantity = purchases.Sum(p => p.Quantity);
+        }
+
+        return dto;
+    }
+
+    #endregion
 }
