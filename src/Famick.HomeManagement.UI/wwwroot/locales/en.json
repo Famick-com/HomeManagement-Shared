@@ -1061,7 +1061,8 @@
       "dropHere": "Drop files here or click to upload",
       "allowedTypes": "Allowed: PDF, images, Word, Excel, text files (max 20MB)",
       "createType": "Create new",
-      "typeCreated": "Document type \"{0}\" created"
+      "typeCreated": "Document type \"{0}\" created",
+      "expandPreview": "Expand preview"
     },
     "categories": {
       "title": "Equipment Categories",
