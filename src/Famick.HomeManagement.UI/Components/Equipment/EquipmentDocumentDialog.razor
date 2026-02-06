@@ -1,5 +1,6 @@
 @using Famick.HomeManagement.Core.DTOs.Equipment
 @inject ILocalizer L
+@inject ISnackbar Snackbar
 
 <MudDialog>
     <TitleContent>
@@ -36,17 +37,37 @@
                           Variant="Variant.Outlined"
                           HelperText="@L["equipment.documents.displayNameHelper"]" />
 
-            <MudSelect T="Guid?"
-                       @bind-Value="_selectedTagId"
-                       Label="@L["equipment.documents.tag"]"
-                       Variant="Variant.Outlined"
-                       Clearable="true"
-                       AnchorOrigin="Origin.BottomCenter">
-                @foreach (var tag in Tags)
-                {
-                    <MudSelectItem T="Guid?" Value="@tag.Id">@tag.Name</MudSelectItem>
-                }
-            </MudSelect>
+            <MudAutocomplete T="EquipmentDocumentTagDto"
+                             Label="@L["equipment.documents.tag"]"
+                             Variant="Variant.Outlined"
+                             SearchFunc="SearchTagsAsync"
+                             ToStringFunc="@(t => t?.Name ?? "")"
+                             Value="_selectedTag"
+                             ValueChanged="HandleTagChanged"
+                             Clearable="true"
+                             ShowProgressIndicator="true"
+                             DebounceInterval="100"
+                             CoerceText="false"
+                             CoerceValue="false"
+                             ResetValueOnEmptyText="true">
+                <ItemTemplate Context="tag">
+                    @if (tag.Id == Guid.Empty)
+                    {
+                        @* This is the "Create new" option *@
+                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                            <MudIcon Icon="@Icons.Material.Filled.Add" Color="Color.Primary" Size="Size.Small" />
+                            <MudText Color="Color.Primary">@L["equipment.documents.createType"]: "@tag.Name"</MudText>
+                        </MudStack>
+                    }
+                    else
+                    {
+                        <MudText>@tag.Name</MudText>
+                    }
+                </ItemTemplate>
+                <NoItemsTemplate>
+                    <MudText Typo="Typo.body2" Class="pa-2">@L["common.noResults"]</MudText>
+                </NoItemsTemplate>
+            </MudAutocomplete>
         </MudStack>
     </DialogContent>
     <DialogActions>
@@ -111,14 +132,74 @@
     [Parameter]
     public Guid? InitialTagId { get; set; }
 
+    /// <summary>
+    /// Callback to create a new document tag. Returns the created tag or null on failure.
+    /// </summary>
+    [Parameter]
+    public Func<string, Task<EquipmentDocumentTagDto?>>? OnCreateTag { get; set; }
+
     private string? _displayName;
-    private Guid? _selectedTagId;
+    private EquipmentDocumentTagDto? _selectedTag;
     private bool _isSubmitting;
+    private List<EquipmentDocumentTagDto> _localTags = new();
 
     protected override void OnInitialized()
     {
         _displayName = InitialDisplayName;
-        _selectedTagId = InitialTagId;
+        _localTags = new List<EquipmentDocumentTagDto>(Tags);
+
+        // Set initial tag selection
+        if (InitialTagId.HasValue)
+        {
+            _selectedTag = _localTags.FirstOrDefault(t => t.Id == InitialTagId.Value);
+        }
+    }
+
+    private Task<IEnumerable<EquipmentDocumentTagDto>> SearchTagsAsync(string searchText, CancellationToken cancellationToken)
+    {
+        var results = new List<EquipmentDocumentTagDto>();
+
+        // Filter existing tags
+        var filtered = string.IsNullOrWhiteSpace(searchText)
+            ? _localTags
+            : _localTags.Where(t => t.Name.Contains(searchText, StringComparison.OrdinalIgnoreCase)).ToList();
+
+        results.AddRange(filtered);
+
+        // Add "Create new" option if user has typed something that doesn't exactly match
+        if (!string.IsNullOrWhiteSpace(searchText) && OnCreateTag != null)
+        {
+            var exactMatch = _localTags.Any(t => t.Name.Equals(searchText, StringComparison.OrdinalIgnoreCase));
+            if (!exactMatch)
+            {
+                results.Insert(0, new EquipmentDocumentTagDto
+                {
+                    Id = Guid.Empty, // Marker for "create new"
+                    Name = searchText.Trim()
+                });
+            }
+        }
+
+        return Task.FromResult<IEnumerable<EquipmentDocumentTagDto>>(results);
+    }
+
+    private async Task HandleTagChanged(EquipmentDocumentTagDto? value)
+    {
+        if (value != null && value.Id == Guid.Empty && OnCreateTag != null)
+        {
+            // User selected "Create new" option
+            var newTag = await OnCreateTag(value.Name);
+            if (newTag != null)
+            {
+                _localTags.Add(newTag);
+                _selectedTag = newTag;
+                Snackbar.Add(L["equipment.documents.typeCreated", newTag.Name], Severity.Success);
+            }
+            // If creation failed, don't update the selection
+            return;
+        }
+
+        _selectedTag = value;
     }
 
     private void Cancel() => MudDialog.Cancel();
@@ -129,7 +210,7 @@
         var result = new EquipmentDocumentDialogResult
         {
             DisplayName = string.IsNullOrWhiteSpace(_displayName) ? null : _displayName.Trim(),
-            TagId = _selectedTagId
+            TagId = _selectedTag?.Id
         };
         MudDialog.Close(DialogResult.Ok(result));
     }

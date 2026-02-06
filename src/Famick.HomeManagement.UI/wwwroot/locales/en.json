@@ -1059,7 +1059,9 @@
       "deleted": "Document deleted successfully",
       "confirmDelete": "Are you sure you want to delete this document?",
       "dropHere": "Drop files here or click to upload",
-      "allowedTypes": "Allowed: PDF, images, Word, Excel, text files (max 20MB)"
+      "allowedTypes": "Allowed: PDF, images, Word, Excel, text files (max 20MB)",
+      "createType": "Create new",
+      "typeCreated": "Document type \"{0}\" created"
     },
     "categories": {
       "title": "Equipment Categories",
