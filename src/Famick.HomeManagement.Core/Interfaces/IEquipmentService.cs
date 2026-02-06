@@ -93,7 +93,8 @@ public interface IEquipmentService
     Task<List<EquipmentDocumentDto>> GetDocumentsAsync(Guid equipmentId, CancellationToken ct = default);
 
     /// <summary>
-    /// Gets a single document by ID (for download endpoint)
+    /// Gets a single document by ID (for download endpoint).
+    /// Uses IgnoreQueryFilters - caller must validate tenant access.
     /// </summary>
     Task<EquipmentDocumentDto?> GetDocumentByIdAsync(Guid documentId, CancellationToken ct = default);
 

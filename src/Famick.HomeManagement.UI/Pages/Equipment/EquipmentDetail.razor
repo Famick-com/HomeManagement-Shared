@@ -617,7 +617,8 @@ else
             { x => x.IsEditMode, false },
             { x => x.FileName, file.Name },
             { x => x.FileSize, file.Size },
-            { x => x.Tags, _tags }
+            { x => x.Tags, _tags },
+            { x => x.OnCreateTag, CreateDocumentTagAsync }
         };
 
         var options = new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true };
@@ -685,7 +686,8 @@ else
             { x => x.FileName, doc.OriginalFileName },
             { x => x.Tags, _tags },
             { x => x.InitialDisplayName, doc.DisplayName },
-            { x => x.InitialTagId, doc.TagId }
+            { x => x.InitialTagId, doc.TagId },
+            { x => x.OnCreateTag, CreateDocumentTagAsync }
         };
 
         var options = new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true };
@@ -735,6 +737,33 @@ else
         catch (Exception ex)
         {
             Snackbar.Add($"Error updating: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task<EquipmentDocumentTagDto?> CreateDocumentTagAsync(string name)
+    {
+        try
+        {
+            var request = new CreateEquipmentDocumentTagRequest { Name = name };
+            var result = await ApiClient.PostAsync<CreateEquipmentDocumentTagRequest, EquipmentDocumentTagDto>(
+                "api/v1/equipment/document-tags", request);
+
+            if (result.IsSuccess && result.Data != null)
+            {
+                // Add to the main tags list so it's available for future use
+                _tags.Add(result.Data);
+                return result.Data;
+            }
+            else
+            {
+                Snackbar.Add(result.ErrorMessage ?? L["common.error"], Severity.Error);
+                return null;
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error creating document type: {ex.Message}", Severity.Error);
+            return null;
         }
     }
 

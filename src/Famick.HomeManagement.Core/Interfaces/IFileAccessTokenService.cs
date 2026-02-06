@@ -26,4 +26,18 @@ public interface IFileAccessTokenService
     /// <param name="tenantId">Expected tenant ID</param>
     /// <returns>True if the token is valid and not expired</returns>
     bool ValidateToken(string token, string resourceType, Guid resourceId, Guid tenantId);
+
+    /// <summary>
+    /// Parses a token and returns its claims if the signature is valid and not expired.
+    /// Use this to extract the tenant ID before looking up the resource.
+    /// </summary>
+    /// <param name="token">The token to parse</param>
+    /// <param name="claims">The parsed claims if successful</param>
+    /// <returns>True if the token signature is valid and not expired</returns>
+    bool TryParseToken(string token, out FileAccessTokenClaims? claims);
 }
+
+/// <summary>
+/// Claims extracted from a file access token
+/// </summary>
+public record FileAccessTokenClaims(string ResourceType, Guid ResourceId, Guid TenantId);

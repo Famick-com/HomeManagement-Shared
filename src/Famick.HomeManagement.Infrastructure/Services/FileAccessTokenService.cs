@@ -110,6 +110,75 @@ public class FileAccessTokenService : IFileAccessTokenService
         }
     }
 
+    public bool TryParseToken(string token, out FileAccessTokenClaims? claims)
+    {
+        claims = null;
+
+        try
+        {
+            var decoded = Base64UrlDecode(token);
+            var parts = decoded.Split('|');
+
+            if (parts.Length != 5)
+            {
+                _logger.LogWarning("Invalid token format: wrong number of parts");
+                return false;
+            }
+
+            var tokenResourceType = parts[0];
+            var tokenResourceId = parts[1];
+            var tokenTenantId = parts[2];
+            var tokenExpiration = parts[3];
+            var tokenSignature = parts[4];
+
+            // Verify signature first
+            var payload = $"{tokenResourceType}|{tokenResourceId}|{tokenTenantId}|{tokenExpiration}";
+            var expectedSignature = ComputeSignature(payload);
+
+            if (!CryptographicOperations.FixedTimeEquals(
+                Encoding.UTF8.GetBytes(tokenSignature),
+                Encoding.UTF8.GetBytes(expectedSignature)))
+            {
+                _logger.LogWarning("Token signature validation failed");
+                return false;
+            }
+
+            // Verify expiration
+            if (!long.TryParse(tokenExpiration, out var expiration))
+            {
+                _logger.LogWarning("Invalid token expiration format");
+                return false;
+            }
+
+            if (DateTimeOffset.UtcNow.ToUnixTimeSeconds() > expiration)
+            {
+                _logger.LogWarning("Token has expired");
+                return false;
+            }
+
+            // Parse IDs
+            if (!Guid.TryParse(tokenResourceId, out var resourceId))
+            {
+                _logger.LogWarning("Invalid resource ID in token");
+                return false;
+            }
+
+            if (!Guid.TryParse(tokenTenantId, out var tenantId))
+            {
+                _logger.LogWarning("Invalid tenant ID in token");
+                return false;
+            }
+
+            claims = new FileAccessTokenClaims(tokenResourceType, resourceId, tenantId);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Token parsing failed with exception");
+            return false;
+        }
+    }
+
     private string ComputeSignature(string payload)
     {
         using var hmac = new HMACSHA256(_secretKey);

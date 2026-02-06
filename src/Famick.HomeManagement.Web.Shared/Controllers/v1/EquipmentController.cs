@@ -318,21 +318,43 @@ public class EquipmentController : ApiControllerBase
     {
         _logger.LogInformation("Downloading document {DocumentId}", documentId);
 
-        // First, get the document to validate it exists and get tenant info
+        // Check authorization: either authenticated user OR valid token
+        var isAuthenticated = User.Identity?.IsAuthenticated == true;
+        Guid? expectedTenantId = null;
+
+        if (isAuthenticated)
+        {
+            // Authenticated user - get tenant ID from provider
+            expectedTenantId = TenantId;
+        }
+        else if (!string.IsNullOrEmpty(token) && _tokenService.TryParseToken(token, out var claims))
+        {
+            // Anonymous with valid token - extract tenant ID from token
+            if (claims!.ResourceType != "equipment-document" || claims.ResourceId != documentId)
+            {
+                _logger.LogWarning("Token resource mismatch: expected equipment-document/{DocumentId}", documentId);
+                return Unauthorized();
+            }
+            expectedTenantId = claims.TenantId;
+        }
+        else
+        {
+            return Unauthorized();
+        }
+
+        // Load document (uses IgnoreQueryFilters)
         var document = await _equipmentService.GetDocumentByIdAsync(documentId, ct);
         if (document == null)
         {
             return NotFoundResponse("Document not found");
         }
 
-        // Check authorization: either authenticated user OR valid token
-        var isAuthenticated = User.Identity?.IsAuthenticated == true;
-        var hasValidToken = !string.IsNullOrEmpty(token) &&
-            _tokenService.ValidateToken(token, "equipment-document", documentId, TenantId);
-
-        if (!isAuthenticated && !hasValidToken)
+        // Validate tenant access
+        if (document.TenantId != expectedTenantId)
         {
-            return Unauthorized();
+            _logger.LogWarning("Document {DocumentId} belongs to tenant {DocumentTenant}, not {ExpectedTenant}",
+                documentId, document.TenantId, expectedTenantId);
+            return NotFoundResponse("Document not found");
         }
 
         var filePath = _fileStorage.GetEquipmentDocumentPath(document.EquipmentId, document.FileName);

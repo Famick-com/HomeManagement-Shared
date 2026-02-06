@@ -416,7 +416,10 @@ public class EquipmentService : IEquipmentService
 
     public async Task<EquipmentDocumentDto?> GetDocumentByIdAsync(Guid documentId, CancellationToken ct = default)
     {
+        // Use IgnoreQueryFilters since this is used for download endpoints where
+        // access is validated via token or authenticated user context
         var document = await _context.EquipmentDocuments
+            .IgnoreQueryFilters()
             .Include(d => d.Tag)
             .FirstOrDefaultAsync(d => d.Id == documentId, ct);
 
@@ -866,6 +869,7 @@ public class EquipmentService : IEquipmentService
         {
             Id = document.Id,
             EquipmentId = document.EquipmentId,
+            TenantId = document.TenantId,
             FileName = document.FileName,
             OriginalFileName = document.OriginalFileName,
             ContentType = document.ContentType,
