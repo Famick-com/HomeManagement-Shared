@@ -1,9 +1,11 @@
 using AutoMapper;
 using Famick.HomeManagement.Core.DTOs.Products;
+using Famick.HomeManagement.Core.DTOs.TodoItems;
 using Famick.HomeManagement.Core.Exceptions;
 using Famick.HomeManagement.Core.Interfaces;
 using Famick.HomeManagement.Core.Interfaces.Plugins;
 using Famick.HomeManagement.Domain.Entities;
+using Famick.HomeManagement.Domain.Enums;
 using Famick.HomeManagement.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 
@@ -247,7 +249,7 @@ public class ProductsService : IProductsService
             ?? throw new InvalidOperationException("Failed to retrieve updated product");
     }
 
-    public async Task DeleteAsync(Guid id, CancellationToken cancellationToken = default)
+    public async Task<ProductDependenciesDto> GetDependenciesAsync(Guid id, CancellationToken cancellationToken = default)
     {
         var product = await _context.Products.FindAsync(new object[] { id }, cancellationToken);
         if (product == null)
@@ -255,21 +257,69 @@ public class ProductsService : IProductsService
             throw new EntityNotFoundException(nameof(Product), id);
         }
 
-        // Check for dependencies
-        var hasStock = await _context.Stock.AnyAsync(s => s.ProductId == id, cancellationToken);
-        if (hasStock)
+        var stockCount = await _context.Stock.CountAsync(s => s.ProductId == id, cancellationToken);
+        var recipeCount = await _context.RecipePositions.CountAsync(rp => rp.ProductId == id, cancellationToken);
+
+        var shoppingListItems = await _context.ShoppingListItems
+            .Where(sli => sli.ProductId == id)
+            .Select(sli => sli.ShoppingList.Name)
+            .Distinct()
+            .ToListAsync(cancellationToken);
+
+        return new ProductDependenciesDto
         {
-            throw new BusinessRuleViolationException(
-                "ProductInUse",
-                $"Cannot delete product '{product.Name}' because it has stock entries");
+            StockEntryCount = stockCount,
+            ShoppingListItemCount = shoppingListItems.Count > 0
+                ? await _context.ShoppingListItems.CountAsync(sli => sli.ProductId == id, cancellationToken)
+                : 0,
+            RecipeCount = recipeCount,
+            ShoppingListNames = shoppingListItems
+        };
+    }
+
+    public async Task DeleteAsync(Guid id, bool force = false, CancellationToken cancellationToken = default)
+    {
+        var product = await _context.Products.FindAsync(new object[] { id }, cancellationToken);
+        if (product == null)
+        {
+            throw new EntityNotFoundException(nameof(Product), id);
         }
 
+        // Recipes always block deletion — cannot auto-remove recipe ingredients
         var usedInRecipes = await _context.RecipePositions.AnyAsync(rp => rp.ProductId == id, cancellationToken);
         if (usedInRecipes)
         {
             throw new BusinessRuleViolationException(
                 "ProductInUse",
                 $"Cannot delete product '{product.Name}' because it is used in recipes");
+        }
+
+        var hasStock = await _context.Stock.AnyAsync(s => s.ProductId == id, cancellationToken);
+        var hasShoppingListItems = await _context.ShoppingListItems.AnyAsync(sli => sli.ProductId == id, cancellationToken);
+
+        if ((hasStock || hasShoppingListItems) && !force)
+        {
+            throw new BusinessRuleViolationException(
+                "ProductHasDependencies",
+                $"Product '{product.Name}' has dependencies. Use force delete to remove stock entries and shopping list items.");
+        }
+
+        // Force delete: remove stock entries
+        if (hasStock)
+        {
+            var stockEntries = await _context.Stock
+                .Where(s => s.ProductId == id)
+                .ToListAsync(cancellationToken);
+            _context.Stock.RemoveRange(stockEntries);
+        }
+
+        // Force delete: remove shopping list items
+        if (hasShoppingListItems)
+        {
+            var shoppingListItems = await _context.ShoppingListItems
+                .Where(sli => sli.ProductId == id)
+                .ToListAsync(cancellationToken);
+            _context.ShoppingListItems.RemoveRange(shoppingListItems);
         }
 
         // Delete associated stock log records
@@ -710,6 +760,240 @@ public class ProductsService : IProductsService
         }
 
         return dtos;
+    }
+
+    // Autocomplete for inline add
+    public async Task<List<ProductAutocompleteDto>> AutocompleteAsync(string searchTerm, int maxResults = 10, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(searchTerm))
+            return new List<ProductAutocompleteDto>();
+
+        var normalizedSearch = searchTerm.ToLower();
+
+        var products = await _context.Products
+            .Where(p => p.IsActive && p.Name.ToLower().Contains(normalizedSearch))
+            .Include(p => p.ProductGroup)
+            .Include(p => p.Images.Where(i => i.IsPrimary).Take(1))
+            .Include(p => p.StoreMetadata.Take(1))
+            .OrderByDescending(p => p.ChildProducts.Count)
+            .ThenBy(p => p.Name)
+            .Take(maxResults)
+            .ToListAsync(cancellationToken);
+
+        return products.Select(p =>
+        {
+            var primaryImage = p.Images.FirstOrDefault();
+            string? imageUrl = null;
+            if (primaryImage != null)
+            {
+                // Use external URL directly if available, otherwise generate local download URL
+                if (!string.IsNullOrEmpty(primaryImage.ExternalThumbnailUrl))
+                    imageUrl = primaryImage.ExternalThumbnailUrl;
+                else if (!string.IsNullOrEmpty(primaryImage.ExternalUrl))
+                    imageUrl = primaryImage.ExternalUrl;
+                else
+                {
+                    var token = _tokenService.GenerateToken("product-image", primaryImage.Id, primaryImage.TenantId);
+                    imageUrl = _fileStorage.GetProductImageUrl(p.Id, primaryImage.Id, token);
+                }
+            }
+
+            var storeMetadata = p.StoreMetadata.FirstOrDefault();
+
+            return new ProductAutocompleteDto
+            {
+                Id = p.Id,
+                Name = p.Name,
+                Description = p.Description,
+                ProductGroupName = p.ProductGroup?.Name,
+                PrimaryImageUrl = imageUrl,
+                PreferredStoreAisle = storeMetadata?.Aisle,
+                PreferredStoreDepartment = storeMetadata?.Department
+            };
+        }).ToList();
+    }
+
+    // Create product from external lookup data
+    public async Task<ProductDto> CreateFromLookupAsync(CreateProductFromLookupRequest request, CancellationToken cancellationToken = default)
+    {
+        // Generate all barcode variants for duplicate checking and storage
+        var allVariants = new HashSet<BarcodeVariant>();
+        var inputBarcodes = new List<string>();
+
+        if (!string.IsNullOrWhiteSpace(request.Barcode))
+            inputBarcodes.Add(request.Barcode);
+        if (!string.IsNullOrWhiteSpace(request.OriginalSearchBarcode))
+            inputBarcodes.Add(request.OriginalSearchBarcode);
+
+        foreach (var inputBarcode in inputBarcodes)
+        {
+            var variants = ProductLookupPipelineContext.GenerateBarcodeVariants(inputBarcode);
+            foreach (var variant in variants)
+                allVariants.Add(variant);
+        }
+
+        // Check for duplicate by any barcode variant
+        if (allVariants.Count > 0)
+        {
+            var variantStrings = allVariants.Select(v => v.Barcode).ToList();
+            var existing = await _context.ProductBarcodes
+                .Include(pb => pb.Product)
+                .FirstOrDefaultAsync(pb => variantStrings.Contains(pb.Barcode), cancellationToken);
+
+            if (existing != null)
+            {
+                return await GetByIdAsync(existing.ProductId, cancellationToken)
+                    ?? throw new InvalidOperationException("Failed to retrieve existing product");
+            }
+        }
+
+        // Look up or create ProductGroup by category name
+        Guid? productGroupId = null;
+        if (!string.IsNullOrWhiteSpace(request.Category))
+        {
+            var productGroup = await _context.ProductGroups
+                .FirstOrDefaultAsync(pg => pg.Name.ToLower() == request.Category.ToLower(), cancellationToken);
+
+            if (productGroup == null)
+            {
+                productGroup = new ProductGroup
+                {
+                    Id = Guid.NewGuid(),
+                    Name = request.Category
+                };
+                _context.ProductGroups.Add(productGroup);
+                await _context.SaveChangesAsync(cancellationToken);
+            }
+
+            productGroupId = productGroup.Id;
+        }
+
+        // Get tenant defaults for required FK fields
+        var defaultLocation = await _context.Locations.FirstOrDefaultAsync(cancellationToken)
+            ?? throw new DomainException("No locations configured. Please create at least one location first.");
+        var defaultUnit = await _context.QuantityUnits.FirstOrDefaultAsync(cancellationToken)
+            ?? throw new DomainException("No quantity units configured. Please create at least one quantity unit first.");
+
+        // Build description with brand
+        var description = request.Description;
+        if (!string.IsNullOrWhiteSpace(request.Brand) && string.IsNullOrWhiteSpace(description))
+        {
+            description = request.Brand;
+        }
+
+        var product = new Product
+        {
+            Id = Guid.NewGuid(),
+            Name = request.Name,
+            Description = description,
+            LocationId = defaultLocation.Id,
+            QuantityUnitIdPurchase = defaultUnit.Id,
+            QuantityUnitIdStock = defaultUnit.Id,
+            QuantityUnitFactorPurchaseToStock = 1.0m,
+            IsActive = true,
+            ProductGroupId = productGroupId,
+            ShoppingLocationId = request.ShoppingLocationId
+        };
+
+        _context.Products.Add(product);
+        await _context.SaveChangesAsync(cancellationToken);
+
+        // Add all barcode variants for maximum scanning compatibility
+        if (allVariants.Count > 0)
+        {
+            foreach (var variant in allVariants)
+            {
+                _context.ProductBarcodes.Add(new ProductBarcode
+                {
+                    Id = Guid.NewGuid(),
+                    ProductId = product.Id,
+                    Barcode = variant.Barcode,
+                    Note = variant.Note
+                });
+            }
+            await _context.SaveChangesAsync(cancellationToken);
+        }
+
+        // Add image from URL if provided
+        if (!string.IsNullOrWhiteSpace(request.ImageUrl))
+        {
+            await AddImageFromUrlAsync(product.Id, request.ImageUrl, cancellationToken);
+        }
+
+        // Add store metadata if shopping location and store info provided
+        if (request.ShoppingLocationId.HasValue &&
+            (!string.IsNullOrEmpty(request.Aisle) || !string.IsNullOrEmpty(request.Department) || request.Price.HasValue))
+        {
+            _context.ProductStoreMetadata.Add(new ProductStoreMetadata
+            {
+                Id = Guid.NewGuid(),
+                ProductId = product.Id,
+                ShoppingLocationId = request.ShoppingLocationId.Value,
+                ExternalProductId = request.ExternalId,
+                LastKnownPrice = request.Price,
+                PriceUpdatedAt = request.Price.HasValue ? DateTime.UtcNow : null,
+                Aisle = request.Aisle,
+                Shelf = request.Shelf,
+                Department = request.Department
+            });
+            await _context.SaveChangesAsync(cancellationToken);
+        }
+
+        // Create review TodoItem
+        var sourceLabel = !string.IsNullOrWhiteSpace(request.SourceType) ? request.SourceType : "external lookup";
+        _context.TodoItems.Add(new TodoItem
+        {
+            Id = Guid.NewGuid(),
+            TaskType = TaskType.Product,
+            DateEntered = DateTime.UtcNow,
+            Reason = $"Review product: {request.Name} (added from {sourceLabel})",
+            RelatedEntityId = product.Id,
+            RelatedEntityType = "Product"
+        });
+        await _context.SaveChangesAsync(cancellationToken);
+
+        return await GetByIdAsync(product.Id, cancellationToken)
+            ?? throw new InvalidOperationException("Failed to retrieve created product");
+    }
+
+    // Create product from free-text name
+    public async Task<ProductDto> CreateFromFreeTextAsync(string name, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(name))
+            throw new DomainException("Product name is required");
+
+        // Check for existing active product by exact name match
+        var existingProduct = await _context.Products
+            .FirstOrDefaultAsync(p => p.Name.ToLower() == name.ToLower().Trim() && p.IsActive, cancellationToken);
+
+        if (existingProduct != null)
+        {
+            return await GetByIdAsync(existingProduct.Id, cancellationToken)
+                ?? throw new InvalidOperationException("Failed to retrieve existing product");
+        }
+
+        // Get tenant defaults for required FK fields
+        var defaultLocation = await _context.Locations.FirstOrDefaultAsync(cancellationToken)
+            ?? throw new DomainException("No locations configured. Please create at least one location first.");
+        var defaultUnit = await _context.QuantityUnits.FirstOrDefaultAsync(cancellationToken)
+            ?? throw new DomainException("No quantity units configured. Please create at least one quantity unit first.");
+
+        var product = new Product
+        {
+            Id = Guid.NewGuid(),
+            Name = name.Trim(),
+            LocationId = defaultLocation.Id,
+            QuantityUnitIdPurchase = defaultUnit.Id,
+            QuantityUnitIdStock = defaultUnit.Id,
+            QuantityUnitFactorPurchaseToStock = 1.0m,
+            IsActive = true
+        };
+
+        _context.Products.Add(product);
+        await _context.SaveChangesAsync(cancellationToken);
+
+        return await GetByIdAsync(product.Id, cancellationToken)
+            ?? throw new InvalidOperationException("Failed to retrieve created product");
     }
 
     // Private helper methods
