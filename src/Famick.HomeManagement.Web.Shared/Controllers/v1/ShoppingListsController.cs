@@ -60,9 +60,11 @@ public class ShoppingListsController : ApiControllerBase
     [ProducesResponseType(500)]
     public async Task<IActionResult> List(CancellationToken cancellationToken)
     {
+        Console.WriteLine($"[ShoppingListsController] List: Request received for tenant {TenantId}");
         _logger.LogInformation("Listing shopping lists for tenant {TenantId}", TenantId);
 
         var shoppingLists = await _shoppingListService.ListAllAsync(cancellationToken);
+        Console.WriteLine($"[ShoppingListsController] List: Returning {shoppingLists.Count} lists");
         return ApiResponse(shoppingLists);
     }
 

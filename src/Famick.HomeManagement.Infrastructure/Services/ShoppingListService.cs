@@ -148,13 +148,17 @@ public partial class ShoppingListService : IShoppingListService
     public async Task<List<ShoppingListSummaryDto>> ListAllAsync(
         CancellationToken cancellationToken = default)
     {
+        Console.WriteLine("[ShoppingListService] ListAllAsync: Starting query...");
         var shoppingLists = await _context.ShoppingLists
             .Include(sl => sl.ShoppingLocation)
             .Include(sl => sl.Items)
             .OrderByDescending(sl => sl.UpdatedAt)
             .ToListAsync(cancellationToken);
 
-        return _mapper.Map<List<ShoppingListSummaryDto>>(shoppingLists);
+        Console.WriteLine($"[ShoppingListService] ListAllAsync: Query returned {shoppingLists.Count} lists, mapping...");
+        var result = _mapper.Map<List<ShoppingListSummaryDto>>(shoppingLists);
+        Console.WriteLine("[ShoppingListService] ListAllAsync: Mapping complete.");
+        return result;
     }
 
     public async Task<List<ShoppingListSummaryDto>> ListByStoreAsync(
