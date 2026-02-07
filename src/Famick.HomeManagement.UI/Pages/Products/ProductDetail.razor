@@ -801,19 +801,67 @@ else
 
     private async Task HandleDelete()
     {
-        var confirmed = await DialogService.ShowMessageBox(
-            L["confirmations.deleteTitle"],
-            L["products.confirmDelete"],
-            yesText: L["common.delete"],
-            cancelText: L["common.cancel"]);
-
-        if (confirmed != true) return;
-
         _isSaving = true;
 
         try
         {
-            var result = await ApiClient.DeleteAsync($"api/v1/products/{Id}");
+            // Check dependencies first
+            var depsResult = await ApiClient.GetAsync<ProductDependenciesDto>($"api/v1/products/{Id}/dependencies");
+
+            if (!depsResult.IsSuccess || depsResult.Data == null)
+            {
+                Snackbar.Add(depsResult.ErrorMessage ?? L["errors.generic"], Severity.Error);
+                return;
+            }
+
+            var deps = depsResult.Data;
+            var hasDependencies = deps.StockEntryCount > 0 || deps.ShoppingListItemCount > 0 || deps.RecipeCount > 0;
+
+            if (deps.RecipeCount > 0)
+            {
+                // Recipes block deletion entirely
+                Snackbar.Add(L["products.deleteBlockedByRecipes"], Severity.Warning);
+                return;
+            }
+
+            bool? confirmed;
+            bool forceDelete = false;
+
+            if (hasDependencies)
+            {
+                // Build a detailed message about what will be affected
+                var details = new List<string>();
+                if (deps.StockEntryCount > 0)
+                    details.Add(L["products.deleteDepsStock", deps.StockEntryCount]);
+                if (deps.ShoppingListItemCount > 0)
+                    details.Add(L["products.deleteDepsShoppingList", deps.ShoppingListItemCount, string.Join(", ", deps.ShoppingListNames)]);
+
+                var message = L["products.confirmDeleteWithDeps", string.Join("\n", details)];
+
+                confirmed = await DialogService.ShowMessageBox(
+                    L["confirmations.deleteTitle"],
+                    (MarkupString)message,
+                    yesText: L["products.deleteAndRemoveDeps"],
+                    cancelText: L["common.cancel"]);
+
+                forceDelete = true;
+            }
+            else
+            {
+                confirmed = await DialogService.ShowMessageBox(
+                    L["confirmations.deleteTitle"],
+                    L["products.confirmDelete"],
+                    yesText: L["common.delete"],
+                    cancelText: L["common.cancel"]);
+            }
+
+            if (confirmed != true) return;
+
+            var deleteUrl = forceDelete
+                ? $"api/v1/products/{Id}?force=true"
+                : $"api/v1/products/{Id}";
+
+            var result = await ApiClient.DeleteAsync(deleteUrl);
 
             if (result.IsSuccess)
             {

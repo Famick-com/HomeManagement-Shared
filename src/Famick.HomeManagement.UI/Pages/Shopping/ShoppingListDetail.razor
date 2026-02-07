@@ -7,11 +7,8 @@
 @inject NavigationManager Navigation
 @inject IMobileDetectionService MobileDetectionService
 @using Famick.HomeManagement.Core.DTOs.ShoppingLists
-@using Famick.HomeManagement.Core.DTOs.Products
-@using Famick.HomeManagement.Core.DTOs.ProductLookup
 @using Famick.HomeManagement.Core.DTOs.Locations
 @using Famick.HomeManagement.UI.Services
-@using Famick.HomeManagement.UI.Components.Products
 @using Famick.HomeManagement.UI.Components.Shopping
 
 <PageTitle>@(_list?.Name ?? L["shopping.list"]) - Home Management</PageTitle>
@@ -157,20 +154,13 @@
 }
 
 @* Add Item Section *@
-<MudPaper Elevation="1" Class="pa-4 mb-4">
-    <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween">
-        <MudText Typo="Typo.body1" Color="Color.Secondary">@L["shopping.addItemHint"]</MudText>
-        <MudTooltip Text="@(CanEdit ? null : L["common.viewerNoPermission"])">
-            <MudButton Variant="Variant.Filled"
-                       Color="Color.Primary"
-                       StartIcon="@Icons.Material.Filled.Search"
-                       OnClick="OpenProductSearch"
-                       Disabled="@(!CanEdit)">
-                @L["shopping.searchProducts"]
-            </MudButton>
-        </MudTooltip>
-    </MudStack>
-</MudPaper>
+@if (CanEdit)
+{
+    <ShoppingListAddItemRow
+        ShoppingListId="@Id"
+        ShoppingLocationId="@_list?.ShoppingLocationId"
+        OnItemAdded="LoadListAsync" />
+}
 
 @* Loading State *@
 @if (_isLoading)
@@ -402,78 +392,6 @@
     }
 </MudHidden>
 
-@* Add Item Dialog (after product search) *@
-<MudDialog @bind-Visible="_addDialogVisible" Options="@(new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true })">
-    <TitleContent>
-        <MudText Typo="Typo.h6">@L["shopping.addItem"]</MudText>
-    </TitleContent>
-    <DialogContent>
-        @if (_selectedLookupResult != null)
-        {
-            <MudStack Spacing="3">
-                @* Product Info *@
-                <MudPaper Elevation="0" Class="pa-3" Style="background-color: var(--mud-palette-background-grey);">
-                    <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Start">
-                        @if (!string.IsNullOrEmpty(_selectedLookupResult.ThumbnailUrl))
-                        {
-                            <MudImage Src="@_selectedLookupResult.ThumbnailUrl" Width="60" Height="60" ObjectFit="ObjectFit.Cover" Class="rounded" />
-                        }
-                        else
-                        {
-                            <MudIcon Icon="@Icons.Material.Filled.Inventory2" Size="Size.Large" Color="Color.Primary" />
-                        }
-                        <MudStack Spacing="0">
-                            <MudText Typo="Typo.body1" Style="font-weight: 500;">@_selectedLookupResult.Name</MudText>
-                            @if (!string.IsNullOrEmpty(_selectedLookupResult.Brand))
-                            {
-                                <MudText Typo="Typo.caption" Color="Color.Secondary">@_selectedLookupResult.Brand</MudText>
-                            }
-                            @if (_selectedLookupResult.Price.HasValue)
-                            {
-                                <MudChip T="string" Size="Size.Small" Color="Color.Success" Variant="Variant.Filled" Class="mt-1">
-                                    @_selectedLookupResult.Price.Value.ToString("C")
-                                </MudChip>
-                            }
-                            @if (!string.IsNullOrEmpty(_selectedLookupResult.Aisle))
-                            {
-                                <MudText Typo="Typo.caption" Color="Color.Info" Class="mt-1">
-                                    @L["shopping.aisle"] @_selectedLookupResult.Aisle
-                                </MudText>
-                            }
-                        </MudStack>
-                    </MudStack>
-                </MudPaper>
-
-                <MudNumericField T="decimal"
-                                 @bind-Value="_addAmount"
-                                 Label="@L["common.amount"]"
-                                 Variant="Variant.Outlined"
-                                 Min="0.01M"
-                                 Step="1" />
-
-                <MudTextField @bind-Value="_addNote"
-                              Label="@L["common.notes"]"
-                              Variant="Variant.Outlined"
-                              Lines="2"
-                              Placeholder="@L["shopping.notePlaceholder"]" />
-            </MudStack>
-        }
-    </DialogContent>
-    <DialogActions>
-        <MudButton OnClick="CloseAddDialog">@L["common.cancel"]</MudButton>
-        <MudButton Variant="Variant.Filled"
-                   Color="Color.Primary"
-                   OnClick="ConfirmAddItem"
-                   Disabled="@_isAddingItem">
-            @if (_isAddingItem)
-            {
-                <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
-            }
-            @L["shopping.addToList"]
-        </MudButton>
-    </DialogActions>
-</MudDialog>
-
 @* Edit Item Dialog *@
 <MudDialog @bind-Visible="_editDialogVisible" Options="@(new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true })">
     <TitleContent>
@@ -525,13 +443,6 @@
     private bool _isLoading = true;
     private int _purchasedCount => _list?.Items?.Count(i => i.IsPurchased) ?? 0;
     private int _unpurchasedCount => _list?.Items?.Count(i => !i.IsPurchased) ?? 0;
-
-    // Add item state
-    private bool _addDialogVisible;
-    private ProductLookupResultDto? _selectedLookupResult;
-    private decimal _addAmount = 1;
-    private string? _addNote;
-    private bool _isAddingItem;
 
     // Edit item state
     private bool _editDialogVisible;
@@ -604,89 +515,6 @@
         {
             // Reload the list to apply new ordering
             await LoadListAsync();
-        }
-    }
-
-    private async Task OpenProductSearch()
-    {
-        var parameters = new DialogParameters<ProductLookupModal>
-        {
-            { x => x.PreferredShoppingLocationId, _list?.ShoppingLocationId }
-        };
-
-        var isMobile = await MobileDetectionService.IsMobileDeviceAsync();
-        var options = new DialogOptions
-        {
-            MaxWidth = isMobile ? MaxWidth.ExtraExtraLarge : MaxWidth.Medium,
-            FullWidth = true,
-            FullScreen = isMobile,
-            CloseOnEscapeKey = true,
-            CloseButton = isMobile
-        };
-
-        var dialog = await DialogService.ShowAsync<ProductLookupModal>(L["productLookup.title"], parameters, options);
-        var result = await dialog.Result;
-
-        if (!result!.Canceled && result.Data is ProductLookupResultDto lookupResult)
-        {
-            // Show the add dialog with quantity
-            _selectedLookupResult = lookupResult;
-            _addAmount = 1;
-            _addNote = null;
-            _addDialogVisible = true;
-        }
-    }
-
-    private void CloseAddDialog()
-    {
-        _addDialogVisible = false;
-        _selectedLookupResult = null;
-    }
-
-    private async Task ConfirmAddItem()
-    {
-        if (_selectedLookupResult == null || _list == null) return;
-
-        _isAddingItem = true;
-
-        try
-        {
-            var request = new AddShoppingListItemRequest
-            {
-                Amount = _addAmount,
-                Note = _addNote,
-                // Store integration info from lookup
-                ExternalProductId = _selectedLookupResult.ExternalId,
-                Aisle = _selectedLookupResult.Aisle,
-                Shelf = _selectedLookupResult.Shelf,
-                Department = _selectedLookupResult.Department,
-                Price = _selectedLookupResult.Price,
-                Barcode = _selectedLookupResult.Barcode,
-                ProductName = _selectedLookupResult.Name,
-                ImageUrl = _selectedLookupResult.ImageUrl
-            };
-
-            var result = await ApiClient.PostAsync<AddShoppingListItemRequest, ShoppingListItemDto>(
-                $"api/v1/shoppinglists/{Id}/items", request);
-
-            if (result.IsSuccess)
-            {
-                Snackbar.Add(L["shopping.itemAdded"], Severity.Success);
-                CloseAddDialog();
-                await LoadListAsync();
-            }
-            else
-            {
-                Snackbar.Add(result.ErrorMessage ?? L["errors.generic"], Severity.Error);
-            }
-        }
-        catch (Exception)
-        {
-            Snackbar.Add(L["errors.generic"], Severity.Error);
-        }
-        finally
-        {
-            _isAddingItem = false;
         }
     }
 
@@ -1096,11 +924,4 @@
         }
     }
 
-    // Simple DTO for product search autocomplete
-    public class ProductSearchResult
-    {
-        public Guid Id { get; set; }
-        public string Name { get; set; } = string.Empty;
-        public string? ProductGroupName { get; set; }
-    }
 }

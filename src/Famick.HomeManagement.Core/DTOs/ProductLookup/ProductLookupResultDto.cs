@@ -59,6 +59,13 @@ public class ProductLookupResultDto
     public string? Barcode { get; set; }
 
     /// <summary>
+    /// The original barcode that was scanned/searched.
+    /// May differ from Barcode when a 12-digit UPC scan returns a 13-digit EAN from plugins.
+    /// Used to generate all barcode format variants when creating a product.
+    /// </summary>
+    public string? OriginalSearchBarcode { get; set; }
+
+    /// <summary>
     /// Food/product category
     /// </summary>
     public string? Category { get; set; }

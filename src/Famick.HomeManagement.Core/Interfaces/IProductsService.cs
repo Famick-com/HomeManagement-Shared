@@ -9,7 +9,8 @@ public interface IProductsService
     Task<ProductDto?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
     Task<List<ProductDto>> ListAsync(ProductFilterRequest? filter = null, CancellationToken cancellationToken = default);
     Task<ProductDto> UpdateAsync(Guid id, UpdateProductRequest request, CancellationToken cancellationToken = default);
-    Task DeleteAsync(Guid id, CancellationToken cancellationToken = default);
+    Task DeleteAsync(Guid id, bool force = false, CancellationToken cancellationToken = default);
+    Task<ProductDependenciesDto> GetDependenciesAsync(Guid id, CancellationToken cancellationToken = default);
 
     // Barcode management
     Task<ProductBarcodeDto> AddBarcodeAsync(Guid productId, string barcode, string? note = null, CancellationToken cancellationToken = default);
@@ -34,4 +35,11 @@ public interface IProductsService
 
     // Search enhancement (Phase 2)
     Task<List<ProductDto>> SearchAsync(string searchTerm, CancellationToken cancellationToken = default);
+
+    // Autocomplete for inline add
+    Task<List<ProductAutocompleteDto>> AutocompleteAsync(string searchTerm, int maxResults = 10, CancellationToken cancellationToken = default);
+
+    // Create product from external lookup or free-text
+    Task<ProductDto> CreateFromLookupAsync(CreateProductFromLookupRequest request, CancellationToken cancellationToken = default);
+    Task<ProductDto> CreateFromFreeTextAsync(string name, CancellationToken cancellationToken = default);
 }

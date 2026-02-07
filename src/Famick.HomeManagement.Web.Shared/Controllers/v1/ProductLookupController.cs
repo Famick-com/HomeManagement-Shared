@@ -195,6 +195,7 @@ public class ProductLookupController : ApiControllerBase
             Name = r.Name,
             Brand = r.BrandName,
             Barcode = r.Barcode,
+            OriginalSearchBarcode = r.OriginalSearchBarcode,
             Category = r.Categories.FirstOrDefault(),
             ImageUrl = r.ImageUrl?.ImageUrl,
             ThumbnailUrl = r.ThumbnailUrl?.ImageUrl,

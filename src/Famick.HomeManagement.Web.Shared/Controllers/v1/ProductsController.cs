@@ -163,24 +163,38 @@ public class ProductsController : ApiControllerBase
     }
 
     /// <summary>
-    /// Deletes a product (soft delete)
+    /// Gets dependency information for a product (stock, shopping lists, recipes)
     /// </summary>
-    /// <param name="id">Product ID</param>
-    /// <param name="cancellationToken">Cancellation token</param>
-    /// <returns>No content on success</returns>
+    [HttpGet("{id}/dependencies")]
+    [ProducesResponseType(typeof(ProductDependenciesDto), 200)]
+    [ProducesResponseType(401)]
+    [ProducesResponseType(404)]
+    public async Task<IActionResult> GetDependencies(
+        Guid id,
+        CancellationToken cancellationToken)
+    {
+        var dependencies = await _productsService.GetDependenciesAsync(id, cancellationToken);
+        return ApiResponse(dependencies);
+    }
+
+    /// <summary>
+    /// Deletes a product. Use force=true to also remove stock entries and shopping list items.
+    /// </summary>
     [HttpDelete("{id}")]
     [Authorize(Policy = "RequireEditor")]
     [ProducesResponseType(204)]
     [ProducesResponseType(401)]
     [ProducesResponseType(404)]
+    [ProducesResponseType(422)]
     [ProducesResponseType(500)]
     public async Task<IActionResult> Delete(
         Guid id,
-        CancellationToken cancellationToken)
+        [FromQuery] bool force = false,
+        CancellationToken cancellationToken = default)
     {
-        _logger.LogInformation("Deleting product {ProductId} for tenant {TenantId}", id, TenantId);
+        _logger.LogInformation("Deleting product {ProductId} for tenant {TenantId} (force={Force})", id, TenantId, force);
 
-        await _productsService.DeleteAsync(id, cancellationToken);
+        await _productsService.DeleteAsync(id, force, cancellationToken);
         return NoContent();
     }
 
@@ -544,6 +558,63 @@ public class ProductsController : ApiControllerBase
 
         await _productsService.ReorderImagesAsync(id, imageIds, cancellationToken);
         return NoContent();
+    }
+
+    #endregion
+
+    #region Autocomplete & Quick Create
+
+    /// <summary>
+    /// Autocomplete search for products (lightweight, for inline add)
+    /// </summary>
+    [HttpGet("autocomplete")]
+    [ProducesResponseType(typeof(List<ProductAutocompleteDto>), 200)]
+    [ProducesResponseType(401)]
+    [ProducesResponseType(500)]
+    public async Task<IActionResult> Autocomplete(
+        [FromQuery] string q,
+        [FromQuery] int maxResults = 10,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(q))
+        {
+            return ApiResponse(new List<ProductAutocompleteDto>());
+        }
+
+        var results = await _productsService.AutocompleteAsync(q, maxResults, cancellationToken);
+        return ApiResponse(results);
+    }
+
+    /// <summary>
+    /// Creates a product from external lookup data (barcode scan, store search, etc.)
+    /// </summary>
+    [HttpPost("from-lookup")]
+    [Authorize(Policy = "RequireEditor")]
+    [ProducesResponseType(typeof(ProductDto), 201)]
+    [ProducesResponseType(400)]
+    [ProducesResponseType(401)]
+    [ProducesResponseType(500)]
+    public async Task<IActionResult> CreateFromLookup(
+        [FromBody] CreateProductFromLookupRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(request.Name))
+        {
+            return ValidationErrorResponse(new Dictionary<string, string[]>
+            {
+                { "Name", new[] { "Product name is required" } }
+            });
+        }
+
+        _logger.LogInformation("Creating product from lookup '{Name}' for tenant {TenantId}", request.Name, TenantId);
+
+        var product = await _productsService.CreateFromLookupAsync(request, cancellationToken);
+
+        return CreatedAtAction(
+            nameof(GetById),
+            new { id = product.Id },
+            product
+        );
     }
 
     #endregion

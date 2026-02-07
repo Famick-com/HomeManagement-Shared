@@ -348,6 +348,12 @@ public partial class ShoppingListService : IShoppingListService
                 throw new EntityNotFoundException(nameof(Product), request.ProductId.Value);
             }
         }
+        else if (!string.IsNullOrWhiteSpace(request.ProductName))
+        {
+            // Auto-create product from free-text name
+            var createdProduct = await _productsService.CreateFromFreeTextAsync(request.ProductName, cancellationToken);
+            request.ProductId = createdProduct.Id;
+        }
 
         var item = _mapper.Map<ShoppingListItem>(request);
         item.Id = Guid.NewGuid();
@@ -670,7 +676,13 @@ public partial class ShoppingListService : IShoppingListService
             }
         }
 
-        // If no product found but ProductName provided, allow ad-hoc item
+        // If no product found but ProductName provided, auto-create product
+        if (!productId.HasValue && !string.IsNullOrWhiteSpace(request.ProductName))
+        {
+            var createdProduct = await _productsService.CreateFromFreeTextAsync(request.ProductName, cancellationToken);
+            productId = createdProduct.Id;
+        }
+
         if (!productId.HasValue && string.IsNullOrWhiteSpace(request.ProductName))
         {
             throw new DomainException("Either ProductId, valid Barcode, or ProductName must be provided");
