@@ -82,6 +82,12 @@ public class ProductConfiguration : IEntityTypeConfiguration<Product>
             .HasForeignKey(pb => pb.ProductId)
             .OnDelete(DeleteBehavior.Cascade);
 
+        // Store-specific metadata (price, aisle, availability per store)
+        builder.HasMany(p => p.StoreMetadata)
+            .WithOne(m => m.Product)
+            .HasForeignKey(m => m.ProductId)
+            .OnDelete(DeleteBehavior.Cascade);
+
         // Self-referential FK for parent-child hierarchy (product variants)
         builder.HasIndex(p => p.ParentProductId)
             .HasDatabaseName("ix_products_parent_product_id");

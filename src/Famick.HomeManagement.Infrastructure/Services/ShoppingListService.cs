@@ -93,7 +93,11 @@ public partial class ShoppingListService : IShoppingListService
                         .ThenInclude(p => p!.QuantityUnitPurchase)
                 .Include(sl => sl.Items!)
                     .ThenInclude(i => i.Product)
-                        .ThenInclude(p => p!.Images);
+                        .ThenInclude(p => p!.Images)
+                .Include(sl => sl.Items!)
+                    .ThenInclude(i => i.Product)
+                        .ThenInclude(p => p!.ChildProducts)
+                            .ThenInclude(cp => cp.StoreMetadata);
         }
 
         var shoppingList = await query.FirstOrDefaultAsync(sl => sl.Id == id, cancellationToken);
@@ -129,6 +133,67 @@ public partial class ShoppingListService : IShoppingListService
                             item.ImageUrl = _fileStorage.GetProductImageUrl(item.ProductId.Value, primaryImage.Id, token);
                         }
                     }
+                }
+            }
+        }
+
+        // Populate child product info using eagerly-loaded navigation properties
+        if (includeItems && dto.Items != null && shoppingList.Items != null)
+        {
+            var storeId = shoppingList.ShoppingLocationId;
+            var entityLookup = shoppingList.Items.ToDictionary(i => i.Id);
+
+            // Build a lookup for free-text items: resolve product by exact name match
+            // (Items added without a ProductId link need to be matched to products)
+            var freeTextNames = dto.Items
+                .Where(i => !i.ProductId.HasValue && !string.IsNullOrEmpty(i.ProductName))
+                .Select(i => i.ProductName!)
+                .Distinct()
+                .ToList();
+
+            Dictionary<string, Product> nameToProduct = new();
+            if (freeTextNames.Count > 0)
+            {
+                var matchedProducts = await _context.Products
+                    .Include(p => p.ChildProducts)
+                        .ThenInclude(cp => cp.StoreMetadata)
+                    .Where(p => freeTextNames.Contains(p.Name))
+                    .ToListAsync(cancellationToken);
+
+                foreach (var mp in matchedProducts)
+                    nameToProduct.TryAdd(mp.Name, mp);
+            }
+
+            foreach (var itemDto in dto.Items)
+            {
+                // Get the product entity: from the eager-loaded item, or from name lookup
+                Product? product = null;
+                if (entityLookup.TryGetValue(itemDto.Id, out var itemEntity))
+                    product = itemEntity.Product;
+
+                if (product == null && itemDto.ProductName != null)
+                    nameToProduct.TryGetValue(itemDto.ProductName, out product);
+
+                if (product == null || product.ChildProducts.Count == 0)
+                    continue;
+
+                // Link ProductId on the DTO if it was resolved by name
+                if (!itemDto.ProductId.HasValue)
+                    itemDto.ProductId = product.Id;
+
+                itemDto.IsParentProduct = true;
+                itemDto.HasChildren = true;
+                itemDto.ChildProductCount = product.ChildProducts.Count;
+                itemDto.HasChildrenAtStore = storeId != Guid.Empty
+                    && product.ChildProducts.Any(cp =>
+                        cp.StoreMetadata.Any(m => m.ShoppingLocationId == storeId));
+
+                // Parse child purchases from entity
+                if (itemEntity != null)
+                {
+                    var purchases = ParseChildPurchases(itemEntity.ChildPurchasesJson);
+                    itemDto.ChildPurchases = purchases;
+                    itemDto.ChildPurchasedQuantity = purchases.Sum(p => p.Quantity);
                 }
             }
         }
