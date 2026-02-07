@@ -1,4 +1,4 @@
-using Microsoft.EntityFrameworkCore.Migrations;
+﻿using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
@@ -11,7 +11,7 @@ namespace Famick.HomeManagement.Infrastructure.Migrations
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.AddColumn<string>(
-                name: "child_purchases_json",
+                name: "ChildPurchasesJson",
                 table: "shopping_list",
                 type: "text",
                 nullable: true);
@@ -21,7 +21,7 @@ namespace Famick.HomeManagement.Infrastructure.Migrations
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropColumn(
-                name: "child_purchases_json",
+                name: "ChildPurchasesJson",
                 table: "shopping_list");
         }
     }

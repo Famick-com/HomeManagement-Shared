@@ -11,6 +11,12 @@
 @using Famick.HomeManagement.UI.Services
 @using Famick.HomeManagement.UI.Components.Shopping
 
+@* Child Product Panel for parent items *@
+<ChildProductPanel @ref="_childProductPanel"
+                   ListId="@Id"
+                   CanEdit="@CanEdit"
+                   OnItemUpdated="@OnChildProductPanelItemUpdated" />
+
 <PageTitle>@L["shopping.shoppingMode"] - @(_list?.Name ?? "Shopping")</PageTitle>
 
 @* App Download Banner for mobile users *@
@@ -91,7 +97,8 @@ else
                 <ShoppingModeItem Item="@item"
                                   CanEdit="@CanEdit"
                                   IsLoading="@_togglingItems.Contains(item.Id)"
-                                  OnPurchasedChanged="@((value) => OnItemPurchasedChanged(item, value))" />
+                                  OnPurchasedChanged="@((value) => OnItemPurchasedChanged(item, value))"
+                                  OnParentItemClicked="@OnParentItemClicked" />
             }
         </MudPaper>
     }
@@ -108,7 +115,8 @@ else
                     <ShoppingModeItem Item="@item"
                                       CanEdit="@CanEdit"
                                       IsLoading="@_togglingItems.Contains(item.Id)"
-                                      OnPurchasedChanged="@((value) => OnItemPurchasedChanged(item, value))" />
+                                      OnPurchasedChanged="@((value) => OnItemPurchasedChanged(item, value))"
+                                      OnParentItemClicked="@OnParentItemClicked" />
                 }
             </MudExpansionPanel>
         </MudExpansionPanels>
@@ -151,6 +159,7 @@ else
     private bool _isLoading = true;
     private bool _isMovingToInventory;
     private HashSet<Guid> _togglingItems = new();
+    private ChildProductPanel? _childProductPanel;
 
     private int _purchasedCount => _list?.Items?.Count(i => i.IsPurchased) ?? 0;
 
@@ -215,6 +224,26 @@ else
     private void NavigateBack()
     {
         Navigation.NavigateTo("/shopping-lists");
+    }
+
+    private async Task OnParentItemClicked(ShoppingListItemDto item)
+    {
+        if (_childProductPanel != null)
+        {
+            await _childProductPanel.OpenAsync(item);
+        }
+    }
+
+    private void OnChildProductPanelItemUpdated(ShoppingListItemDto updatedItem)
+    {
+        if (_list?.Items == null) return;
+
+        var index = _list.Items.FindIndex(i => i.Id == updatedItem.Id);
+        if (index >= 0)
+        {
+            _list.Items[index] = updatedItem;
+            StateHasChanged();
+        }
     }
 
     private async Task OnItemPurchasedChanged(ShoppingListItemDto item, bool newValue)
