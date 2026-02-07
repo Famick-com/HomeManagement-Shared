@@ -88,6 +88,12 @@ public interface IShoppingListService
         MarkItemPurchasedRequest? request = null,
         CancellationToken cancellationToken = default);
 
+    // Barcode scanning in shopping session
+    Task<BarcodeScanResultDto> ScanBarcodeAsync(
+        Guid listId,
+        string barcode,
+        CancellationToken cancellationToken = default);
+
     // Smart features
     Task<List<ProductSuggestionDto>> SuggestProductsAsync(
         Guid listId,
