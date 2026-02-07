@@ -43,6 +43,9 @@ public class Product : BaseTenantEntity
     public Product? ParentProduct { get; set; }
     public ICollection<Product> ChildProducts { get; set; } = new List<Product>();
 
+    // Store-specific metadata (price, aisle, availability per store)
+    public ICollection<ProductStoreMetadata> StoreMetadata { get; set; } = new List<ProductStoreMetadata>();
+
     // Nutrition data (optional, populated from external sources)
     public ProductNutrition? Nutrition { get; set; }
 }
