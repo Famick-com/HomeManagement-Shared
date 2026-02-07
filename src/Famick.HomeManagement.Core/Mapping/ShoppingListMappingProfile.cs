@@ -51,7 +51,8 @@ public class ShoppingListMappingProfile : Profile
             .ForMember(dest => dest.HasChildrenAtStore, opt => opt.Ignore())
             .ForMember(dest => dest.ChildPurchasedQuantity, opt => opt.Ignore())
             .ForMember(dest => dest.ChildProducts, opt => opt.Ignore())
-            .ForMember(dest => dest.ChildPurchases, opt => opt.Ignore());
+            .ForMember(dest => dest.ChildPurchases, opt => opt.Ignore())
+            .ForMember(dest => dest.Barcodes, opt => opt.Ignore());
 
         CreateMap<CreateShoppingListRequest, ShoppingList>()
             .ForMember(dest => dest.Id, opt => opt.Ignore())
