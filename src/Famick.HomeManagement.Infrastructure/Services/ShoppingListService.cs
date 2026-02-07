@@ -2152,6 +2152,15 @@ public partial class ShoppingListService : IShoppingListService
     {
         var dto = _mapper.Map<ShoppingListItemDto>(item);
 
+        if (item.ProductId.HasValue)
+        {
+            // Load all barcodes for this product
+            dto.Barcodes = await _context.ProductBarcodes
+                .Where(pb => pb.ProductId == item.ProductId.Value)
+                .Select(pb => pb.Barcode)
+                .ToListAsync(cancellationToken);
+        }
+
         if (item.Product != null)
         {
             // Count child products

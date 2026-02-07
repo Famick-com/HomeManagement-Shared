@@ -27,6 +27,12 @@ public class ShoppingListItemDto
     public string? ImageUrl { get; set; }
     public string? Barcode { get; set; }
 
+    /// <summary>
+    /// All barcodes associated with the linked product (from ProductBarcodes).
+    /// Used by mobile clients for offline barcode matching.
+    /// </summary>
+    public List<string> Barcodes { get; set; } = new();
+
     // Parent/child product support
     /// <summary>
     /// Whether this item's product is a parent product with child variants
