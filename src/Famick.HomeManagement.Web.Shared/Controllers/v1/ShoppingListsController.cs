@@ -683,6 +683,43 @@ public class ShoppingListsController : ApiControllerBase
 
     #endregion
 
+    #region Barcode Scanning
+
+    /// <summary>
+    /// Scan a barcode against a shopping list to find matching items.
+    /// Checks direct items and child products.
+    /// </summary>
+    /// <param name="id">Shopping list ID</param>
+    /// <param name="barcode">Scanned barcode string</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>Barcode scan result indicating if/how the product was found</returns>
+    [HttpGet("{id}/scan-barcode")]
+    [ProducesResponseType(typeof(BarcodeScanResultDto), 200)]
+    [ProducesResponseType(400)]
+    [ProducesResponseType(401)]
+    [ProducesResponseType(500)]
+    public async Task<IActionResult> ScanBarcode(
+        Guid id,
+        [FromQuery] string barcode,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(barcode))
+        {
+            return ValidationErrorResponse(new Dictionary<string, string[]>
+            {
+                { "barcode", new[] { "Barcode is required" } }
+            });
+        }
+
+        _logger.LogInformation("Scanning barcode '{Barcode}' against list {ListId} for tenant {TenantId}",
+            barcode, id, TenantId);
+
+        var result = await _shoppingListService.ScanBarcodeAsync(id, barcode, cancellationToken);
+        return ApiResponse(result);
+    }
+
+    #endregion
+
     #region Child Product Management
 
     /// <summary>

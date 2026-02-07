@@ -1420,6 +1420,90 @@ public partial class ShoppingListService : IShoppingListService
         }
     }
 
+    #region Barcode Scanning
+
+    public async Task<BarcodeScanResultDto> ScanBarcodeAsync(
+        Guid listId,
+        string barcode,
+        CancellationToken cancellationToken = default)
+    {
+        _logger.LogInformation("Scanning barcode {Barcode} against shopping list {ListId}", barcode, listId);
+
+        // Generate all barcode variants for matching
+        var variants = ProductLookupPipelineContext.GenerateBarcodeVariants(barcode);
+        var barcodesToMatch = variants.Select(v => v.Barcode).ToList();
+        // Also include the raw scanned barcode in case it doesn't generate variants
+        if (!barcodesToMatch.Contains(barcode))
+            barcodesToMatch.Add(barcode);
+
+        // Find all products that match any barcode variant
+        var matchingProductIds = await _context.ProductBarcodes
+            .Where(pb => barcodesToMatch.Contains(pb.Barcode))
+            .Select(pb => pb.ProductId)
+            .Distinct()
+            .ToListAsync(cancellationToken);
+
+        if (matchingProductIds.Count == 0)
+        {
+            return new BarcodeScanResultDto { Found = false };
+        }
+
+        // Check if any matching product is a direct item on the shopping list
+        var directItem = await _context.ShoppingListItems
+            .Include(sli => sli.Product)
+                .ThenInclude(p => p!.ChildProducts)
+            .Where(sli => sli.ShoppingListId == listId && sli.ProductId != null
+                && matchingProductIds.Contains(sli.ProductId.Value))
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (directItem != null)
+        {
+            var needsChildSelection = directItem.Product?.ChildProducts.Count > 0
+                && directItem.Product.ChildProducts.Any(cp =>
+                    _context.ProductStoreMetadata.Any(psm => psm.ProductId == cp.Id));
+
+            return new BarcodeScanResultDto
+            {
+                Found = true,
+                ItemId = directItem.Id,
+                ProductName = directItem.ProductName ?? directItem.Product?.Name,
+                IsChildProduct = false,
+                NeedsChildSelection = needsChildSelection
+            };
+        }
+
+        // Check if any matching product is a child of an item on the shopping list
+        var matchingChildProducts = await _context.Products
+            .Where(p => matchingProductIds.Contains(p.Id) && p.ParentProductId != null)
+            .Select(p => new { ChildId = p.Id, ChildName = p.Name, ParentId = p.ParentProductId!.Value })
+            .ToListAsync(cancellationToken);
+
+        foreach (var child in matchingChildProducts)
+        {
+            var parentItem = await _context.ShoppingListItems
+                .Where(sli => sli.ShoppingListId == listId && sli.ProductId == child.ParentId)
+                .FirstOrDefaultAsync(cancellationToken);
+
+            if (parentItem != null)
+            {
+                return new BarcodeScanResultDto
+                {
+                    Found = true,
+                    ItemId = parentItem.Id,
+                    ProductName = parentItem.ProductName,
+                    IsChildProduct = true,
+                    ChildProductId = child.ChildId,
+                    ChildProductName = child.ChildName,
+                    NeedsChildSelection = true
+                };
+            }
+        }
+
+        return new BarcodeScanResultDto { Found = false };
+    }
+
+    #endregion
+
     #region Child Product Management
 
     public async Task<List<ShoppingListItemChildDto>> GetChildProductsForItemAsync(
