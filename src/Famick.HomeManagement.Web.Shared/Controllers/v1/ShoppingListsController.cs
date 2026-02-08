@@ -562,6 +562,41 @@ public class ShoppingListsController : ApiControllerBase
     }
 
     /// <summary>
+    /// Increment purchased quantity by scanning (default +1).
+    /// Auto-marks item as done when PurchasedQuantity >= Amount.
+    /// </summary>
+    /// <param name="id">Shopping list ID</param>
+    /// <param name="itemId">Shopping list item ID</param>
+    /// <param name="request">Scan purchase request (quantity, best before date)</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>Scan purchase result with updated item</returns>
+    [HttpPost("{id}/items/{itemId}/scan-purchase")]
+    [Authorize(Policy = "RequireEditor")]
+    [ProducesResponseType(typeof(ScanPurchaseResultDto), 200)]
+    [ProducesResponseType(401)]
+    [ProducesResponseType(404)]
+    [ProducesResponseType(500)]
+    public async Task<IActionResult> ScanPurchase(
+        Guid id,
+        Guid itemId,
+        [FromBody] ScanPurchaseRequest request,
+        CancellationToken cancellationToken)
+    {
+        _logger.LogInformation("Scan-purchase for item {ItemId} in list {ListId} for tenant {TenantId}",
+            itemId, id, TenantId);
+
+        try
+        {
+            var result = await _shoppingListService.ScanPurchaseAsync(itemId, request, cancellationToken);
+            return ApiResponse(result);
+        }
+        catch (EntityNotFoundException)
+        {
+            return NotFoundResponse($"Shopping list item {itemId} not found");
+        }
+    }
+
+    /// <summary>
     /// Toggle item purchased status
     /// </summary>
     /// <param name="id">Shopping list ID</param>

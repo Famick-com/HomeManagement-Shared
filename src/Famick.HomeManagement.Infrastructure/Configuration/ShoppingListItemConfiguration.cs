@@ -37,6 +37,12 @@ namespace Famick.HomeManagement.Infrastructure.Configuration
                 .IsRequired()
                 .HasDefaultValue(0);
 
+            builder.Property(sli => sli.PurchasedQuantity)
+                .HasColumnName("purchased_quantity")
+                .HasColumnType("numeric(18,4)")
+                .IsRequired()
+                .HasDefaultValue(0m);
+
             builder.Property(sli => sli.Note)
                 .HasColumnName("note")
                 .HasColumnType("text");

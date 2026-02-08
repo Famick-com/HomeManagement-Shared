@@ -10,6 +10,7 @@ public class ShoppingListItemDto
     public string? Note { get; set; }
     public bool IsPurchased { get; set; }
     public DateTime? PurchasedAt { get; set; }
+    public decimal PurchasedQuantity { get; set; }
     public DateTime? BestBeforeDate { get; set; }
 
     // Product tracking fields for date prompting logic
@@ -60,9 +61,12 @@ public class ShoppingListItemDto
     public decimal ChildPurchasedQuantity { get; set; }
 
     /// <summary>
-    /// Remaining quantity (Amount - ChildPurchasedQuantity). Can be negative if user bought extra.
+    /// Remaining quantity. For parent products: Amount - ChildPurchasedQuantity.
+    /// For non-parent products: Amount - PurchasedQuantity. Can be negative if user bought extra.
     /// </summary>
-    public decimal RemainingQuantity => Amount - ChildPurchasedQuantity;
+    public decimal RemainingQuantity => IsParentProduct
+        ? Amount - ChildPurchasedQuantity
+        : Amount - PurchasedQuantity;
 
     /// <summary>
     /// Child products with store metadata (populated on demand)
