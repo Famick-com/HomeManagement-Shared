@@ -540,6 +540,8 @@ public class StockService : IStockService
                 .ThenInclude(p => p!.ParentProduct)
             .Include(s => s.Product)
                 .ThenInclude(p => p!.ChildProducts)
+            .Include(s => s.Product)
+                .ThenInclude(p => p!.Images)
             .Include(s => s.Location)
             .AsQueryable();
 
@@ -565,6 +567,7 @@ public class StockService : IStockService
             .Include(p => p.ChildProducts)
             .Include(p => p.QuantityUnitStock)
             .Include(p => p.ProductGroup)
+            .Include(p => p.Images)
             .Where(p => p.ChildProducts.Any())
             .ToListAsync(cancellationToken);
 
@@ -620,7 +623,8 @@ public class StockService : IStockService
                         NextDueDate = childEarliestExpiry,
                         DaysUntilDue = childEarliestExpiry.HasValue ? (int)(childEarliestExpiry.Value - today).TotalDays : null,
                         IsExpired = childHasExpired,
-                        IsDueSoon = childIsDueSoon && !childHasExpired
+                        IsDueSoon = childIsDueSoon && !childHasExpired,
+                        PrimaryImageUrl = GetPrimaryImageUrl(childProduct?.Images, cg.Key)
                     };
                 })
                 .OrderBy(c => c.NextDueDate ?? DateTime.MaxValue)
@@ -645,7 +649,8 @@ public class StockService : IStockService
                 StockEntryCount = childStockEntries.Count,
                 IsParentProduct = true,
                 ChildProductCount = childProducts.Count,
-                ChildProducts = childProducts
+                ChildProducts = childProducts,
+                PrimaryImageUrl = GetPrimaryImageUrl(parent.Images, parent.Id)
             });
         }
 
@@ -685,7 +690,8 @@ public class StockService : IStockService
                     StockEntryCount = g.Count(),
                     IsParentProduct = false,
                     ChildProductCount = 0,
-                    ChildProducts = null
+                    ChildProducts = null,
+                    PrimaryImageUrl = GetPrimaryImageUrl(product?.Images, g.Key)
                 };
             })
             .Where(x => x != null)
@@ -768,6 +774,7 @@ public class StockService : IStockService
             foreach (var entry in entries)
             {
                 var log = CreateStockLog(entry, "consume", -entry.Amount);
+                if (request.Spoiled) log.Spoiled = 1;
                 _context.StockLog.Add(log);
                 _context.Stock.Remove(entry);
             }
@@ -782,6 +789,7 @@ public class StockService : IStockService
 
                 var consumeFromThis = Math.Min(remainingToConsume, entry.Amount);
                 var log = CreateStockLog(entry, "consume", -consumeFromThis);
+                if (request.Spoiled) log.Spoiled = 1;
                 _context.StockLog.Add(log);
 
                 if (consumeFromThis >= entry.Amount)
@@ -829,5 +837,22 @@ public class StockService : IStockService
         };
 
         await AddStockAsync(request, cancellationToken);
+    }
+
+    private static string? GetPrimaryImageUrl(ICollection<ProductImage>? images, Guid productId)
+    {
+        if (images == null || images.Count == 0) return null;
+
+        var primary = images.FirstOrDefault(i => i.IsPrimary) ?? images.FirstOrDefault();
+        if (primary == null) return null;
+
+        if (!string.IsNullOrEmpty(primary.ExternalThumbnailUrl))
+            return primary.ExternalThumbnailUrl;
+        if (!string.IsNullOrEmpty(primary.ExternalUrl))
+            return primary.ExternalUrl;
+        if (!string.IsNullOrEmpty(primary.FileName))
+            return $"/api/v1/products/{productId}/images/{primary.Id}/download";
+
+        return null;
     }
 }

@@ -90,4 +90,9 @@ public class StockOverviewItemDto
     /// Child product stock information (only populated for parent products when expanded).
     /// </summary>
     public List<StockOverviewChildDto>? ChildProducts { get; set; }
+
+    /// <summary>
+    /// URL to the primary product image thumbnail.
+    /// </summary>
+    public string? PrimaryImageUrl { get; set; }
 }

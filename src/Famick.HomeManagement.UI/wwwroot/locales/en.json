@@ -520,7 +520,15 @@
     "txEditOld": "Edit (old)",
     "expandVariants": "Show variants",
     "collapseVariants": "Hide variants",
-    "aggregatedStock": "Aggregated stock from {0} variants"
+    "aggregatedStock": "Aggregated stock from {0} variants",
+    "scanBarcode": "Scan barcode to search",
+    "barcodeNotFound": "No product found with that barcode",
+    "viewProduct": "View product",
+    "spoil": "Mark as spoiled",
+    "confirmSpoil": "Mark as Spoiled?",
+    "confirmSpoilMessage": "Are you sure you want to mark all {0} as spoiled? This will remove them from inventory.",
+    "markSpoiled": "Mark Spoiled",
+    "markedSpoiled": "Marked as spoiled and removed from inventory"
   },
 
   "products": {

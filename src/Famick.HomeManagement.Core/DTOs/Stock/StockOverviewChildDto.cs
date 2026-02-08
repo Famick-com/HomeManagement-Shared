@@ -44,4 +44,9 @@ public class StockOverviewChildDto
     /// True if expiring within the next 5 days.
     /// </summary>
     public bool IsDueSoon { get; set; }
+
+    /// <summary>
+    /// URL to the primary product image thumbnail.
+    /// </summary>
+    public string? PrimaryImageUrl { get; set; }
 }
