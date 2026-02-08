@@ -13,7 +13,7 @@ public class Product : BaseTenantEntity
     public decimal QuantityUnitFactorPurchaseToStock { get; set; } = 1.0m;
     public decimal MinStockAmount { get; set; } = 0;
     public int DefaultBestBeforeDays { get; set; } = 0;
-    public bool TracksBestBeforeDate { get; set; } = false;
+    public bool TracksBestBeforeDate { get; set; } = true;
     public bool IsActive { get; set; } = true;
 
     // Serving/package information (for weight calculations)

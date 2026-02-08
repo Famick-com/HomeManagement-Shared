@@ -257,9 +257,9 @@ else
         {
             MarkItemPurchasedRequest? request = null;
 
-            // If marking as purchased (not currently purchased) and product tracks best before dates
-            // with no default days, show dialog to prompt for date
-            if (!item.IsPurchased && item.TracksBestBeforeDate && item.DefaultBestBeforeDays == 0)
+            // If marking as purchased (not currently purchased) and product tracks best before dates,
+            // show dialog to prompt for date (pre-fills when DefaultBestBeforeDays > 0)
+            if (!item.IsPurchased && item.TracksBestBeforeDate)
             {
                 var parameters = new DialogParameters<MarkPurchasedDialog>
                 {
