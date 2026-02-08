@@ -29,6 +29,12 @@ namespace Famick.HomeManagement.Domain.Entities
         public decimal Amount { get; set; } = 0;
 
         /// <summary>
+        /// Quantity purchased so far via barcode scanning.
+        /// Incremented by 1 per scan. When PurchasedQuantity >= Amount, item auto-completes.
+        /// </summary>
+        public decimal PurchasedQuantity { get; set; } = 0;
+
+        /// <summary>
         /// Product name (used when ProductId is null, e.g., items from store integrations not in local DB)
         /// </summary>
         public string? ProductName { get; set; }

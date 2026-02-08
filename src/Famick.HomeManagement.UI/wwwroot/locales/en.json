@@ -741,6 +741,7 @@
     "moveToInventory": "Move Checked Items To Inventory",
     "purchasedSection": "Purchased Items",
     "unknownAisle": "Unknown Aisle",
+    "scanned": "scanned",
     "allItemsPurchased": "All items checked off!",
     "noItemsYet": "No items in this shopping list yet.",
     "addItemSearch": "Search or type a product name...",

@@ -59,6 +59,16 @@
                     </MudChip>
                 }
 
+                @* Scan purchase progress for non-parent products *@
+                @if (!Item.IsParentProduct && Item.PurchasedQuantity > 0 && Item.Amount > 1)
+                {
+                    <MudChip T="string" Size="Size.Small"
+                             Color="@(Item.PurchasedQuantity >= Item.Amount ? Color.Success : Color.Info)"
+                             Variant="Variant.Filled">
+                        @Item.PurchasedQuantity / @Item.Amount @L["shopping.scanned"]
+                    </MudChip>
+                }
+
                 @if (Item.Price.HasValue)
                 {
                     <MudText Typo="Typo.body2" Color="Color.Secondary">

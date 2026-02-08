@@ -82,6 +82,16 @@ public interface IShoppingListService
         SendToCartRequest request,
         CancellationToken cancellationToken = default);
 
+    // Scan-to-decrement purchase
+    /// <summary>
+    /// Increments PurchasedQuantity by request.Quantity (default 1).
+    /// Auto-marks item as purchased when PurchasedQuantity >= Amount.
+    /// </summary>
+    Task<ScanPurchaseResultDto> ScanPurchaseAsync(
+        Guid itemId,
+        ScanPurchaseRequest request,
+        CancellationToken cancellationToken = default);
+
     // Toggle purchased status
     Task<ShoppingListItemDto> TogglePurchasedAsync(
         Guid itemId,

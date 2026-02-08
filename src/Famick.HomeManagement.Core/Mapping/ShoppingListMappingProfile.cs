@@ -81,6 +81,7 @@ public class ShoppingListMappingProfile : Profile
             .ForMember(dest => dest.Product, opt => opt.Ignore())
             .ForMember(dest => dest.IsPurchased, opt => opt.Ignore())
             .ForMember(dest => dest.PurchasedAt, opt => opt.Ignore())
+            .ForMember(dest => dest.PurchasedQuantity, opt => opt.Ignore())
             .ForMember(dest => dest.BestBeforeDate, opt => opt.Ignore())
             .ForMember(dest => dest.ChildPurchasesJson, opt => opt.Ignore());
 
@@ -96,6 +97,7 @@ public class ShoppingListMappingProfile : Profile
             .ForMember(dest => dest.Product, opt => opt.Ignore())
             .ForMember(dest => dest.IsPurchased, opt => opt.Ignore())
             .ForMember(dest => dest.PurchasedAt, opt => opt.Ignore())
+            .ForMember(dest => dest.PurchasedQuantity, opt => opt.Ignore())
             .ForMember(dest => dest.BestBeforeDate, opt => opt.Ignore())
             .ForMember(dest => dest.Aisle, opt => opt.Ignore())
             .ForMember(dest => dest.Shelf, opt => opt.Ignore())

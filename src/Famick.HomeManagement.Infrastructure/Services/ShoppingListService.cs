@@ -896,6 +896,60 @@ public partial class ShoppingListService : IShoppingListService
         return result;
     }
 
+    public async Task<ScanPurchaseResultDto> ScanPurchaseAsync(
+        Guid itemId,
+        ScanPurchaseRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        _logger.LogInformation("Scan-purchase for item: {ItemId}, quantity: {Quantity}", itemId, request.Quantity);
+
+        var item = await _context.ShoppingListItems
+            .Include(i => i.Product)
+                .ThenInclude(p => p!.QuantityUnitPurchase)
+            .FirstOrDefaultAsync(i => i.Id == itemId, cancellationToken);
+
+        if (item == null)
+        {
+            throw new EntityNotFoundException(nameof(ShoppingListItem), itemId);
+        }
+
+        var quantity = request.Quantity > 0 ? request.Quantity : 1;
+        item.PurchasedQuantity += quantity;
+
+        // Treat Amount <= 0 as 1 for completion logic
+        var effectiveAmount = item.Amount > 0 ? item.Amount : 1;
+        var isCompleted = item.PurchasedQuantity >= effectiveAmount;
+
+        if (isCompleted && !item.IsPurchased)
+        {
+            item.IsPurchased = true;
+            item.PurchasedAt = DateTime.UtcNow;
+
+            // Handle best before date
+            if (request.BestBeforeDate != null)
+            {
+                item.BestBeforeDate = request.BestBeforeDate;
+            }
+            else if (item.Product?.TracksBestBeforeDate == true && item.Product.DefaultBestBeforeDays > 0)
+            {
+                item.BestBeforeDate = DateTime.UtcNow.Date.AddDays(item.Product.DefaultBestBeforeDays);
+            }
+        }
+
+        await _context.SaveChangesAsync(cancellationToken);
+
+        _logger.LogInformation("Scan-purchase completed for item: {ItemId}, PurchasedQuantity: {PurchasedQuantity}, IsCompleted: {IsCompleted}",
+            itemId, item.PurchasedQuantity, isCompleted);
+
+        var dto = _mapper.Map<ShoppingListItemDto>(item);
+        return new ScanPurchaseResultDto
+        {
+            Item = dto,
+            IsCompleted = isCompleted,
+            RemainingQuantity = effectiveAmount - item.PurchasedQuantity
+        };
+    }
+
     public async Task<ShoppingListItemDto> TogglePurchasedAsync(
         Guid itemId,
         MarkItemPurchasedRequest? request = null,
@@ -916,24 +970,25 @@ public partial class ShoppingListService : IShoppingListService
         item.IsPurchased = !item.IsPurchased;
         item.PurchasedAt = item.IsPurchased ? DateTime.UtcNow : null;
 
-        // Handle best before date when marking as purchased
+        // Sync PurchasedQuantity with toggle state
         if (item.IsPurchased)
         {
+            // When manually toggling ON, set PurchasedQuantity to match Amount
+            item.PurchasedQuantity = Math.Max(item.Amount, 1);
+
             if (request?.BestBeforeDate != null)
             {
-                // Use explicitly provided date
                 item.BestBeforeDate = request.BestBeforeDate;
             }
             else if (item.Product?.TracksBestBeforeDate == true && item.Product.DefaultBestBeforeDays > 0)
             {
-                // Auto-calculate date based on product settings
                 item.BestBeforeDate = DateTime.UtcNow.Date.AddDays(item.Product.DefaultBestBeforeDays);
             }
-            // If TracksBestBeforeDate is false or DefaultBestBeforeDays is 0 without explicit date, leave null
         }
         else
         {
-            // Clear best before date when unmarking
+            // When toggling OFF, reset PurchasedQuantity
+            item.PurchasedQuantity = 0;
             item.BestBeforeDate = null;
         }
 
