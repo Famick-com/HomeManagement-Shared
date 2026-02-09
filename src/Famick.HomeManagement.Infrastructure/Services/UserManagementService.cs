@@ -103,6 +103,7 @@ public class UserManagementService : IUserManagementService
             LastName = request.LastName.Trim(),
             PasswordHash = _passwordHasher.HashPassword(password),
             IsActive = true,
+            MustChangePassword = request.MustChangePassword,
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow
         };

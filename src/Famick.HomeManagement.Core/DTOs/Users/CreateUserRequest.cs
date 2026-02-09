@@ -19,6 +19,11 @@ public class CreateUserRequest
     public List<Role> Roles { get; set; } = new();
 
     /// <summary>
+    /// If true, the user must change their password on first login
+    /// </summary>
+    public bool MustChangePassword { get; set; }
+
+    /// <summary>
     /// If true, sends a welcome email with login credentials
     /// </summary>
     public bool SendWelcomeEmail { get; set; }

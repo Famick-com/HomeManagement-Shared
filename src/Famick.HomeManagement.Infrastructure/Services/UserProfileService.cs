@@ -129,8 +129,9 @@ public class UserProfileService : IUserProfileService
             throw new InvalidCredentialsException("Current password is incorrect");
         }
 
-        // Update password
+        // Update password and clear forced password change flag
         user.PasswordHash = _passwordHasher.HashPassword(request.NewPassword);
+        user.MustChangePassword = false;
         user.UpdatedAt = DateTime.UtcNow;
 
         // Revoke all refresh tokens (force re-login on other devices)

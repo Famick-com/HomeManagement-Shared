@@ -21,6 +21,11 @@ public class LoginResponse
     public DateTime ExpiresAt { get; set; }
 
     /// <summary>
+    /// Indicates the user must change their password before accessing other endpoints
+    /// </summary>
+    public bool MustChangePassword { get; set; }
+
+    /// <summary>
     /// Authenticated user information
     /// </summary>
     public UserDto User { get; set; } = null!;

@@ -55,6 +55,12 @@ public class TokenService : ITokenService
             new(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
         };
 
+        // Add must_change_password claim if the user needs to change their password
+        if (user.MustChangePassword)
+        {
+            claims.Add(new Claim("must_change_password", "true"));
+        }
+
         // Add permissions as separate claims
         foreach (var permission in permissions ?? Enumerable.Empty<string>())
         {

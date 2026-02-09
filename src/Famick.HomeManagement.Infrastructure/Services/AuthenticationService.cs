@@ -232,6 +232,7 @@ public class AuthenticationService : IAuthenticationService
             AccessToken = accessToken,
             RefreshToken = refreshTokenString,
             ExpiresAt = accessTokenExpiration,
+            MustChangePassword = user.MustChangePassword,
             User = userDto
             // Tenant = tenantDto // Removed - cloud-specific
         };
