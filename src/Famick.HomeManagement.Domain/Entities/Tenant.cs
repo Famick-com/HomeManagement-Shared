@@ -26,6 +26,12 @@ public class Tenant : BaseEntity
     public bool IsActive { get; set; } = true;
 
     /// <summary>
+    /// AWS KMS key ID used for per-tenant encryption of stored files.
+    /// Only used in cloud deployments; null in self-hosted mode.
+    /// </summary>
+    public string? KmsKeyId { get; set; }
+
+    /// <summary>
     /// Optional FK to the tenant's primary address
     /// </summary>
     public Guid? AddressId { get; set; }

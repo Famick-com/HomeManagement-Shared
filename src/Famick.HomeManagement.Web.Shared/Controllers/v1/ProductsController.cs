@@ -474,16 +474,16 @@ public class ProductsController : ApiControllerBase
             return NotFoundResponse("Image not found");
         }
 
-        var filePath = _fileStorage.GetProductImagePath(productId, image.FileName);
-        if (!System.IO.File.Exists(filePath))
+        var stream = await _fileStorage.GetProductImageStreamAsync(productId, image.FileName, cancellationToken);
+        if (stream == null)
         {
-            _logger.LogWarning("Image file not found on disk: {FilePath}", filePath);
+            _logger.LogWarning("Image file not found: product {ProductId}, file {FileName}", productId, image.FileName);
             return NotFoundResponse("Image file not found");
         }
 
         // Return without filename to display inline (Content-Disposition: inline)
         // instead of triggering download (Content-Disposition: attachment)
-        return PhysicalFile(filePath, image.ContentType);
+        return File(stream, image.ContentType);
     }
 
     /// <summary>

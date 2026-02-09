@@ -37,8 +37,18 @@ public interface IFileStorageService
     /// </summary>
     /// <param name="productId">The product ID.</param>
     /// <param name="fileName">The stored file name.</param>
-    /// <returns>The full file path on disk.</returns>
+    /// <returns>The full file path on disk, or the S3 object key in cloud deployments.</returns>
     string GetProductImagePath(Guid productId, string fileName);
+
+    /// <summary>
+    /// Gets a readable stream for a product image.
+    /// Abstracts over local file system and cloud object storage.
+    /// </summary>
+    /// <param name="productId">The product ID.</param>
+    /// <param name="fileName">The stored file name.</param>
+    /// <param name="ct">Cancellation token.</param>
+    /// <returns>A stream for reading the image, or null if the file does not exist.</returns>
+    Task<Stream?> GetProductImageStreamAsync(Guid productId, string fileName, CancellationToken ct = default);
 
     /// <summary>
     /// Deletes all images for a product (used when deleting a product).
@@ -95,8 +105,18 @@ public interface IFileStorageService
     /// </summary>
     /// <param name="equipmentId">The equipment ID.</param>
     /// <param name="fileName">The stored file name.</param>
-    /// <returns>The full file path on disk.</returns>
+    /// <returns>The full file path on disk, or the S3 object key in cloud deployments.</returns>
     string GetEquipmentDocumentPath(Guid equipmentId, string fileName);
+
+    /// <summary>
+    /// Gets a readable stream for an equipment document.
+    /// Abstracts over local file system and cloud object storage.
+    /// </summary>
+    /// <param name="equipmentId">The equipment ID.</param>
+    /// <param name="fileName">The stored file name.</param>
+    /// <param name="ct">Cancellation token.</param>
+    /// <returns>A stream for reading the document, or null if the file does not exist.</returns>
+    Task<Stream?> GetEquipmentDocumentStreamAsync(Guid equipmentId, string fileName, CancellationToken ct = default);
 
     /// <summary>
     /// Deletes all documents for an equipment item (used when deleting equipment).
@@ -141,8 +161,18 @@ public interface IFileStorageService
     /// </summary>
     /// <param name="storageBinId">The storage bin ID.</param>
     /// <param name="fileName">The stored file name.</param>
-    /// <returns>The full file path on disk.</returns>
+    /// <returns>The full file path on disk, or the S3 object key in cloud deployments.</returns>
     string GetStorageBinPhotoPath(Guid storageBinId, string fileName);
+
+    /// <summary>
+    /// Gets a readable stream for a storage bin photo.
+    /// Abstracts over local file system and cloud object storage.
+    /// </summary>
+    /// <param name="storageBinId">The storage bin ID.</param>
+    /// <param name="fileName">The stored file name.</param>
+    /// <param name="ct">Cancellation token.</param>
+    /// <returns>A stream for reading the photo, or null if the file does not exist.</returns>
+    Task<Stream?> GetStorageBinPhotoStreamAsync(Guid storageBinId, string fileName, CancellationToken ct = default);
 
     /// <summary>
     /// Deletes all photos for a storage bin (used when deleting the bin).
@@ -186,8 +216,18 @@ public interface IFileStorageService
     /// </summary>
     /// <param name="contactId">The contact ID.</param>
     /// <param name="fileName">The stored file name.</param>
-    /// <returns>The full file path on disk.</returns>
+    /// <returns>The full file path on disk, or the S3 object key in cloud deployments.</returns>
     string GetContactProfileImagePath(Guid contactId, string fileName);
+
+    /// <summary>
+    /// Gets a readable stream for a contact profile image.
+    /// Abstracts over local file system and cloud object storage.
+    /// </summary>
+    /// <param name="contactId">The contact ID.</param>
+    /// <param name="fileName">The stored file name.</param>
+    /// <param name="ct">Cancellation token.</param>
+    /// <returns>A stream for reading the image, or null if the file does not exist.</returns>
+    Task<Stream?> GetContactProfileImageStreamAsync(Guid contactId, string fileName, CancellationToken ct = default);
 
     #endregion
 }

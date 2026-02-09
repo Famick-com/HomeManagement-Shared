@@ -528,16 +528,15 @@ public class ContactsController : ApiControllerBase
             return NotFoundResponse("Contact does not have a profile image");
         }
 
-        // Get the file path from file storage service
-        var filePath = _fileStorageService.GetContactProfileImagePath(id, contact.ProfileImageFileName);
-        if (!System.IO.File.Exists(filePath))
+        var stream = await _fileStorageService.GetContactProfileImageStreamAsync(id, contact.ProfileImageFileName, ct);
+        if (stream == null)
         {
-            _logger.LogWarning("Profile image file not found on disk: {FilePath}", filePath);
+            _logger.LogWarning("Profile image file not found: contact {ContactId}, file {FileName}", id, contact.ProfileImageFileName);
             return NotFoundResponse("Profile image file not found");
         }
 
         // Determine content type from file extension
-        var contentType = Path.GetExtension(filePath).ToLowerInvariant() switch
+        var contentType = Path.GetExtension(contact.ProfileImageFileName).ToLowerInvariant() switch
         {
             ".jpg" or ".jpeg" => "image/jpeg",
             ".png" => "image/png",
@@ -546,7 +545,7 @@ public class ContactsController : ApiControllerBase
             _ => "application/octet-stream"
         };
 
-        return PhysicalFile(filePath, contentType);
+        return File(stream, contentType);
     }
 
     #endregion

@@ -338,16 +338,16 @@ public class EquipmentController : ApiControllerBase
             return NotFoundResponse("Document not found");
         }
 
-        var filePath = _fileStorage.GetEquipmentDocumentPath(document.EquipmentId, document.FileName);
-        if (!System.IO.File.Exists(filePath))
+        var stream = await _fileStorage.GetEquipmentDocumentStreamAsync(document.EquipmentId, document.FileName, ct);
+        if (stream == null)
         {
-            _logger.LogWarning("Document file not found on disk: {FilePath}", filePath);
+            _logger.LogWarning("Document file not found: equipment {EquipmentId}, file {FileName}", document.EquipmentId, document.FileName);
             return NotFoundResponse("Document file not found");
         }
 
         // Return without filename to display inline (Content-Disposition: inline)
         // instead of triggering download (Content-Disposition: attachment)
-        return PhysicalFile(filePath, document.ContentType);
+        return File(stream, document.ContentType);
     }
 
     /// <summary>

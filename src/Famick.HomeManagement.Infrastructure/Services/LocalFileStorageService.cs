@@ -85,6 +85,15 @@ public class LocalFileStorageService : IFileStorageService
         return Path.Combine(GetProductImageDirectory(productId), fileName);
     }
 
+    public Task<Stream?> GetProductImageStreamAsync(Guid productId, string fileName, CancellationToken ct = default)
+    {
+        var filePath = GetProductImagePath(productId, fileName);
+        if (!File.Exists(filePath))
+            return Task.FromResult<Stream?>(null);
+
+        return Task.FromResult<Stream?>(File.OpenRead(filePath));
+    }
+
     public Task DeleteAllProductImagesAsync(Guid productId, CancellationToken ct = default)
     {
         var directory = GetProductImageDirectory(productId);
@@ -258,6 +267,15 @@ public class LocalFileStorageService : IFileStorageService
         return Path.Combine(GetEquipmentDocumentDirectory(equipmentId), fileName);
     }
 
+    public Task<Stream?> GetEquipmentDocumentStreamAsync(Guid equipmentId, string fileName, CancellationToken ct = default)
+    {
+        var filePath = GetEquipmentDocumentPath(equipmentId, fileName);
+        if (!File.Exists(filePath))
+            return Task.FromResult<Stream?>(null);
+
+        return Task.FromResult<Stream?>(File.OpenRead(filePath));
+    }
+
     public Task DeleteAllEquipmentDocumentsAsync(Guid equipmentId, CancellationToken ct = default)
     {
         var directory = GetEquipmentDocumentDirectory(equipmentId);
@@ -349,6 +367,15 @@ public class LocalFileStorageService : IFileStorageService
     public string GetStorageBinPhotoPath(Guid storageBinId, string fileName)
     {
         return Path.Combine(GetStorageBinPhotoDirectory(storageBinId), fileName);
+    }
+
+    public Task<Stream?> GetStorageBinPhotoStreamAsync(Guid storageBinId, string fileName, CancellationToken ct = default)
+    {
+        var filePath = GetStorageBinPhotoPath(storageBinId, fileName);
+        if (!File.Exists(filePath))
+            return Task.FromResult<Stream?>(null);
+
+        return Task.FromResult<Stream?>(File.OpenRead(filePath));
     }
 
     public Task DeleteAllStorageBinPhotosAsync(Guid storageBinId, CancellationToken ct = default)
@@ -449,6 +476,15 @@ public class LocalFileStorageService : IFileStorageService
     public string GetContactProfileImagePath(Guid contactId, string fileName)
     {
         return Path.Combine(GetContactProfileImageDirectory(contactId), fileName);
+    }
+
+    public Task<Stream?> GetContactProfileImageStreamAsync(Guid contactId, string fileName, CancellationToken ct = default)
+    {
+        var filePath = GetContactProfileImagePath(contactId, fileName);
+        if (!File.Exists(filePath))
+            return Task.FromResult<Stream?>(null);
+
+        return Task.FromResult<Stream?>(File.OpenRead(filePath));
     }
 
     private string GetContactProfileImageDirectory(Guid contactId)

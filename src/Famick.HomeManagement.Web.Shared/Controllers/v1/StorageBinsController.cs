@@ -242,15 +242,15 @@ public class StorageBinsController : ApiControllerBase
             return Unauthorized();
         }
 
-        var filePath = _fileStorage.GetStorageBinPhotoPath(photo.StorageBinId, photo.FileName);
-        if (!System.IO.File.Exists(filePath))
+        var stream = await _fileStorage.GetStorageBinPhotoStreamAsync(photo.StorageBinId, photo.FileName, ct);
+        if (stream == null)
         {
-            _logger.LogWarning("Photo file not found on disk: {FilePath}", filePath);
+            _logger.LogWarning("Photo file not found: bin {StorageBinId}, file {FileName}", photo.StorageBinId, photo.FileName);
             return NotFoundResponse("Photo file not found");
         }
 
         // Return without filename to display inline
-        return PhysicalFile(filePath, photo.ContentType);
+        return File(stream, photo.ContentType);
     }
 
     /// <summary>

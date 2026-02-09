@@ -23,6 +23,11 @@ public class TenantConfiguration : IEntityTypeConfiguration<Tenant>
             .IsRequired()
             .HasMaxLength(255);
 
+        builder.Property(t => t.KmsKeyId)
+            .HasColumnName("kms_key_id")
+            .HasColumnType("character varying(256)")
+            .HasMaxLength(256);
+
         builder.Property(t => t.AddressId)
             .HasColumnName("address_id")
             .HasColumnType("uuid");
