@@ -56,4 +56,23 @@ public interface IEmailService
         string temporaryPassword,
         string loginUrl,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Sends a notification email with RFC 8058 List-Unsubscribe headers
+    /// </summary>
+    /// <param name="toEmail">The recipient's email address</param>
+    /// <param name="userName">The user's display name</param>
+    /// <param name="subject">Email subject</param>
+    /// <param name="htmlBody">HTML body content</param>
+    /// <param name="textBody">Plain text body content</param>
+    /// <param name="unsubscribeToken">Signed token for one-click unsubscribe</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    Task SendNotificationEmailAsync(
+        string toEmail,
+        string userName,
+        string subject,
+        string htmlBody,
+        string textBody,
+        string unsubscribeToken,
+        CancellationToken cancellationToken = default);
 }

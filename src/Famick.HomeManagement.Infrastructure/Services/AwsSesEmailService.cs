@@ -107,6 +107,76 @@ public class AwsSesEmailService : IEmailService, IDisposable
         await SendEmailAsync(toEmail, subject, htmlBody, textBody, cancellationToken);
     }
 
+    /// <inheritdoc />
+    public async Task SendNotificationEmailAsync(
+        string toEmail,
+        string userName,
+        string subject,
+        string htmlBody,
+        string textBody,
+        string unsubscribeToken,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrEmpty(_settings.FromEmail))
+        {
+            _logger.LogWarning("From email not configured. Notification email to {Email} not sent.", toEmail);
+            return;
+        }
+
+        try
+        {
+            // Use SendRawEmail to support custom headers (List-Unsubscribe)
+            var unsubscribeUrl = $"https://app.famick.com/api/v1/notifications/unsubscribe?token={unsubscribeToken}";
+
+            var source = string.IsNullOrEmpty(_settings.FromName)
+                ? _settings.FromEmail
+                : $"{_settings.FromName} <{_settings.FromEmail}>";
+
+            var rawMessage = $"""
+                From: {source}
+                To: {toEmail}
+                Subject: {subject}
+                MIME-Version: 1.0
+                List-Unsubscribe: <{unsubscribeUrl}>
+                List-Unsubscribe-Post: List-Unsubscribe=One-Click
+                Content-Type: multipart/alternative; boundary="boundary123"
+
+                --boundary123
+                Content-Type: text/plain; charset=UTF-8
+
+                {textBody}
+
+                --boundary123
+                Content-Type: text/html; charset=UTF-8
+
+                {htmlBody}
+
+                --boundary123--
+                """;
+
+            var request = new Amazon.SimpleEmail.Model.SendRawEmailRequest
+            {
+                RawMessage = new Amazon.SimpleEmail.Model.RawMessage
+                {
+                    Data = new System.IO.MemoryStream(System.Text.Encoding.UTF8.GetBytes(rawMessage))
+                }
+            };
+
+            if (!string.IsNullOrEmpty(_settings.AwsSes.ConfigurationSetName))
+            {
+                request.ConfigurationSetName = _settings.AwsSes.ConfigurationSetName;
+            }
+
+            var response = await _sesClient.SendRawEmailAsync(request, cancellationToken);
+            _logger.LogInformation("Notification email sent via SES to {Email}. MessageId: {MessageId}", toEmail, response.MessageId);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to send notification email via SES to {Email}", toEmail);
+            throw;
+        }
+    }
+
     private async Task SendEmailAsync(
         string toEmail,
         string subject,

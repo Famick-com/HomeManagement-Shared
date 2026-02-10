@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using Serilog;
 
 namespace Famick.HomeManagement.Infrastructure;
@@ -70,6 +71,21 @@ public static class InfrastructureStartup
         services.AddScoped<ITodoItemService, TodoItemService>();
         services.AddScoped<IVehicleService, VehicleService>();
         services.AddScoped<IWizardService, WizardService>();
+
+        // Register notification services
+        services.AddScoped<INotificationService, NotificationService>();
+        services.AddScoped<INotificationEvaluator, ExpiryAndStockEvaluator>();
+        services.AddScoped<INotificationEvaluator, TaskSummaryEvaluator>();
+        services.AddScoped<INotificationDispatcher, InAppNotificationDispatcher>();
+        services.AddScoped<INotificationDispatcher, EmailNotificationDispatcher>();
+        services.AddSingleton<IDistributedLockService, NoOpDistributedLockService>();
+
+        // Register unsubscribe token service (same pattern as FileAccessTokenService)
+        var jwtSecretKey = configuration["JwtSettings:SecretKey"] ?? "";
+        services.AddSingleton<IUnsubscribeTokenService>(sp =>
+            new UnsubscribeTokenService(
+                jwtSecretKey,
+                sp.GetRequiredService<ILogger<UnsubscribeTokenService>>()));
 
         // Configure External Authentication
         services.Configure<ExternalAuthSettings>(configuration.GetSection("ExternalAuth"));

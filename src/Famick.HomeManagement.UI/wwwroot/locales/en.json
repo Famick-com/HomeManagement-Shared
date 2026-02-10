@@ -1681,5 +1681,42 @@
     "added": "Vehicle added successfully",
     "saved": "Vehicle saved successfully",
     "deleted": "Vehicle deleted successfully"
+  },
+
+  "notifications": {
+    "title": "Notifications",
+    "viewAll": "View All",
+    "markAllRead": "Mark All Read",
+    "allMarkedRead": "All notifications marked as read",
+    "noNotifications": "No notifications",
+    "noNotificationsDesc": "You're all caught up! New notifications will appear here.",
+    "unread": "Unread",
+    "viewDetails": "View Details",
+    "time": {
+      "justNow": "Just now",
+      "minutesAgo": "{0}m ago",
+      "hoursAgo": "{0}h ago",
+      "daysAgo": "{0}d ago"
+    },
+    "types": {
+      "ExpiryLowStock": "Expiry & Low Stock",
+      "TaskSummary": "Task Summary",
+      "NewFeatures": "New Features"
+    },
+    "preferences": {
+      "title": "Notification Preferences",
+      "description": "Choose how you want to be notified for each type of alert.",
+      "type": "Notification Type",
+      "email": "Email",
+      "push": "Push",
+      "inApp": "In-App",
+      "saved": "Notification preferences saved"
+    },
+    "unsubscribe": {
+      "title": "Unsubscribe from Emails",
+      "confirm": "Are you sure you want to stop receiving {0} emails?",
+      "yes": "Unsubscribe",
+      "success": "Successfully unsubscribed from {0} emails"
+    }
   }
 }

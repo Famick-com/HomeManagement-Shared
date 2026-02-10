@@ -116,6 +116,11 @@ public class HomeManagementDbContext : DbContext
     // TODO Items
     public DbSet<TodoItem> TodoItems => Set<TodoItem>();
 
+    // Notifications
+    public DbSet<Notification> Notifications => Set<Notification>();
+    public DbSet<NotificationPreference> NotificationPreferences => Set<NotificationPreference>();
+    public DbSet<UserDeviceToken> UserDeviceTokens => Set<UserDeviceToken>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);

@@ -20,6 +20,9 @@ public static class CoreStartup
         // Configure email settings
         services.Configure<EmailSettings>(configuration.GetSection(EmailSettings.SectionName));
 
+        // Configure notification settings
+        services.Configure<NotificationSettings>(configuration.GetSection(NotificationSettings.SectionName));
+
         return services;
     }
 }

@@ -13,6 +13,9 @@ public class CreateProductRequest
     public bool TracksBestBeforeDate { get; set; } = false;
     public bool IsActive { get; set; } = true;
 
+    // Per-product expiry warning threshold override
+    public int? ExpiryWarningDays { get; set; }
+
     // Serving/package information
     public decimal? ServingSize { get; set; }
     public string? ServingUnit { get; set; }

@@ -64,6 +64,66 @@ public class SmtpEmailService : IEmailService
         await SendEmailAsync(toEmail, subject, htmlBody, textBody, cancellationToken);
     }
 
+    /// <inheritdoc />
+    public async Task SendNotificationEmailAsync(
+        string toEmail,
+        string userName,
+        string subject,
+        string htmlBody,
+        string textBody,
+        string unsubscribeToken,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrEmpty(_settings.Smtp.Host))
+        {
+            _logger.LogWarning("SMTP host not configured. Notification email to {Email} not sent.", toEmail);
+            return;
+        }
+
+        try
+        {
+            using var client = new SmtpClient(_settings.Smtp.Host, _settings.Smtp.Port)
+            {
+                EnableSsl = _settings.Smtp.EnableSsl,
+                Credentials = !string.IsNullOrEmpty(_settings.Smtp.Username)
+                    ? new NetworkCredential(_settings.Smtp.Username, _settings.Smtp.Password)
+                    : null
+            };
+
+            using var message = new MailMessage
+            {
+                From = new MailAddress(_settings.FromEmail, _settings.FromName),
+                Subject = subject,
+                IsBodyHtml = true,
+                Body = htmlBody
+            };
+
+            message.To.Add(toEmail);
+
+            // Add RFC 8058 List-Unsubscribe headers
+            var unsubscribeUrl = $"{_settings.FromEmail.Replace("notifications@", "https://")}/api/v1/notifications/unsubscribe?token={unsubscribeToken}";
+            message.Headers.Add("List-Unsubscribe", $"<{unsubscribeUrl}>");
+            message.Headers.Add("List-Unsubscribe-Post", "List-Unsubscribe=One-Click");
+
+            // Add plain text alternative
+            var plainTextView = AlternateView.CreateAlternateViewFromString(
+                textBody, null, "text/plain");
+            var htmlView = AlternateView.CreateAlternateViewFromString(
+                htmlBody, null, "text/html");
+
+            message.AlternateViews.Add(plainTextView);
+            message.AlternateViews.Add(htmlView);
+
+            await client.SendMailAsync(message, cancellationToken);
+            _logger.LogInformation("Notification email sent to {Email}", toEmail);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to send notification email to {Email}", toEmail);
+            throw;
+        }
+    }
+
     private async Task SendEmailAsync(
         string toEmail,
         string subject,

@@ -53,6 +53,8 @@ public class ProductConfiguration : IEntityTypeConfiguration<Product>
             .IsRequired()
             .HasDefaultValue(true);
 
+        builder.Property(p => p.ExpiryWarningDays);
+
         builder.Property(p => p.IsActive)
             .IsRequired()
             .HasDefaultValue(true);

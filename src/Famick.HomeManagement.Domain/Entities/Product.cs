@@ -16,6 +16,9 @@ public class Product : BaseTenantEntity
     public bool TracksBestBeforeDate { get; set; } = true;
     public bool IsActive { get; set; } = true;
 
+    // Per-product override for expiry warning threshold (days before BestBeforeDate)
+    public int? ExpiryWarningDays { get; set; }
+
     // Serving/package information (for weight calculations)
     public decimal? ServingSize { get; set; }
     public string? ServingUnit { get; set; }
