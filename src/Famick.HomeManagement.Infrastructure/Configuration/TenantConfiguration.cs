@@ -1,4 +1,5 @@
 using Famick.HomeManagement.Domain.Entities;
+using Famick.HomeManagement.Domain.Enums;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -48,5 +49,58 @@ public class TenantConfiguration : IEntityTypeConfiguration<Tenant>
             .WithMany()
             .HasForeignKey(t => t.AddressId)
             .OnDelete(DeleteBehavior.SetNull);
+
+        // --- Cloud billing columns (unused in self-hosted mode) ---
+
+        // Subscription
+        builder.Property(t => t.SubscriptionTier)
+            .HasColumnName("subscription_tier")
+            .HasDefaultValue(SubscriptionTier.Free);
+
+        builder.Property(t => t.MaxUsers)
+            .HasColumnName("max_users")
+            .HasDefaultValue(5);
+
+        builder.Property(t => t.StorageQuotaMb)
+            .HasColumnName("storage_quota_mb")
+            .HasDefaultValue(1000);
+
+        builder.Property(t => t.SubscriptionExpiresAt)
+            .HasColumnName("subscription_expires_at")
+            .HasColumnType("timestamp with time zone");
+
+        // Trial
+        builder.Property(t => t.TrialStartedAt)
+            .HasColumnName("trial_started_at")
+            .HasColumnType("timestamp with time zone");
+
+        builder.Property(t => t.TrialEndsAt)
+            .HasColumnName("trial_ends_at")
+            .HasColumnType("timestamp with time zone");
+
+        builder.Ignore(t => t.IsTrialActive);
+
+        // Storage
+        builder.Property(t => t.StorageBlocksPurchased)
+            .HasColumnName("storage_blocks_purchased")
+            .HasDefaultValue(0);
+
+        builder.Property(t => t.StorageUsedBytes)
+            .HasColumnName("storage_used_bytes")
+            .HasDefaultValue(0L);
+
+        // Stripe
+        builder.Property(t => t.StripeCustomerId)
+            .HasColumnName("stripe_customer_id")
+            .HasMaxLength(255);
+
+        builder.Property(t => t.StripeSubscriptionId)
+            .HasColumnName("stripe_subscription_id")
+            .HasMaxLength(255);
+
+        // RevenueCat
+        builder.Property(t => t.RevenueCatUserId)
+            .HasColumnName("revenuecat_user_id")
+            .HasMaxLength(255);
     }
 }

@@ -1,9 +1,11 @@
+using Famick.HomeManagement.Domain.Enums;
+
 namespace Famick.HomeManagement.Domain.Entities;
 
 /// <summary>
 /// Represents a tenant (household) in the system.
 /// In self-hosted mode, there is exactly one tenant with the fixed ID.
-/// In cloud SaaS mode, multiple tenants can exist.
+/// In cloud SaaS mode, multiple tenants can exist with billing properties.
 /// The Tenant's Id IS the TenantId used throughout BaseTenantEntity.
 /// </summary>
 public class Tenant : BaseEntity
@@ -40,4 +42,27 @@ public class Tenant : BaseEntity
     /// Navigation property to the tenant's address
     /// </summary>
     public virtual Address? Address { get; set; }
+
+    // --- Cloud billing properties (unused in self-hosted mode) ---
+
+    public SubscriptionTier SubscriptionTier { get; set; } = SubscriptionTier.Free;
+    public int MaxUsers { get; set; } = 5;
+    public int StorageQuotaMb { get; set; } = 1000;
+    public DateTime? SubscriptionExpiresAt { get; set; }
+
+    // Trial
+    public DateTime? TrialStartedAt { get; set; }
+    public DateTime? TrialEndsAt { get; set; }
+    public bool IsTrialActive => TrialEndsAt.HasValue && TrialEndsAt.Value > DateTime.UtcNow;
+
+    // Storage
+    public int StorageBlocksPurchased { get; set; }
+    public long StorageUsedBytes { get; set; }
+
+    // Billing - Stripe
+    public string? StripeCustomerId { get; set; }
+    public string? StripeSubscriptionId { get; set; }
+
+    // Billing - RevenueCat (cross-platform mobile subscriptions)
+    public string? RevenueCatUserId { get; set; }
 }

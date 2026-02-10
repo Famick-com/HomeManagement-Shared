@@ -141,13 +141,20 @@ public static class InfrastructureStartup
         var autoMigrate = configuration.GetValue<bool>("Database:AutoMigrate", true);
         if (autoMigrate)
         {
-            using var migrationScope = app.Services.CreateScope();
-            var dbContext = migrationScope.ServiceProvider.GetRequiredService<HomeManagementDbContext>();
-            var pendingMigrations = await dbContext.Database.GetPendingMigrationsAsync();
+            // Create a base HomeManagementDbContext directly for migrations.
+            // This is necessary because DI may resolve a derived context (e.g. CloudHomeManagementDbContext),
+            // but all migrations are decorated with [DbContext(typeof(HomeManagementDbContext))].
+            // EF Core matches migrations by exact context type, not by inheritance.
+            var connectionString = configuration.GetConnectionString("DefaultConnection");
+            var optionsBuilder = new DbContextOptionsBuilder<HomeManagementDbContext>();
+            optionsBuilder.UseNpgsql(connectionString, o => o.MigrationsAssembly("Famick.HomeManagement.Infrastructure"));
+            using var migrationContext = new HomeManagementDbContext(optionsBuilder.Options);
+
+            var pendingMigrations = await migrationContext.Database.GetPendingMigrationsAsync();
             if (pendingMigrations.Any())
             {
                 Log.Information("Applying {Count} pending database migration(s)...", pendingMigrations.Count());
-                await dbContext.Database.MigrateAsync();
+                await migrationContext.Database.MigrateAsync();
                 Log.Information("Database migrations applied successfully");
             }
         }

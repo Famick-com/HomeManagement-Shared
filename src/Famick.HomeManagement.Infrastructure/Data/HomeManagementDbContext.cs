@@ -153,7 +153,7 @@ public class HomeManagementDbContext : DbContext
                 var entityTenantId = System.Linq.Expressions.Expression.Property(parameter, nameof(ITenantEntity.TenantId));
 
                 var currentTenantIdProperty = System.Linq.Expressions.Expression.Property(
-                    System.Linq.Expressions.Expression.Constant(this),
+                    System.Linq.Expressions.Expression.Constant(this, typeof(HomeManagementDbContext)),
                     nameof(CurrentTenantId));
 
                 // CurrentTenantId == null (allows admin to see all tenants)
