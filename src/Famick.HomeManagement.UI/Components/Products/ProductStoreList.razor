@@ -61,7 +61,18 @@
                             </MudStack>
                         </MudStack>
 
-                        @if (metadata.LastKnownPrice.HasValue)
+                        @if (metadata.IsExpired)
+                        {
+                            <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center">
+                                <MudChip T="string" Size="Size.Small" Color="Color.Warning" Variant="Variant.Filled">
+                                    @L["products.stores.expired"]
+                                </MudChip>
+                                <MudText Typo="Typo.caption" Color="Color.Secondary">
+                                    @L["products.stores.refreshToUpdate"]
+                                </MudText>
+                            </MudStack>
+                        }
+                        else if (metadata.LastKnownPrice.HasValue)
                         {
                             <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center">
                                 <MudText Typo="Typo.body1" Color="Color.Primary" Style="font-weight: 600;">
@@ -78,14 +89,14 @@
                             </MudStack>
                         }
 
-                        @if (!string.IsNullOrEmpty(metadata.Aisle) || !string.IsNullOrEmpty(metadata.Shelf))
+                        @if (!metadata.IsExpired && (!string.IsNullOrEmpty(metadata.Aisle) || !string.IsNullOrEmpty(metadata.Shelf)))
                         {
                             <MudText Typo="Typo.caption" Color="Color.Secondary">
                                 @FormatLocation(metadata)
                             </MudText>
                         }
 
-                        @if (metadata.PriceUpdatedAt.HasValue)
+                        @if (!metadata.IsExpired && metadata.PriceUpdatedAt.HasValue)
                         {
                             <MudText Typo="Typo.caption" Color="Color.Secondary">
                                 @L["products.stores.lastUpdated"]: @metadata.PriceUpdatedAt.Value.ToLocalTime().ToString("g")

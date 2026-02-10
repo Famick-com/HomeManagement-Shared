@@ -69,6 +69,16 @@ public class ProductStoreMetadataDto
     /// </summary>
     public string? ProductUrl { get; set; }
 
+    /// <summary>
+    /// Whether the cached API data has expired and should be refreshed
+    /// </summary>
+    public bool IsExpired { get; set; }
+
+    /// <summary>
+    /// When the cached API data expires (null for user-entered data)
+    /// </summary>
+    public DateTime? CacheExpiresAt { get; set; }
+
     public DateTime CreatedAt { get; set; }
     public DateTime? UpdatedAt { get; set; }
 }

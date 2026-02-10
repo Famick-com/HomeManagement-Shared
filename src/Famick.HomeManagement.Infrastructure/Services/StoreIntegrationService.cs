@@ -630,6 +630,11 @@ public class StoreIntegrationService : IStoreIntegrationService
                 psm.ProductId == productId &&
                 psm.ShoppingLocationId == shoppingLocationId, ct);
 
+        // Calculate cache expiration from API-provided duration or default 24h for API-sourced data
+        DateTime? cacheExpiresAt = request.CacheDuration.HasValue
+            ? DateTime.UtcNow + request.CacheDuration.Value
+            : null;
+
         if (existing != null)
         {
             // Update existing
@@ -643,6 +648,7 @@ public class StoreIntegrationService : IStoreIntegrationService
             existing.InStock = request.InStock;
             existing.AvailabilityCheckedAt = DateTime.UtcNow;
             existing.ProductUrl = request.ProductUrl;
+            existing.CacheExpiresAt = cacheExpiresAt;
         }
         else
         {
@@ -662,7 +668,8 @@ public class StoreIntegrationService : IStoreIntegrationService
                 Department = request.Department,
                 InStock = request.InStock,
                 AvailabilityCheckedAt = DateTime.UtcNow,
-                ProductUrl = request.ProductUrl
+                ProductUrl = request.ProductUrl,
+                CacheExpiresAt = cacheExpiresAt
             };
             _dbContext.ProductStoreMetadata.Add(existing);
         }
@@ -763,6 +770,7 @@ public class StoreIntegrationService : IStoreIntegrationService
         metadata.Department = storeProduct.Department;
         metadata.InStock = storeProduct.InStock;
         metadata.AvailabilityCheckedAt = DateTime.UtcNow;
+        metadata.CacheExpiresAt = DateTime.UtcNow + (storeProduct.CacheDuration ?? TimeSpan.FromHours(24));
 
         await _dbContext.SaveChangesAsync(ct);
 
@@ -810,7 +818,9 @@ public class StoreIntegrationService : IStoreIntegrationService
 
     private static ProductStoreMetadataDto MapToDto(ProductStoreMetadata metadata)
     {
-        return new ProductStoreMetadataDto
+        var isExpired = metadata.CacheExpiresAt.HasValue && metadata.CacheExpiresAt.Value <= DateTime.UtcNow;
+
+        var dto = new ProductStoreMetadataDto
         {
             Id = metadata.Id,
             ProductId = metadata.ProductId,
@@ -818,18 +828,40 @@ public class StoreIntegrationService : IStoreIntegrationService
             ProductName = metadata.Product?.Name,
             ShoppingLocationName = metadata.ShoppingLocation?.Name,
             ExternalProductId = metadata.ExternalProductId,
-            LastKnownPrice = metadata.LastKnownPrice,
-            PriceUnit = metadata.PriceUnit,
-            PriceUpdatedAt = metadata.PriceUpdatedAt,
-            Aisle = metadata.Aisle,
-            Shelf = metadata.Shelf,
-            Department = metadata.Department,
-            InStock = metadata.InStock,
-            AvailabilityCheckedAt = metadata.AvailabilityCheckedAt,
-            ProductUrl = metadata.ProductUrl,
+            CacheExpiresAt = metadata.CacheExpiresAt,
+            IsExpired = isExpired,
             CreatedAt = metadata.CreatedAt,
             UpdatedAt = metadata.UpdatedAt
         };
+
+        // If cache has expired, null out volatile fields so expired API data is not served.
+        // The link itself (ProductId, ShoppingLocationId, ExternalProductId) persists.
+        if (isExpired)
+        {
+            dto.LastKnownPrice = null;
+            dto.PriceUnit = null;
+            dto.PriceUpdatedAt = null;
+            dto.Aisle = null;
+            dto.Shelf = null;
+            dto.Department = null;
+            dto.InStock = null;
+            dto.AvailabilityCheckedAt = null;
+            dto.ProductUrl = null;
+        }
+        else
+        {
+            dto.LastKnownPrice = metadata.LastKnownPrice;
+            dto.PriceUnit = metadata.PriceUnit;
+            dto.PriceUpdatedAt = metadata.PriceUpdatedAt;
+            dto.Aisle = metadata.Aisle;
+            dto.Shelf = metadata.Shelf;
+            dto.Department = metadata.Department;
+            dto.InStock = metadata.InStock;
+            dto.AvailabilityCheckedAt = metadata.AvailabilityCheckedAt;
+            dto.ProductUrl = metadata.ProductUrl;
+        }
+
+        return dto;
     }
 
     #endregion

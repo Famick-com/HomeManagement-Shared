@@ -208,6 +208,12 @@ public class StoreProductResult
     /// Description of the product
     /// </summary>
     public string? Description { get; set; }
+
+    /// <summary>
+    /// How long this data should be cached, derived from HTTP Cache-Control headers.
+    /// Null means no cache duration was provided by the API.
+    /// </summary>
+    public TimeSpan? CacheDuration { get; set; }
 }
 
 /// <summary>

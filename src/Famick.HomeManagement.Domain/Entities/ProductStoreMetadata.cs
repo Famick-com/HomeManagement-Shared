@@ -73,6 +73,12 @@ public class ProductStoreMetadata : BaseEntity, ITenantEntity
     /// </summary>
     public string? ProductUrl { get; set; }
 
+    /// <summary>
+    /// When the cached API data expires. Null for user-entered data (no expiration).
+    /// Set for API-sourced data to comply with store API Terms of Service.
+    /// </summary>
+    public DateTime? CacheExpiresAt { get; set; }
+
     // Navigation properties
     public Product Product { get; set; } = null!;
     public ShoppingLocation ShoppingLocation { get; set; } = null!;

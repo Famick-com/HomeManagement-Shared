@@ -44,4 +44,10 @@ public class LinkProductToStoreRequest
     /// URL to the product page on the store's website
     /// </summary>
     public string? ProductUrl { get; set; }
+
+    /// <summary>
+    /// How long the cached data should be valid. Set by the service when data comes from an API source.
+    /// Null means no expiration (user-entered data).
+    /// </summary>
+    public TimeSpan? CacheDuration { get; set; }
 }

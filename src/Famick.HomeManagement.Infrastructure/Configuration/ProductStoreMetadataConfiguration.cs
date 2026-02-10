@@ -68,6 +68,14 @@ public class ProductStoreMetadataConfiguration : IEntityTypeConfiguration<Produc
             .HasColumnName("availability_checked_at")
             .HasColumnType("timestamp with time zone");
 
+        builder.Property(psm => psm.ProductUrl)
+            .HasColumnName("product_url")
+            .HasColumnType("text");
+
+        builder.Property(psm => psm.CacheExpiresAt)
+            .HasColumnName("cache_expires_at")
+            .HasColumnType("timestamp with time zone");
+
         builder.Property(psm => psm.CreatedAt)
             .HasColumnName("created_at")
             .HasColumnType("timestamp with time zone")
