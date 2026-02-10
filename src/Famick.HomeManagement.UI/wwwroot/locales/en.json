@@ -135,7 +135,13 @@
     "passkeyCancelled": "Passkey authentication was cancelled.",
     "scanQrCode": "Scan QR Code",
     "scanQrCodeDescription": "Scan the QR code on your server's Mobile App Setup page",
-    "orEnterManually": "Or enter URL manually"
+    "orEnterManually": "Or enter URL manually",
+    "forceChangePassword": {
+      "title": "Change Your Password",
+      "message": "Your administrator requires you to change your password before continuing.",
+      "submit": "Change Password",
+      "success": "Password changed successfully. Signing you in..."
+    }
   },
 
   "profile": {

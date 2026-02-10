@@ -8,6 +8,7 @@
 @inject IVersionService VersionService
 @inject IUserPermissions UserPermissions
 @inject NavigationManager Navigation
+@inject Microsoft.AspNetCore.Components.Authorization.AuthenticationStateProvider AuthStateProvider
 @implements IDisposable
 
 <CascadingValue Value="@_canEdit" Name="CanEdit">
@@ -101,6 +102,19 @@
     {
         _isFullScreenPage = IsFullScreenPath(Navigation.Uri);
         Navigation.LocationChanged += OnLocationChanged;
+
+        // Check if user must change their password - redirect before loading anything else
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+        if (user.Identity?.IsAuthenticated == true)
+        {
+            var mustChange = user.FindFirst("must_change_password");
+            if (mustChange?.Value == "true")
+            {
+                Navigation.NavigateTo("/force-change-password");
+                return;
+            }
+        }
 
         // Check user edit permissions (Admin/Editor can edit, Viewer is read-only)
         _canEdit = await UserPermissions.CanEditAsync();

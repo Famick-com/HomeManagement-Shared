@@ -447,6 +447,14 @@
                 }
 
                 AuthStateProvider.NotifyAuthenticationStateChanged();
+
+                // Check if user must change password before accessing the app
+                if (result.Data?.MustChangePassword == true)
+                {
+                    Navigation.NavigateTo("/force-change-password");
+                    return;
+                }
+
                 var returnUrl = string.IsNullOrEmpty(ReturnUrl) ? "/" : ReturnUrl;
                 Navigation.NavigateTo(returnUrl);
             }
@@ -486,6 +494,14 @@
         }
 
         AuthStateProvider.NotifyAuthenticationStateChanged();
+
+        // Check if user must change password before accessing the app
+        if (response.MustChangePassword)
+        {
+            Navigation.NavigateTo("/force-change-password");
+            return;
+        }
+
         var returnUrl = string.IsNullOrEmpty(ReturnUrl) ? "/" : ReturnUrl;
         Navigation.NavigateTo(returnUrl);
     }
