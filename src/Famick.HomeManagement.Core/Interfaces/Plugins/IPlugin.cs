@@ -29,6 +29,12 @@ public interface IPlugin
     bool IsAvailable { get; }
 
     /// <summary>
+    /// Attribution and licensing requirements for data from this plugin.
+    /// Null if no specific attribution is required.
+    /// </summary>
+    PluginAttribution? Attribution { get; }
+
+    /// <summary>
     /// Initialize the plugin with its configuration section from plugins/config.json
     /// Each plugin defines its own configuration schema
     /// </summary>

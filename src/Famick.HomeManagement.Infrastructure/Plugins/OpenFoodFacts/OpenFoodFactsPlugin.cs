@@ -24,6 +24,16 @@ public class OpenFoodFactsPlugin : IProductLookupPlugin
     public string Version => "1.0.0";
     public bool IsAvailable => _isInitialized;
 
+    public PluginAttribution? Attribution => new()
+    {
+        Url = "https://openfoodfacts.org",
+        LicenseText = "Database: ODbL, Images: CC BY-SA",
+        Description = "A free, open, collaborative database of food products from around the world. "
+            + "Database contents are available under the Open Database License (ODbL). "
+            + "Product images are available under the Creative Commons Attribution-ShareAlike (CC BY-SA) license.",
+        ProductUrlTemplate = $"{_baseUrl.TrimEnd('/')}/product/{{barcode}}"
+    };
+
     public OpenFoodFactsPlugin(IHttpClientFactory httpClientFactory, ILogger<OpenFoodFactsPlugin> logger)
     {
         _httpClient = httpClientFactory.CreateClient();
@@ -95,6 +105,9 @@ public class OpenFoodFactsPlugin : IProductLookupPlugin
             // Enrich with image URLs if missing
             EnrichWithImages(existingResult, product);
             EnrichWithAdditionalData(existingResult, product);
+            existingResult.ProductUrl ??= !string.IsNullOrEmpty(product.Code)
+                ? $"{_baseUrl.TrimEnd('/')}/product/{product.Code}"
+                : null;
             _logger.LogDebug("Enriched existing result with OpenFoodFacts images for barcode: {Barcode}", context.Query);
         }
         else
@@ -251,6 +264,9 @@ public class OpenFoodFactsPlugin : IProductLookupPlugin
             ImageUrl = !string.IsNullOrEmpty(imageUrl) ? new ResultImage { ImageUrl = imageUrl, PluginId = DisplayName } : null,
             Ingredients = product.IngredientsTextEn ?? product.IngredientsText,
             ServingSizeDescription = product.ServingSize,
+            ProductUrl = !string.IsNullOrEmpty(product.Code)
+                ? $"{_baseUrl.TrimEnd('/')}/product/{product.Code}"
+                : null,
             Nutrition = MapNutrition(product),
             AdditionalData = new Dictionary<string, object>()
         };

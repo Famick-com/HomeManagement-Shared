@@ -468,13 +468,13 @@ else
 
         @* External data source attribution *@
         @{
-            var externalSources = GetExternalDataSources();
+            var externalSourceIds = GetExternalSourcePluginIds();
         }
-        @if (!IsNew && externalSources.Count > 0)
+        @if (!IsNew && externalSourceIds.Count > 0)
         {
-            <MudText Typo="Typo.caption" Color="Color.Secondary" Align="Align.Center" Class="mt-4">
-                @L["products.externalDataAttribution", FormatSourceList(externalSources)]
-            </MudText>
+            <ExternalDataAttribution SourcePluginIds="@externalSourceIds"
+                                     PluginInfoMap="@_pluginInfoMap"
+                                     Barcodes="@_barcodes" />
         }
     </MudForm>
 }
@@ -1527,8 +1527,8 @@ else
         Navigation.NavigateTo($"/products/{childId}");
     }
 
-    // Maps plugin IDs to display names, loaded from the API
-    private Dictionary<string, string> _pluginDisplayNames = new(StringComparer.OrdinalIgnoreCase);
+    // Maps plugin IDs to full PluginInfo (including attribution), loaded from the API
+    private Dictionary<string, PluginInfo> _pluginInfoMap = new(StringComparer.OrdinalIgnoreCase);
 
     private async Task LoadPluginDisplayNamesAsync()
     {
@@ -1537,8 +1537,8 @@ else
             var result = await ApiClient.GetAsync<List<PluginInfo>>("api/v1/plugins");
             if (result.IsSuccess && result.Data != null)
             {
-                _pluginDisplayNames = result.Data
-                    .ToDictionary(p => p.PluginId, p => p.DisplayName, StringComparer.OrdinalIgnoreCase);
+                _pluginInfoMap = result.Data
+                    .ToDictionary(p => p.PluginId, p => p, StringComparer.OrdinalIgnoreCase);
             }
         }
         catch
@@ -1548,43 +1548,27 @@ else
     }
 
     /// <summary>
-    /// Collects external data sources from images and nutrition data on this product.
+    /// Returns raw plugin IDs (not display names) for external data sources.
     /// </summary>
-    private List<string> GetExternalDataSources()
+    private List<string> GetExternalSourcePluginIds()
     {
-        var sources = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var ids = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
         foreach (var image in _images)
         {
             if (!string.IsNullOrEmpty(image.ExternalSource))
             {
-                sources.Add(NormalizeSourceName(image.ExternalSource));
+                ids.Add(image.ExternalSource);
             }
         }
 
         if (_nutrition != null && !string.IsNullOrEmpty(_nutrition.DataSource))
         {
-            sources.Add(NormalizeSourceName(_nutrition.DataSource));
+            ids.Add(_nutrition.DataSource);
         }
 
-        sources.Remove("Local Database");
-        return sources.OrderBy(s => s).ToList();
-    }
-
-    private string NormalizeSourceName(string source)
-    {
-        return _pluginDisplayNames.TryGetValue(source, out var displayName) ? displayName : source;
-    }
-
-    private static string FormatSourceList(List<string> sources)
-    {
-        return sources.Count switch
-        {
-            0 => string.Empty,
-            1 => sources[0],
-            2 => $"{sources[0]} and {sources[1]}",
-            _ => string.Join(", ", sources.Take(sources.Count - 1)) + ", and " + sources.Last()
-        };
+        ids.Remove("Local Database");
+        return ids.OrderBy(s => s).ToList();
     }
 
     private async Task OnBeforeInternalNavigation(LocationChangingContext context)

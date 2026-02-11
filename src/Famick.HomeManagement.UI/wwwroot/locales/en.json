@@ -310,6 +310,11 @@
       "rerun": "Re-run Home Setup Wizard",
       "rerunDescription": "Update your home details, household members, and maintenance info."
     },
+    "dataSources": {
+      "title": "Data Sources",
+      "description": "Famick uses external databases to look up product information.",
+      "accuracyNote": "Data from external sources may contain inaccuracies. Famick does not guarantee the accuracy of externally sourced product data. Verify important nutritional or allergen information independently."
+    },
     "mobileAppSetup": {
       "title": "Mobile App Setup",
       "description": "Connect the Famick mobile app to your self-hosted server.",
@@ -669,7 +674,11 @@
       "expired": "Data expired",
       "refreshToUpdate": "Refresh to update"
     },
-    "externalDataAttribution": "Some data on this page was retrieved from {0}."
+    "attribution": {
+      "dataFrom": "Product data from",
+      "viewProduct": "View product",
+      "accuracyDisclaimer": "External product data may contain inaccuracies. Verify important information independently."
+    }
   },
 
   "shoppingList": {

@@ -24,6 +24,18 @@ public class UsdaFoodDataPlugin : IProductLookupPlugin
     public string Version => "1.0.0";
     public bool IsAvailable => _isInitialized && !string.IsNullOrEmpty(_apiKey);
 
+    public PluginAttribution? Attribution => new()
+    {
+        Url = "https://fdc.nal.usda.gov/",
+        LicenseText = "CC0 1.0 (Public Domain)",
+        Description = "U.S. Department of Agriculture, Agricultural Research Service, "
+            + "Beltsville Human Nutrition Research Center. FoodData Central. "
+            + "Data are in the public domain under CC0 1.0 Universal (CC0 1.0). "
+            + "No permission is needed for use, but USDA requests that FoodData Central "
+            + "be listed as the source of the data.",
+        ProductUrlTemplate = null
+    };
+
     public UsdaFoodDataPlugin(IHttpClientFactory httpClientFactory, ILogger<UsdaFoodDataPlugin> logger)
     {
         _httpClient = httpClientFactory.CreateClient();

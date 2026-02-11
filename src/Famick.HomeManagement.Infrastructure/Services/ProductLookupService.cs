@@ -499,7 +499,11 @@ public class ProductLookupService : IProductLookupService
                 PluginId = p.PluginId,
                 DisplayName = p.DisplayName,
                 Version = p.Version,
-                IsAvailable = p.IsAvailable
+                IsAvailable = p.IsAvailable,
+                AttributionUrl = p.Attribution?.Url,
+                LicenseText = p.Attribution?.LicenseText,
+                Description = p.Attribution?.Description,
+                ProductUrlTemplate = p.Attribution?.ProductUrlTemplate
             })
             .ToList()
             .AsReadOnly();
