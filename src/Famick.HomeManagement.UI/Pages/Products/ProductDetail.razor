@@ -14,6 +14,7 @@
 @using Famick.HomeManagement.Core.DTOs.QuantityUnits
 @using Famick.HomeManagement.Core.DTOs.ProductLookup
 @using Famick.HomeManagement.Core.DTOs.Stock
+@using Famick.HomeManagement.Core.Interfaces
 @using Famick.HomeManagement.Core.Interfaces.Plugins
 @using Microsoft.AspNetCore.Components.Forms
 @using Microsoft.AspNetCore.Components.Routing
@@ -464,6 +465,17 @@ else
                 }
             </MudStack>
         </MudHidden>
+
+        @* External data source attribution *@
+        @{
+            var externalSources = GetExternalDataSources();
+        }
+        @if (!IsNew && externalSources.Count > 0)
+        {
+            <MudText Typo="Typo.caption" Color="Color.Secondary" Align="Align.Center" Class="mt-4">
+                @L["products.externalDataAttribution", FormatSourceList(externalSources)]
+            </MudText>
+        }
     </MudForm>
 }
 
@@ -567,7 +579,9 @@ else
 
     protected override async Task OnInitializedAsync()
     {
-        await LoadLookupsAsync();
+        var lookupsTask = LoadLookupsAsync();
+        var pluginsTask = LoadPluginDisplayNamesAsync();
+        await Task.WhenAll(lookupsTask, pluginsTask);
 
         if (!IsNew)
         {
@@ -1511,6 +1525,66 @@ else
     private void NavigateToChildProduct(Guid childId)
     {
         Navigation.NavigateTo($"/products/{childId}");
+    }
+
+    // Maps plugin IDs to display names, loaded from the API
+    private Dictionary<string, string> _pluginDisplayNames = new(StringComparer.OrdinalIgnoreCase);
+
+    private async Task LoadPluginDisplayNamesAsync()
+    {
+        try
+        {
+            var result = await ApiClient.GetAsync<List<PluginInfo>>("api/v1/plugins");
+            if (result.IsSuccess && result.Data != null)
+            {
+                _pluginDisplayNames = result.Data
+                    .ToDictionary(p => p.PluginId, p => p.DisplayName, StringComparer.OrdinalIgnoreCase);
+            }
+        }
+        catch
+        {
+            // Non-critical — attribution will use raw source names as fallback
+        }
+    }
+
+    /// <summary>
+    /// Collects external data sources from images and nutrition data on this product.
+    /// </summary>
+    private List<string> GetExternalDataSources()
+    {
+        var sources = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var image in _images)
+        {
+            if (!string.IsNullOrEmpty(image.ExternalSource))
+            {
+                sources.Add(NormalizeSourceName(image.ExternalSource));
+            }
+        }
+
+        if (_nutrition != null && !string.IsNullOrEmpty(_nutrition.DataSource))
+        {
+            sources.Add(NormalizeSourceName(_nutrition.DataSource));
+        }
+
+        sources.Remove("Local Database");
+        return sources.OrderBy(s => s).ToList();
+    }
+
+    private string NormalizeSourceName(string source)
+    {
+        return _pluginDisplayNames.TryGetValue(source, out var displayName) ? displayName : source;
+    }
+
+    private static string FormatSourceList(List<string> sources)
+    {
+        return sources.Count switch
+        {
+            0 => string.Empty,
+            1 => sources[0],
+            2 => $"{sources[0]} and {sources[1]}",
+            _ => string.Join(", ", sources.Take(sources.Count - 1)) + ", and " + sources.Last()
+        };
     }
 
     private async Task OnBeforeInternalNavigation(LocationChangingContext context)

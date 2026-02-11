@@ -668,7 +668,8 @@
       "outOfStock": "Out of Stock",
       "expired": "Data expired",
       "refreshToUpdate": "Refresh to update"
-    }
+    },
+    "externalDataAttribution": "Some data on this page was retrieved from {0}."
   },
 
   "shoppingList": {
