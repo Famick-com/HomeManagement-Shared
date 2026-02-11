@@ -20,6 +20,7 @@ public class ProductLookupService : IProductLookupService
     private readonly IPluginLoader _pluginLoader;
     private readonly HomeManagementDbContext _dbContext;
     private readonly ITenantProvider _tenantProvider;
+    private readonly ITenantService _tenantService;
     private readonly ILogger<ProductLookupService> _logger;
     private readonly IFileAccessTokenService _tokenService;
     private readonly IFileStorageService _fileStorage;
@@ -36,6 +37,7 @@ public class ProductLookupService : IProductLookupService
         IPluginLoader pluginLoader,
         HomeManagementDbContext dbContext,
         ITenantProvider tenantProvider,
+        ITenantService tenantService,
         IFileAccessTokenService tokenService,
         IFileStorageService fileStorage,
         ILogger<ProductLookupService> logger)
@@ -43,6 +45,7 @@ public class ProductLookupService : IProductLookupService
         _pluginLoader = pluginLoader;
         _dbContext = dbContext;
         _tenantProvider = tenantProvider;
+        _tenantService = tenantService;
         _tokenService = tokenService;
         _fileStorage = fileStorage;
         _logger = logger;
@@ -111,8 +114,10 @@ public class ProductLookupService : IProductLookupService
             return context.Results;
         }
 
-        // Get all available product lookup plugins
-        var allPlugins = _pluginLoader.GetAvailablePlugins<IProductLookupPlugin>();
+        // Get all available product lookup plugins, filtering out tenant-disabled ones
+        var disabledIds = await _tenantService.GetDisabledPluginIdsAsync(ct);
+        var allPlugins = _pluginLoader.GetAvailablePlugins<IProductLookupPlugin>()
+            .Where(p => !disabledIds.Contains(p.PluginId));
 
         // Filter plugins based on search mode
         IEnumerable<IProductLookupPlugin> pluginsToRun = searchMode switch

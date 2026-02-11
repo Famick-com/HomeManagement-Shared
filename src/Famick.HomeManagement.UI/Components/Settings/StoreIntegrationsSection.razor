@@ -5,6 +5,7 @@
 @inject NavigationManager Navigation
 @using Famick.HomeManagement.Core.DTOs.ShoppingLocations
 @using Famick.HomeManagement.Core.DTOs.StoreIntegrations
+@using Famick.HomeManagement.Core.Interfaces
 @using Famick.HomeManagement.Core.Interfaces.Plugins
 
 <MudPaper Elevation="1" Class="pa-4 mb-4">
@@ -14,17 +15,38 @@
     {
         <MudProgressLinear Indeterminate="true" Color="Color.Primary" Class="mb-4" />
     }
-    else if (_availablePlugins.Count > 0)
+    else if (_availablePlugins.Count > 0 || _productLookupPlugins.Count > 0)
     {
-        <MudText Typo="Typo.subtitle2" Class="mb-2">@L["settings.storeIntegrations.availablePlugins"]</MudText>
-        <MudStack Row="true" Spacing="2" Class="mb-4">
-            @foreach (var plugin in _availablePlugins)
-            {
-                <MudChip T="string" Color="Color.Primary" Variant="Variant.Outlined">
-                    @plugin.DisplayName
-                </MudChip>
-            }
-        </MudStack>
+        @if (_availablePlugins.Count > 0)
+        {
+            <MudText Typo="Typo.subtitle2" Class="mb-2">@L["settings.storeIntegrations.availablePlugins"]</MudText>
+            <MudStack Row="true" Spacing="2" Class="mb-4">
+                @foreach (var plugin in _availablePlugins)
+                {
+                    <MudChip T="string" Color="Color.Primary" Variant="Variant.Outlined">
+                        @plugin.DisplayName
+                    </MudChip>
+                }
+            </MudStack>
+        }
+
+        @if (_productLookupPlugins.Count > 0)
+        {
+            <MudText Typo="Typo.subtitle2" Class="mb-2">@L["settings.storeIntegrations.productLookupPlugins"]</MudText>
+            <MudStack Spacing="1" Class="mb-4">
+                @foreach (var plugin in _productLookupPlugins)
+                {
+                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                        <MudSwitch T="bool"
+                                   Value="@(!_disabledPluginIds.Contains(plugin.PluginId))"
+                                   ValueChanged="@(enabled => TogglePlugin(plugin.PluginId, enabled))"
+                                   Color="Color.Primary"
+                                   Disabled="@(!CanEdit)" />
+                        <MudText>@plugin.DisplayName</MudText>
+                    </MudStack>
+                }
+            </MudStack>
+        }
     }
     else
     {
@@ -223,6 +245,8 @@
 
     private List<ShoppingLocationDto> _shoppingLocations = new();
     private List<StoreIntegrationPluginInfo> _availablePlugins = new();
+    private List<PluginInfo> _productLookupPlugins = new();
+    private List<string> _disabledPluginIds = new();
     private bool _isLoading = true;
     private bool _isLoadingPlugins = true;
 
@@ -239,7 +263,11 @@
 
     protected override async Task OnInitializedAsync()
     {
-        await Task.WhenAll(LoadPluginsAsync(), LoadShoppingLocationsAsync());
+        await Task.WhenAll(
+            LoadPluginsAsync(),
+            LoadProductLookupPluginsAsync(),
+            LoadDisabledPluginIdsAsync(),
+            LoadShoppingLocationsAsync());
     }
 
     private async Task LoadPluginsAsync()
@@ -261,6 +289,73 @@
         finally
         {
             _isLoadingPlugins = false;
+        }
+    }
+
+    private async Task LoadProductLookupPluginsAsync()
+    {
+        try
+        {
+            var result = await ApiClient.GetAsync<List<PluginInfo>>("api/v1/plugins");
+            if (result.IsSuccess && result.Data != null)
+            {
+                _productLookupPlugins = result.Data;
+            }
+        }
+        catch (Exception)
+        {
+            // Product lookup plugins are supplementary; don't show error
+        }
+    }
+
+    private async Task LoadDisabledPluginIdsAsync()
+    {
+        try
+        {
+            var result = await ApiClient.GetAsync<List<string>>("api/v1/storeintegrations/plugins/disabled");
+            if (result.IsSuccess && result.Data != null)
+            {
+                _disabledPluginIds = result.Data;
+            }
+        }
+        catch (Exception)
+        {
+            // If loading fails, assume all plugins are enabled
+        }
+    }
+
+    private async Task TogglePlugin(string pluginId, bool enabled)
+    {
+        var updatedIds = new List<string>(_disabledPluginIds);
+
+        if (enabled)
+        {
+            updatedIds.Remove(pluginId);
+        }
+        else
+        {
+            if (!updatedIds.Contains(pluginId))
+            {
+                updatedIds.Add(pluginId);
+            }
+        }
+
+        try
+        {
+            var result = await ApiClient.PostAsync("api/v1/storeintegrations/plugins/disabled", updatedIds);
+            if (result.IsSuccess)
+            {
+                _disabledPluginIds = updatedIds;
+                Snackbar.Add(L["settings.storeIntegrations.pluginToggleSuccess"], Severity.Success);
+            }
+            else
+            {
+                Snackbar.Add(result.ErrorMessage ?? L["errors.generic"], Severity.Error);
+            }
+        }
+        catch (Exception)
+        {
+            Snackbar.Add(L["errors.generic"], Severity.Error);
         }
     }
 

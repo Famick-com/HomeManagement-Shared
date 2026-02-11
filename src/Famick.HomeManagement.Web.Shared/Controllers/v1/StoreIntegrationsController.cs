@@ -15,14 +15,17 @@ namespace Famick.HomeManagement.Web.Shared.Controllers.v1;
 public class StoreIntegrationsController : ApiControllerBase
 {
     private readonly IStoreIntegrationService _storeIntegrationService;
+    private readonly ITenantService _tenantService;
 
     public StoreIntegrationsController(
         IStoreIntegrationService storeIntegrationService,
+        ITenantService tenantService,
         ITenantProvider tenantProvider,
         ILogger<StoreIntegrationsController> logger)
         : base(tenantProvider, logger)
     {
         _storeIntegrationService = storeIntegrationService;
+        _tenantService = tenantService;
     }
 
     #region Plugin Discovery
@@ -36,6 +39,31 @@ public class StoreIntegrationsController : ApiControllerBase
     {
         var plugins = await _storeIntegrationService.GetAvailablePluginsAsync(ct);
         return ApiResponse(plugins);
+    }
+
+    /// <summary>
+    /// Get the list of disabled product lookup plugin IDs for the current tenant
+    /// </summary>
+    [HttpGet("plugins/disabled")]
+    [ProducesResponseType(typeof(List<string>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetDisabledPlugins(CancellationToken ct)
+    {
+        var disabledIds = await _tenantService.GetDisabledPluginIdsAsync(ct);
+        return ApiResponse(disabledIds);
+    }
+
+    /// <summary>
+    /// Set the list of disabled product lookup plugin IDs for the current tenant (admin only)
+    /// </summary>
+    [HttpPost("plugins/disabled")]
+    [Authorize(Policy = "RequireAdmin")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    public async Task<IActionResult> SetDisabledPlugins(
+        [FromBody] List<string> disabledIds,
+        CancellationToken ct)
+    {
+        await _tenantService.SetDisabledPluginIdsAsync(disabledIds, ct);
+        return NoContent();
     }
 
     #endregion

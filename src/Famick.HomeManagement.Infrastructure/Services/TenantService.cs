@@ -1,5 +1,6 @@
 using System.Security.Cryptography;
 using System.Text;
+using System.Text.Json;
 using AutoMapper;
 using Famick.HomeManagement.Core.DTOs.Common;
 using Famick.HomeManagement.Core.DTOs.Tenant;
@@ -122,6 +123,58 @@ public class TenantService : ITenantService
         }
 
         return tenant;
+    }
+
+    public async Task<List<string>> GetDisabledPluginIdsAsync(CancellationToken cancellationToken = default)
+    {
+        if (!_tenantProvider.TenantId.HasValue)
+        {
+            return new List<string>();
+        }
+
+        var tenant = await _context.Tenants
+            .AsNoTracking()
+            .FirstOrDefaultAsync(t => t.Id == _tenantProvider.TenantId.Value, cancellationToken);
+
+        if (tenant == null || string.IsNullOrWhiteSpace(tenant.DisabledPluginIds))
+        {
+            return new List<string>();
+        }
+
+        try
+        {
+            return JsonSerializer.Deserialize<List<string>>(tenant.DisabledPluginIds) ?? new List<string>();
+        }
+        catch (JsonException ex)
+        {
+            _logger.LogWarning(ex, "Failed to parse DisabledPluginIds for tenant {TenantId}", tenant.Id);
+            return new List<string>();
+        }
+    }
+
+    public async Task SetDisabledPluginIdsAsync(List<string> disabledIds, CancellationToken cancellationToken = default)
+    {
+        if (!_tenantProvider.TenantId.HasValue)
+        {
+            throw new InvalidOperationException("No tenant context available");
+        }
+
+        var tenant = await _context.Tenants
+            .FirstOrDefaultAsync(t => t.Id == _tenantProvider.TenantId.Value, cancellationToken);
+
+        if (tenant == null)
+        {
+            throw new EntityNotFoundException("Tenant", _tenantProvider.TenantId.Value);
+        }
+
+        tenant.DisabledPluginIds = disabledIds.Count > 0
+            ? JsonSerializer.Serialize(disabledIds)
+            : null;
+
+        await _context.SaveChangesAsync(cancellationToken);
+
+        _logger.LogInformation("Updated disabled plugin IDs for tenant {TenantId}: {DisabledIds}",
+            tenant.Id, tenant.DisabledPluginIds ?? "[]");
     }
 
     private static string? ComputeAddressHash(UpdateAddressRequest address)

@@ -43,6 +43,12 @@ public class Tenant : BaseEntity
     /// </summary>
     public virtual Address? Address { get; set; }
 
+    /// <summary>
+    /// JSON array of plugin IDs that an admin has disabled for this tenant.
+    /// e.g., ["usda", "openfoodfacts"]. Null or empty means all plugins are enabled.
+    /// </summary>
+    public string? DisabledPluginIds { get; set; }
+
     // --- Cloud billing properties (unused in self-hosted mode) ---
 
     public SubscriptionTier SubscriptionTier { get; set; } = SubscriptionTier.Free;

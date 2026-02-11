@@ -422,7 +422,11 @@
       "redirecting": "Redirecting back to settings...",
       "missingOAuthParams": "Missing authorization parameters",
       "invalidState": "Invalid authorization state",
-      "locationNotFound": "Store not found"
+      "locationNotFound": "Store not found",
+      "productLookupPlugins": "Product Lookup Plugins",
+      "pluginEnabled": "Enabled",
+      "pluginDisabled": "Disabled",
+      "pluginToggleSuccess": "Plugin settings updated"
     },
     "users": {
       "title": "User Management",
