@@ -16,6 +16,7 @@
 @using Famick.HomeManagement.Core.DTOs.Stock
 @using Famick.HomeManagement.Core.Interfaces
 @using Famick.HomeManagement.Core.Interfaces.Plugins
+@using Markdig
 @using Microsoft.AspNetCore.Components.Forms
 @using Microsoft.AspNetCore.Components.Routing
 
@@ -466,15 +467,12 @@ else
             </MudStack>
         </MudHidden>
 
-        @* External data source attribution *@
-        @{
-            var externalSourceIds = GetExternalSourcePluginIds();
-        }
-        @if (!IsNew && externalSourceIds.Count > 0)
+        @* Data source attribution (stored as markdown on product) *@
+        @if (!IsNew && !string.IsNullOrEmpty(_dataSourceAttribution))
         {
-            <ExternalDataAttribution SourcePluginIds="@externalSourceIds"
-                                     PluginInfoMap="@_pluginInfoMap"
-                                     Barcodes="@_barcodes" />
+            <div class="mt-4 attribution-text">
+                @((MarkupString)RenderAttributionMarkdown(_dataSourceAttribution))
+            </div>
         }
     </MudForm>
 }
@@ -579,9 +577,7 @@ else
 
     protected override async Task OnInitializedAsync()
     {
-        var lookupsTask = LoadLookupsAsync();
-        var pluginsTask = LoadPluginDisplayNamesAsync();
-        await Task.WhenAll(lookupsTask, pluginsTask);
+        await LoadLookupsAsync();
 
         if (!IsNew)
         {
@@ -665,6 +661,7 @@ else
                 _barcodes = product.Barcodes;
                 _images = product.Images ?? new();
                 _stockUnitName = product.QuantityUnitStockName;
+                _dataSourceAttribution = product.DataSourceAttribution;
 
                 // Check if this product has children (is a parent product)
                 _isParentProduct = product.IsParentProduct;
@@ -1254,6 +1251,7 @@ else
                 ThumbnailUrl = lookupResult.ThumbnailUrl?.ImageUrl,
                 UpdateName = false, // Already updated
                 AddBarcode = true,  // Let backend handle barcode
+                AttributionMarkdown = lookupResult.AttributionMarkdown,
                 Nutrition = lookupResult.Nutrition != null ? new ProductNutritionDto
                 {
                     ServingSize = lookupResult.Nutrition.ServingSize,
@@ -1331,6 +1329,7 @@ else
                 ThumbnailUrl = lookupResult.ThumbnailUrl,
                 UpdateName = false, // Already updated
                 AddBarcode = true,  // Let backend handle barcode
+                AttributionMarkdown = lookupResult.AttributionMarkdown,
                 Nutrition = lookupResult.Nutrition != null ? new ProductNutritionDto
                 {
                     ServingSize = lookupResult.Nutrition.ServingSize,
@@ -1527,48 +1526,15 @@ else
         Navigation.NavigateTo($"/products/{childId}");
     }
 
-    // Maps plugin IDs to full PluginInfo (including attribution), loaded from the API
-    private Dictionary<string, PluginInfo> _pluginInfoMap = new(StringComparer.OrdinalIgnoreCase);
+    private string? _dataSourceAttribution;
 
-    private async Task LoadPluginDisplayNamesAsync()
+    private static readonly MarkdownPipeline _attributionPipeline = new MarkdownPipelineBuilder()
+        .DisableHtml()
+        .Build();
+
+    private static string RenderAttributionMarkdown(string markdown)
     {
-        try
-        {
-            var result = await ApiClient.GetAsync<List<PluginInfo>>("api/v1/plugins");
-            if (result.IsSuccess && result.Data != null)
-            {
-                _pluginInfoMap = result.Data
-                    .ToDictionary(p => p.PluginId, p => p, StringComparer.OrdinalIgnoreCase);
-            }
-        }
-        catch
-        {
-            // Non-critical — attribution will use raw source names as fallback
-        }
-    }
-
-    /// <summary>
-    /// Returns raw plugin IDs (not display names) for external data sources.
-    /// </summary>
-    private List<string> GetExternalSourcePluginIds()
-    {
-        var ids = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-
-        foreach (var image in _images)
-        {
-            if (!string.IsNullOrEmpty(image.ExternalSource))
-            {
-                ids.Add(image.ExternalSource);
-            }
-        }
-
-        if (_nutrition != null && !string.IsNullOrEmpty(_nutrition.DataSource))
-        {
-            ids.Add(_nutrition.DataSource);
-        }
-
-        ids.Remove("Local Database");
-        return ids.OrderBy(s => s).ToList();
+        return Markdig.Markdown.ToHtml(markdown, _attributionPipeline);
     }
 
     private async Task OnBeforeInternalNavigation(LocationChangingContext context)

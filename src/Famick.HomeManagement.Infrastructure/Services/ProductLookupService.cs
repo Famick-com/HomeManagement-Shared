@@ -456,6 +456,9 @@ public class ProductLookupService : IProductLookupService
             });
         }
 
+        // Store plugin-generated attribution markdown
+        product.DataSourceAttribution = BuildCombinedAttribution(result);
+
         // Add external image if available and not already present
         if (result.ImageUrl != null)
         {
@@ -533,6 +536,17 @@ public class ProductLookupService : IProductLookupService
             _logger.LogError(ex, "Plugin {PluginId} failed during lookup", plugin.PluginId);
             return new List<ProductLookupResult>();
         }
+    }
+
+    private static string? BuildCombinedAttribution(ProductLookupResult result)
+    {
+        if (string.IsNullOrEmpty(result.AttributionMarkdown))
+            return null;
+
+        var lines = new List<string> { result.AttributionMarkdown };
+        lines.Add("");
+        lines.Add("*Nutrition and product information may not be 100% accurate. Always verify with product packaging.*");
+        return string.Join("\n\n", lines);
     }
 
     private static void MapNutritionData(ProductNutrition target, ProductLookupNutrition source)

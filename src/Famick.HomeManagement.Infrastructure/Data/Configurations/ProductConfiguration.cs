@@ -90,6 +90,8 @@ public class ProductConfiguration : IEntityTypeConfiguration<Product>
             .HasForeignKey(m => m.ProductId)
             .OnDelete(DeleteBehavior.Cascade);
 
+        builder.Property(p => p.DataSourceAttribution);
+
         // Self-referential FK for parent-child hierarchy (product variants)
         builder.HasIndex(p => p.ParentProductId)
             .HasDatabaseName("ix_products_parent_product_id");

@@ -119,6 +119,14 @@ public class UsdaFoodDataPlugin : IProductLookupPlugin
             existingResult.BrandName ??= result.BrandName;
             existingResult.BrandOwner ??= result.BrandOwner;
             existingResult.DataSources.TryAdd(result.DataSources.First().Key, result.DataSources.First().Value);
+
+            // Merge attribution markdown
+            if (!string.IsNullOrEmpty(result.AttributionMarkdown))
+            {
+                existingResult.AttributionMarkdown = existingResult.AttributionMarkdown != null
+                    ? existingResult.AttributionMarkdown + "\n\n" + result.AttributionMarkdown
+                    : result.AttributionMarkdown;
+            }
             existingResult.Description ??= result.Description;
             existingResult.ImageUrl ??= result.ImageUrl;
             existingResult.Ingredients ??= result.Ingredients;
@@ -204,7 +212,8 @@ public class UsdaFoodDataPlugin : IProductLookupPlugin
             Barcode = food.GtinUpc,
             ServingSizeDescription = food.HouseholdServingFullText,
             Ingredients = food.Ingredients,
-            Nutrition = MapNutrition(food)
+            Nutrition = MapNutrition(food),
+            AttributionMarkdown = $"Data from [{DisplayName}]({Attribution!.Url}) ({Attribution.LicenseText})."
         };
 
         if (food.FoodCategory != null)

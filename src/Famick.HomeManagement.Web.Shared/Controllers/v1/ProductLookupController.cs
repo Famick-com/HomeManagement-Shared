@@ -216,6 +216,7 @@ public class ProductLookupController : ApiControllerBase
             ProductUrl = r.ProductUrl,
             ShoppingLocationId = r.ShoppingLocationId,
             ShoppingLocationName = r.ShoppingLocationName,
+            AttributionMarkdown = r.AttributionMarkdown,
         };
     }
 
@@ -268,6 +269,7 @@ public class ProductLookupController : ApiControllerBase
             ThumbnailUrl = !string.IsNullOrEmpty(request.ThumbnailUrl)
                 ? new ResultImage { ImageUrl = request.ThumbnailUrl, PluginId = primarySourceName }
                 : null,
+            AttributionMarkdown = request.AttributionMarkdown,
             Nutrition = request.Nutrition != null ? new ProductLookupNutrition
             {
                 Source = request.Nutrition.DataSource,

@@ -1,4 +1,5 @@
 using System.Net.Http.Json;
+using System.Text;
 using System.Text.Json;
 using Famick.HomeManagement.Core.Interfaces.Plugins;
 using Microsoft.Extensions.Logging;
@@ -123,6 +124,14 @@ public class OpenFoodFactsPlugin : IProductLookupPlugin
                 existingResult.ServingSizeDescription ??= result.ServingSizeDescription;
                 existingResult.DataSources.TryAdd(result.DataSources.First().Key, result.DataSources.First().Value);
 
+                // Merge attribution markdown
+                if (!string.IsNullOrEmpty(result.AttributionMarkdown))
+                {
+                    existingResult.AttributionMarkdown = existingResult.AttributionMarkdown != null
+                        ? existingResult.AttributionMarkdown + "\n\n" + result.AttributionMarkdown
+                        : result.AttributionMarkdown;
+                }
+
                 // Merge additional data (Nutriscore, NOVA)
                 if (result.AdditionalData != null)
                 {
@@ -212,7 +221,8 @@ public class OpenFoodFactsPlugin : IProductLookupPlugin
                 ? $"{_baseUrl.TrimEnd('/')}/product/{product.Code}"
                 : null,
             Nutrition = MapNutrition(product),
-            AdditionalData = new Dictionary<string, object>()
+            AdditionalData = new Dictionary<string, object>(),
+            AttributionMarkdown = BuildAttributionMarkdown(product.Code)
         };
 
         if (!string.IsNullOrEmpty(product.NutriscoreGrade))
@@ -251,6 +261,18 @@ public class OpenFoodFactsPlugin : IProductLookupPlugin
         return string.Join(" ", category
             .Split('-')
             .Select(word => char.ToUpperInvariant(word[0]) + word.Substring(1)));
+    }
+
+    private string BuildAttributionMarkdown(string? barcode)
+    {
+        var sb = new StringBuilder();
+        sb.Append($"Data from [{DisplayName}]({Attribution!.Url}) ({Attribution.LicenseText}).");
+        if (!string.IsNullOrEmpty(barcode))
+        {
+            var productUrl = $"{_baseUrl.TrimEnd('/')}/product/{barcode}";
+            sb.Append($" [View product]({productUrl})");
+        }
+        return sb.ToString();
     }
 
     private ProductLookupNutrition? MapNutrition(OpenFoodFactsProduct product)

@@ -337,6 +337,7 @@
                 ThumbnailUrl = LookupResult.ThumbnailUrl,
                 UpdateName = false, // Already set during product creation
                 AddBarcode = true,
+                AttributionMarkdown = LookupResult.AttributionMarkdown,
                 Nutrition = LookupResult.Nutrition != null ? new ProductNutritionDto
                 {
                     DataSource = LookupResult.PluginDisplayName,

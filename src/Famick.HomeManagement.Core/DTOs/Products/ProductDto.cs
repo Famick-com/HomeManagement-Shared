@@ -64,6 +64,9 @@ public class ProductDto
     /// </summary>
     public bool IsBelowMinStock => TotalStockAmount < MinStockAmount;
 
+    // Attribution
+    public string? DataSourceAttribution { get; set; }
+
     // Related data
     public List<ProductBarcodeDto> Barcodes { get; set; } = new();
     public List<ProductImageDto> Images { get; set; } = new();

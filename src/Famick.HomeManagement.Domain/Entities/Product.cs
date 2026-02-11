@@ -51,4 +51,11 @@ public class Product : BaseTenantEntity
 
     // Nutrition data (optional, populated from external sources)
     public ProductNutrition? Nutrition { get; set; }
+
+    /// <summary>
+    /// Markdown-formatted attribution text for external data sources
+    /// that contributed to this product's data (nutrition, images, etc.).
+    /// Generated at lookup-apply time from plugin-provided attribution strings.
+    /// </summary>
+    public string? DataSourceAttribution { get; set; }
 }
