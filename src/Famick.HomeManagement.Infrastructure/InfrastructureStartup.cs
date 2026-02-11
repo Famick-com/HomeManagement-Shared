@@ -135,9 +135,6 @@ public static class InfrastructureStartup
             Plugins.Usda.UsdaFoodDataPlugin>();
         services.AddSingleton<Core.Interfaces.Plugins.IPlugin,
             Plugins.OpenFoodFacts.OpenFoodFactsPlugin>();
-        services.AddSingleton<Core.Interfaces.Plugins.IPlugin,
-            Plugins.Kroger.KrogerStorePlugin>();
-
         // Register plugin loader and lookup service
         services.AddSingleton<Core.Interfaces.Plugins.IPluginLoader,
             Plugins.PluginLoader>();
