@@ -130,19 +130,24 @@ public class ProductLookupService : IProductLookupService
         _logger.LogInformation("Searching with mode {SearchMode}, {PluginCount} plugins selected",
             searchMode, pluginsToRun.Count());
 
-        // Execute plugins in config.json order (GetAvailablePlugins preserves load order)
-        foreach (var plugin in pluginsToRun)
+        // Phase 1: Parallel lookup — all plugins fetch from external APIs concurrently
+        var pluginList = pluginsToRun.ToList();
+        var lookupTasks = pluginList.Select(plugin =>
+            SafeLookupAsync(plugin, cleanedQuery, searchType, maxResults, ct));
+        var allLookupResults = await Task.WhenAll(lookupTasks);
+
+        // Phase 2: Sequential enrichment — merge results in config.json order
+        for (int i = 0; i < pluginList.Count; i++)
         {
             try
             {
-                _logger.LogInformation("Starting plugin {PluginId}", plugin.PluginId);
-                await plugin.ProcessPipelineAsync(context, ct);
-                _logger.LogInformation("Completed plugin {PluginId}. Result count: {Count}",
-                    plugin.PluginId, context.Results.Count);
+                await pluginList[i].EnrichPipelineAsync(context, allLookupResults[i], ct);
+                _logger.LogInformation("Completed enrichment for plugin {PluginId}. Result count: {Count}",
+                    pluginList[i].PluginId, context.Results.Count);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Plugin {PluginId} failed during pipeline processing", plugin.PluginId);
+                _logger.LogError(ex, "Plugin {PluginId} failed during enrichment", pluginList[i].PluginId);
             }
         }
 
@@ -507,6 +512,27 @@ public class ProductLookupService : IProductLookupService
             })
             .ToList()
             .AsReadOnly();
+    }
+
+    private async Task<List<ProductLookupResult>> SafeLookupAsync(
+        IProductLookupPlugin plugin,
+        string query,
+        ProductLookupSearchType searchType,
+        int maxResults,
+        CancellationToken ct)
+    {
+        try
+        {
+            _logger.LogInformation("Starting lookup for plugin {PluginId}", plugin.PluginId);
+            var results = await plugin.LookupAsync(query, searchType, maxResults, ct);
+            _logger.LogInformation("Plugin {PluginId} returned {Count} results", plugin.PluginId, results.Count);
+            return results;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Plugin {PluginId} failed during lookup", plugin.PluginId);
+            return new List<ProductLookupResult>();
+        }
     }
 
     private static void MapNutritionData(ProductNutrition target, ProductLookupNutrition source)

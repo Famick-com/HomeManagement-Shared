@@ -2,8 +2,6 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using Famick.HomeManagement.Core.Interfaces.Plugins;
 using Microsoft.Extensions.Logging;
-using Npgsql.Replication;
-
 namespace Famick.HomeManagement.Infrastructure.Plugins.OpenFoodFacts;
 
 /// <summary>
@@ -60,88 +58,81 @@ public class OpenFoodFactsPlugin : IProductLookupPlugin
         return Task.CompletedTask;
     }
 
-    public async Task ProcessPipelineAsync(ProductLookupPipelineContext context, CancellationToken ct = default)
+    public async Task<List<ProductLookupResult>> LookupAsync(
+        string query,
+        ProductLookupSearchType searchType,
+        int maxResults = 20,
+        CancellationToken ct = default)
     {
         if (!IsAvailable)
         {
             _logger.LogWarning("OpenFoodFacts plugin is not available");
-            return;
+            return new List<ProductLookupResult>();
         }
 
-        _logger.LogInformation("OpenFoodFacts plugin processing pipeline: {Query} ({SearchType})",
-            context.Query, context.SearchType);
+        _logger.LogInformation("OpenFoodFacts plugin looking up: {Query} ({SearchType})", query, searchType);
 
-        try
+        if (searchType == ProductLookupSearchType.Barcode)
         {
-            if (context.SearchType == ProductLookupSearchType.Barcode)
+            var product = await GetProductByBarcodeAsync(query, ct);
+            if (product == null)
             {
-                await EnrichByBarcodeAsync(context, ct);
+                _logger.LogDebug("No product found in OpenFoodFacts for barcode: {Barcode}", query);
+                return new List<ProductLookupResult>();
             }
-            else
-            {
-                await EnrichByNameAsync(context, ct);
-            }
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "OpenFoodFacts plugin failed during pipeline processing: {Query}", context.Query);
-        }
-    }
-
-    private async Task EnrichByBarcodeAsync(ProductLookupPipelineContext context, CancellationToken ct)
-    {
-        var product = await GetProductByBarcodeAsync(context.Query, ct);
-        if (product == null)
-        {
-            _logger.LogDebug("No product found in OpenFoodFacts for barcode: {Barcode}", context.Query);
-            return;
+            return new List<ProductLookupResult> { MapToLookupResult(product) };
         }
 
-        // Try to find existing result to enrich
-        var existingResult = context.FindMatchingResult(barcode: context.Query);
-
-        if (existingResult != null)
-        {
-            // Enrich with image URLs if missing
-            EnrichWithImages(existingResult, product);
-            EnrichWithAdditionalData(existingResult, product);
-            existingResult.ProductUrl ??= !string.IsNullOrEmpty(product.Code)
-                ? $"{_baseUrl.TrimEnd('/')}/product/{product.Code}"
-                : null;
-            _logger.LogDebug("Enriched existing result with OpenFoodFacts images for barcode: {Barcode}", context.Query);
-        }
-        else
-        {
-            // No existing result, add as new
-            var newResult = MapToLookupResult(product);
-            context.AddResult(newResult);
-            _logger.LogDebug("Added new OpenFoodFacts result for barcode: {Barcode}", context.Query);
-        }
-    }
-
-    private async Task EnrichByNameAsync(ProductLookupPipelineContext context, CancellationToken ct)
-    {
-        var products = await SearchProductsAsync(context.Query, context.MaxResults, ct);
+        var products = await SearchProductsAsync(query, maxResults, ct);
         if (products == null || products.Count == 0)
         {
-            _logger.LogDebug("No products found in OpenFoodFacts for query: {Query}", context.Query);
-            return;
+            _logger.LogDebug("No products found in OpenFoodFacts for query: {Query}", query);
+            return new List<ProductLookupResult>();
         }
 
+        return products
+            .Where(p => !string.IsNullOrEmpty(p.Code))
+            .Select(MapToLookupResult)
+            .ToList();
+    }
+
+    public Task EnrichPipelineAsync(
+        ProductLookupPipelineContext context,
+        List<ProductLookupResult> lookupResults,
+        CancellationToken ct = default)
+    {
         int enrichedCount = 0;
         int addedCount = 0;
 
-        foreach (var product in products)
+        foreach (var result in lookupResults)
         {
-            if (string.IsNullOrEmpty(product.Code)) continue;
-
-            // Try to find existing result to enrich
-            var existingResult = context.FindMatchingResult(barcode: product.Code);
+            // Try to find existing result to enrich by barcode
+            var existingResult = !string.IsNullOrEmpty(result.Barcode)
+                ? context.FindMatchingResult(barcode: result.Barcode)
+                : null;
 
             if (existingResult != null)
             {
-                EnrichWithImages(existingResult, product);
-                EnrichWithAdditionalData(existingResult, product);
+                // Enrich existing result with OpenFoodFacts data (first plugin wins via ??=)
+                existingResult.ImageUrl ??= result.ImageUrl;
+                existingResult.ThumbnailUrl ??= result.ThumbnailUrl;
+                existingResult.BrandName ??= result.BrandName;
+                existingResult.ProductUrl ??= result.ProductUrl;
+                existingResult.Nutrition ??= result.Nutrition;
+                existingResult.Ingredients ??= result.Ingredients;
+                existingResult.ServingSizeDescription ??= result.ServingSizeDescription;
+                existingResult.DataSources.TryAdd(result.DataSources.First().Key, result.DataSources.First().Value);
+
+                // Merge additional data (Nutriscore, NOVA)
+                if (result.AdditionalData != null)
+                {
+                    existingResult.AdditionalData ??= new Dictionary<string, object>();
+                    foreach (var kvp in result.AdditionalData)
+                    {
+                        existingResult.AdditionalData.TryAdd(kvp.Key, kvp.Value);
+                    }
+                }
+
                 enrichedCount++;
             }
             else
@@ -149,15 +140,15 @@ public class OpenFoodFactsPlugin : IProductLookupPlugin
                 // Only add new results if we have room
                 if (context.Results.Count < context.MaxResults)
                 {
-                    var newResult = MapToLookupResult(product);
-                    context.AddResult(newResult);
+                    context.AddResult(result);
                     addedCount++;
                 }
             }
         }
 
-        _logger.LogDebug("OpenFoodFacts: enriched {Enriched} results, added {Added} new results for query: {Query}",
-            enrichedCount, addedCount, context.Query);
+        _logger.LogDebug("OpenFoodFacts: enriched {Enriched} results, added {Added} new results",
+            enrichedCount, addedCount);
+        return Task.CompletedTask;
     }
 
     private async Task<OpenFoodFactsProduct?> GetProductByBarcodeAsync(string barcode, CancellationToken ct)
@@ -195,53 +186,6 @@ public class OpenFoodFactsPlugin : IProductLookupPlugin
         {
             _logger.LogWarning(ex, "Failed to search OpenFoodFacts: {Query}", query);
             return null;
-        }
-    }
-
-    private void EnrichWithImages(ProductLookupResult result, OpenFoodFactsProduct product)
-    {
-        // Set image URL if not already set (first plugin wins)
-        if (result.ImageUrl == null)
-        {
-            var imageUrl = product.ImageFrontUrl ?? product.ImageUrl;
-            if (!string.IsNullOrEmpty(imageUrl))
-            {
-                result.ImageUrl = new ResultImage { ImageUrl = imageUrl, PluginId = DisplayName };
-            }
-        }
-
-        // Set thumbnail URL if missing (prefer small or thumb versions)
-        if (result.ThumbnailUrl == null)
-        {
-            var thumbUrl = product.ImageThumbUrl
-                ?? product.ImageFrontThumbUrl
-                ?? product.ImageFrontSmallUrl
-                ?? product.ImageSmallUrl;
-            if (!string.IsNullOrEmpty(thumbUrl))
-            {
-                result.ThumbnailUrl = new ResultImage { ImageUrl = thumbUrl, PluginId = DisplayName };
-            }
-        }
-
-        // Also enrich brand if missing
-        if (string.IsNullOrEmpty(result.BrandName) && !string.IsNullOrEmpty(product.Brands))
-        {
-            result.BrandName = product.Brands;
-        }
-    }
-
-    private static void EnrichWithAdditionalData(ProductLookupResult result, OpenFoodFactsProduct product)
-    {
-        result.AdditionalData ??= new Dictionary<string, object>();
-
-        if (!string.IsNullOrEmpty(product.NutriscoreGrade))
-        {
-            result.AdditionalData["nutriscore_grade"] = product.NutriscoreGrade;
-        }
-
-        if (product.NovaGroup.HasValue)
-        {
-            result.AdditionalData["nova_group"] = product.NovaGroup.Value;
         }
     }
 

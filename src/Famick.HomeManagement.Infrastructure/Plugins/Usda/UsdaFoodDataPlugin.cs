@@ -77,68 +77,67 @@ public class UsdaFoodDataPlugin : IProductLookupPlugin
         return Task.CompletedTask;
     }
 
-    public async Task ProcessPipelineAsync(ProductLookupPipelineContext context, CancellationToken ct = default)
+    public async Task<List<ProductLookupResult>> LookupAsync(
+        string query,
+        ProductLookupSearchType searchType,
+        int maxResults = 20,
+        CancellationToken ct = default)
     {
         if (!IsAvailable)
         {
             _logger.LogWarning("USDA plugin is not available (missing API key)");
-            return;
+            return new List<ProductLookupResult>();
         }
 
-        _logger.LogInformation("USDA plugin processing pipeline: {Query} ({SearchType})",
-            context.Query, context.SearchType);
+        _logger.LogInformation("USDA plugin looking up: {Query} ({SearchType})", query, searchType);
 
-        try
+        if (searchType == ProductLookupSearchType.Barcode)
         {
-            List<ProductLookupResult> results;
-
-            if (context.SearchType == ProductLookupSearchType.Barcode)
-            {
-                results = await SearchByBarcodeInternalAsync(context.Query, ct);
-            }
-            else
-            {
-                results = await SearchByNameInternalAsync(context.Query, context.MaxResults, ct);
-            }
-
-            foreach(var result in results)
-            {
-                // Use normalized barcode matching to handle different formats (UPC-A, EAN-13, etc.)
-                var existingResult = !string.IsNullOrEmpty(result.Barcode)
-                    ? context.FindMatchingResult(barcode: result.Barcode)
-                    : null;
-                if (existingResult == null)
-                {
-                    context.Results.Add(result);
-                    continue;
-                }
-
-                existingResult.BrandName ??= result.BrandName;
-                existingResult.BrandOwner ??= result.BrandOwner;
-                existingResult.DataSources.TryAdd(result.DataSources.First().Key, result.DataSources.First().Value);
-                existingResult.Description ??= result.Description;
-                existingResult.ImageUrl ??= result.ImageUrl;
-                existingResult.Ingredients ??= result.Ingredients;
-                existingResult.Name ??= result.Name;
-                existingResult.Nutrition ??= result.Nutrition;
-                existingResult.ServingSizeDescription ??= result.ServingSizeDescription;
-                existingResult.ThumbnailUrl ??= result.ThumbnailUrl;
-
-                var existing = new HashSet<string>(
-                    existingResult.Categories,
-                    StringComparer.OrdinalIgnoreCase);
-
-                existingResult.Categories.AddRange(
-                    result.Categories.Where(existing.Add)
-                );
-            }
-
-            _logger.LogDebug("USDA plugin added {Count} results to pipeline", results.Count);
+            return await SearchByBarcodeInternalAsync(query, ct);
         }
-        catch (Exception ex)
+
+        return await SearchByNameInternalAsync(query, maxResults, ct);
+    }
+
+    public Task EnrichPipelineAsync(
+        ProductLookupPipelineContext context,
+        List<ProductLookupResult> lookupResults,
+        CancellationToken ct = default)
+    {
+        foreach (var result in lookupResults)
         {
-            _logger.LogError(ex, "USDA plugin failed during pipeline processing: {Query}", context.Query);
+            // Use normalized barcode matching to handle different formats (UPC-A, EAN-13, etc.)
+            var existingResult = !string.IsNullOrEmpty(result.Barcode)
+                ? context.FindMatchingResult(barcode: result.Barcode)
+                : null;
+            if (existingResult == null)
+            {
+                context.Results.Add(result);
+                continue;
+            }
+
+            existingResult.BrandName ??= result.BrandName;
+            existingResult.BrandOwner ??= result.BrandOwner;
+            existingResult.DataSources.TryAdd(result.DataSources.First().Key, result.DataSources.First().Value);
+            existingResult.Description ??= result.Description;
+            existingResult.ImageUrl ??= result.ImageUrl;
+            existingResult.Ingredients ??= result.Ingredients;
+            existingResult.Name ??= result.Name;
+            existingResult.Nutrition ??= result.Nutrition;
+            existingResult.ServingSizeDescription ??= result.ServingSizeDescription;
+            existingResult.ThumbnailUrl ??= result.ThumbnailUrl;
+
+            var existing = new HashSet<string>(
+                existingResult.Categories,
+                StringComparer.OrdinalIgnoreCase);
+
+            existingResult.Categories.AddRange(
+                result.Categories.Where(existing.Add)
+            );
         }
+
+        _logger.LogDebug("USDA plugin enriched pipeline with {Count} lookup results", lookupResults.Count);
+        return Task.CompletedTask;
     }
 
     private async Task<List<ProductLookupResult>> SearchByBarcodeInternalAsync(string barcode, CancellationToken ct)
