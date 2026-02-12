@@ -3,10 +3,13 @@ using FluentValidation;
 
 namespace Famick.HomeManagement.Core.Validators.Recipes;
 
-public class UpdateRecipePositionRequestValidator : AbstractValidator<UpdateRecipePositionRequest>
+public class CreateRecipeIngredientRequestValidator : AbstractValidator<CreateRecipeIngredientRequest>
 {
-    public UpdateRecipePositionRequestValidator()
+    public CreateRecipeIngredientRequestValidator()
     {
+        RuleFor(x => x.ProductId)
+            .NotEmpty().WithMessage("Product ID is required");
+
         RuleFor(x => x.Amount)
             .GreaterThan(0).WithMessage("Amount must be greater than 0");
 

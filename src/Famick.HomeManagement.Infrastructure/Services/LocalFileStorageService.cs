@@ -421,6 +421,173 @@ public class LocalFileStorageService : IFileStorageService
 
     #endregion
 
+    #region Recipe Images
+
+    public async Task<string> SaveRecipeImageAsync(Guid recipeId, Stream stream, string fileName, CancellationToken ct = default)
+    {
+        var directory = GetRecipeImageDirectory(recipeId);
+        Directory.CreateDirectory(directory);
+
+        var uniqueFileName = GenerateUniqueFileName(fileName);
+        var filePath = Path.Combine(directory, uniqueFileName);
+
+        try
+        {
+            await using var fileStream = File.Create(filePath);
+            await stream.CopyToAsync(fileStream, ct);
+
+            _logger.LogInformation("Saved recipe image {FileName} for recipe {RecipeId}", uniqueFileName, recipeId);
+            return uniqueFileName;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to save recipe image {FileName} for recipe {RecipeId}", fileName, recipeId);
+            throw;
+        }
+    }
+
+    public Task DeleteRecipeImageAsync(Guid recipeId, string fileName, CancellationToken ct = default)
+    {
+        var filePath = Path.Combine(GetRecipeImageDirectory(recipeId), fileName);
+
+        if (File.Exists(filePath))
+        {
+            try
+            {
+                File.Delete(filePath);
+                _logger.LogInformation("Deleted recipe image {FileName} for recipe {RecipeId}", fileName, recipeId);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to delete recipe image {FileName} for recipe {RecipeId}", fileName, recipeId);
+                throw;
+            }
+        }
+
+        return Task.CompletedTask;
+    }
+
+    public string GetRecipeImageUrl(Guid recipeId, Guid imageId, string? accessToken = null)
+    {
+        var url = $"{_baseUrl}/api/v1/recipes/{recipeId}/images/{imageId}/download";
+        return string.IsNullOrEmpty(accessToken) ? url : $"{url}?token={accessToken}";
+    }
+
+    public string GetRecipeImagePath(Guid recipeId, string fileName)
+    {
+        return Path.Combine(GetRecipeImageDirectory(recipeId), fileName);
+    }
+
+    public Task<Stream?> GetRecipeImageStreamAsync(Guid recipeId, string fileName, CancellationToken ct = default)
+    {
+        var filePath = GetRecipeImagePath(recipeId, fileName);
+        if (!File.Exists(filePath))
+            return Task.FromResult<Stream?>(null);
+
+        return Task.FromResult<Stream?>(File.OpenRead(filePath));
+    }
+
+    public Task DeleteAllRecipeImagesAsync(Guid recipeId, CancellationToken ct = default)
+    {
+        var directory = GetRecipeImageDirectory(recipeId);
+
+        if (Directory.Exists(directory))
+        {
+            try
+            {
+                Directory.Delete(directory, recursive: true);
+                _logger.LogInformation("Deleted all images for recipe {RecipeId}", recipeId);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to delete image directory for recipe {RecipeId}", recipeId);
+                throw;
+            }
+        }
+
+        return Task.CompletedTask;
+    }
+
+    private string GetRecipeImageDirectory(Guid recipeId)
+    {
+        return Path.Combine(_basePath, "recipe-images", recipeId.ToString());
+    }
+
+    #endregion
+
+    #region Recipe Step Images
+
+    public async Task<string> SaveRecipeStepImageAsync(Guid recipeId, Guid stepId, Stream stream, string fileName, CancellationToken ct = default)
+    {
+        var directory = GetRecipeStepImageDirectory(recipeId, stepId);
+        Directory.CreateDirectory(directory);
+
+        var uniqueFileName = GenerateUniqueFileName(fileName);
+        var filePath = Path.Combine(directory, uniqueFileName);
+
+        try
+        {
+            await using var fileStream = File.Create(filePath);
+            await stream.CopyToAsync(fileStream, ct);
+
+            _logger.LogInformation("Saved recipe step image {FileName} for recipe {RecipeId} step {StepId}", uniqueFileName, recipeId, stepId);
+            return uniqueFileName;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to save recipe step image {FileName} for recipe {RecipeId} step {StepId}", fileName, recipeId, stepId);
+            throw;
+        }
+    }
+
+    public Task DeleteRecipeStepImageAsync(Guid recipeId, Guid stepId, string fileName, CancellationToken ct = default)
+    {
+        var filePath = Path.Combine(GetRecipeStepImageDirectory(recipeId, stepId), fileName);
+
+        if (File.Exists(filePath))
+        {
+            try
+            {
+                File.Delete(filePath);
+                _logger.LogInformation("Deleted recipe step image {FileName} for recipe {RecipeId} step {StepId}", fileName, recipeId, stepId);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to delete recipe step image {FileName} for recipe {RecipeId} step {StepId}", fileName, recipeId, stepId);
+                throw;
+            }
+        }
+
+        return Task.CompletedTask;
+    }
+
+    public string GetRecipeStepImageUrl(Guid recipeId, Guid stepId, string? accessToken = null)
+    {
+        var url = $"{_baseUrl}/api/v1/recipes/{recipeId}/steps/{stepId}/image/download";
+        return string.IsNullOrEmpty(accessToken) ? url : $"{url}?token={accessToken}";
+    }
+
+    public string GetRecipeStepImagePath(Guid recipeId, Guid stepId, string fileName)
+    {
+        return Path.Combine(GetRecipeStepImageDirectory(recipeId, stepId), fileName);
+    }
+
+    public Task<Stream?> GetRecipeStepImageStreamAsync(Guid recipeId, Guid stepId, string fileName, CancellationToken ct = default)
+    {
+        var filePath = GetRecipeStepImagePath(recipeId, stepId, fileName);
+        if (!File.Exists(filePath))
+            return Task.FromResult<Stream?>(null);
+
+        return Task.FromResult<Stream?>(File.OpenRead(filePath));
+    }
+
+    private string GetRecipeStepImageDirectory(Guid recipeId, Guid stepId)
+    {
+        return Path.Combine(_basePath, "recipe-step-images", recipeId.ToString(), stepId.ToString());
+    }
+
+    #endregion
+
     #region Contact Profile Images
 
     public async Task<string> SaveContactProfileImageAsync(Guid contactId, Stream stream, string fileName, CancellationToken ct = default)

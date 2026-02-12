@@ -183,6 +183,113 @@ public interface IFileStorageService
 
     #endregion
 
+    #region Recipe Images
+
+    /// <summary>
+    /// Saves a recipe image to storage.
+    /// </summary>
+    /// <param name="recipeId">The recipe ID for organizing storage.</param>
+    /// <param name="stream">The file stream to save.</param>
+    /// <param name="fileName">The original file name.</param>
+    /// <param name="ct">Cancellation token.</param>
+    /// <returns>The stored file name (unique).</returns>
+    Task<string> SaveRecipeImageAsync(Guid recipeId, Stream stream, string fileName, CancellationToken ct = default);
+
+    /// <summary>
+    /// Deletes a recipe image from storage.
+    /// </summary>
+    /// <param name="recipeId">The recipe ID.</param>
+    /// <param name="fileName">The stored file name.</param>
+    /// <param name="ct">Cancellation token.</param>
+    Task DeleteRecipeImageAsync(Guid recipeId, string fileName, CancellationToken ct = default);
+
+    /// <summary>
+    /// Gets the URL for accessing a recipe image via the secure API endpoint.
+    /// </summary>
+    /// <param name="recipeId">The recipe ID.</param>
+    /// <param name="imageId">The image ID.</param>
+    /// <param name="accessToken">Optional pre-signed access token for browser-initiated requests.</param>
+    /// <returns>The API URL to access the image.</returns>
+    string GetRecipeImageUrl(Guid recipeId, Guid imageId, string? accessToken = null);
+
+    /// <summary>
+    /// Gets the physical file path for a recipe image.
+    /// </summary>
+    /// <param name="recipeId">The recipe ID.</param>
+    /// <param name="fileName">The stored file name.</param>
+    /// <returns>The full file path on disk, or the S3 object key in cloud deployments.</returns>
+    string GetRecipeImagePath(Guid recipeId, string fileName);
+
+    /// <summary>
+    /// Gets a readable stream for a recipe image.
+    /// </summary>
+    /// <param name="recipeId">The recipe ID.</param>
+    /// <param name="fileName">The stored file name.</param>
+    /// <param name="ct">Cancellation token.</param>
+    /// <returns>A stream for reading the image, or null if the file does not exist.</returns>
+    Task<Stream?> GetRecipeImageStreamAsync(Guid recipeId, string fileName, CancellationToken ct = default);
+
+    /// <summary>
+    /// Deletes all images for a recipe (used when deleting a recipe).
+    /// </summary>
+    /// <param name="recipeId">The recipe ID.</param>
+    /// <param name="ct">Cancellation token.</param>
+    Task DeleteAllRecipeImagesAsync(Guid recipeId, CancellationToken ct = default);
+
+    #endregion
+
+    #region Recipe Step Images
+
+    /// <summary>
+    /// Saves a recipe step image to storage.
+    /// </summary>
+    /// <param name="recipeId">The recipe ID for organizing storage.</param>
+    /// <param name="stepId">The step ID for organizing storage.</param>
+    /// <param name="stream">The file stream to save.</param>
+    /// <param name="fileName">The original file name.</param>
+    /// <param name="ct">Cancellation token.</param>
+    /// <returns>The stored file name (unique).</returns>
+    Task<string> SaveRecipeStepImageAsync(Guid recipeId, Guid stepId, Stream stream, string fileName, CancellationToken ct = default);
+
+    /// <summary>
+    /// Deletes a recipe step image from storage.
+    /// </summary>
+    /// <param name="recipeId">The recipe ID.</param>
+    /// <param name="stepId">The step ID.</param>
+    /// <param name="fileName">The stored file name.</param>
+    /// <param name="ct">Cancellation token.</param>
+    Task DeleteRecipeStepImageAsync(Guid recipeId, Guid stepId, string fileName, CancellationToken ct = default);
+
+    /// <summary>
+    /// Gets the URL for accessing a recipe step image via the secure API endpoint.
+    /// </summary>
+    /// <param name="recipeId">The recipe ID.</param>
+    /// <param name="stepId">The step ID.</param>
+    /// <param name="accessToken">Optional pre-signed access token for browser-initiated requests.</param>
+    /// <returns>The API URL to access the image.</returns>
+    string GetRecipeStepImageUrl(Guid recipeId, Guid stepId, string? accessToken = null);
+
+    /// <summary>
+    /// Gets the physical file path for a recipe step image.
+    /// </summary>
+    /// <param name="recipeId">The recipe ID.</param>
+    /// <param name="stepId">The step ID.</param>
+    /// <param name="fileName">The stored file name.</param>
+    /// <returns>The full file path on disk, or the S3 object key in cloud deployments.</returns>
+    string GetRecipeStepImagePath(Guid recipeId, Guid stepId, string fileName);
+
+    /// <summary>
+    /// Gets a readable stream for a recipe step image.
+    /// </summary>
+    /// <param name="recipeId">The recipe ID.</param>
+    /// <param name="stepId">The step ID.</param>
+    /// <param name="fileName">The stored file name.</param>
+    /// <param name="ct">Cancellation token.</param>
+    /// <returns>A stream for reading the image, or null if the file does not exist.</returns>
+    Task<Stream?> GetRecipeStepImageStreamAsync(Guid recipeId, Guid stepId, string fileName, CancellationToken ct = default);
+
+    #endregion
+
     #region Contact Profile Images
 
     /// <summary>
