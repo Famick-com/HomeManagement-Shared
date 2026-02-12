@@ -44,6 +44,12 @@ public class Tenant : BaseEntity
     public virtual Address? Address { get; set; }
 
     /// <summary>
+    /// IANA time zone identifier for the household (e.g., "America/New_York").
+    /// Used for calendar display and reminder scheduling.
+    /// </summary>
+    public string TimeZoneId { get; set; } = "America/New_York";
+
+    /// <summary>
     /// JSON array of plugin IDs that an admin has disabled for this tenant.
     /// e.g., ["usda", "openfoodfacts"]. Null or empty means all plugins are enabled.
     /// </summary>
