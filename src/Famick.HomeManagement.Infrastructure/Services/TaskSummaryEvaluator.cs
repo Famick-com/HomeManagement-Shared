@@ -91,7 +91,7 @@ public class TaskSummaryEvaluator : INotificationEvaluator
             NotificationType.TaskSummary,
             title,
             summary,
-            "/tasks",
+            "/todos",
             $"Famick: {title}",
             emailHtml,
             emailText

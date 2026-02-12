@@ -132,11 +132,10 @@ else
         _isLoading = true;
         try
         {
-            var readFilter = _activeTabIndex == 1 ? "unread" : "";
             var endpoint = $"api/v1/notifications?page={_currentPage}&pageSize={_pageSize}";
-            if (!string.IsNullOrEmpty(readFilter))
+            if (_activeTabIndex == 1)
             {
-                endpoint += $"&readFilter={readFilter}";
+                endpoint += "&readFilter=false";
             }
 
             var result = await ApiClient.GetAsync<NotificationListResponse>(endpoint);
