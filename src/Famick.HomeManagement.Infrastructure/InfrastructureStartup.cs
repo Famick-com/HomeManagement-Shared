@@ -71,6 +71,7 @@ public static class InfrastructureStartup
         services.AddScoped<ITodoItemService, TodoItemService>();
         services.AddScoped<IVehicleService, VehicleService>();
         services.AddScoped<IWizardService, WizardService>();
+        services.AddScoped<ICalendarEventService, CalendarEventService>();
 
         // Register notification services
         services.AddScoped<INotificationService, NotificationService>();
