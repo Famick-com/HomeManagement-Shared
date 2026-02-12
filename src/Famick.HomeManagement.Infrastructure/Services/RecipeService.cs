@@ -13,17 +13,20 @@ public class RecipeService : IRecipeService
     private readonly HomeManagementDbContext _context;
     private readonly IMapper _mapper;
     private readonly IFileStorageService _fileStorage;
+    private readonly IFileAccessTokenService _tokenService;
     private readonly ILogger<RecipeService> _logger;
 
     public RecipeService(
         HomeManagementDbContext context,
         IMapper mapper,
         IFileStorageService fileStorage,
+        IFileAccessTokenService tokenService,
         ILogger<RecipeService> logger)
     {
         _context = context;
         _mapper = mapper;
         _fileStorage = fileStorage;
+        _tokenService = tokenService;
         _logger = logger;
     }
 
@@ -773,9 +776,15 @@ public class RecipeService : IRecipeService
         string? primaryImageUrl = null;
         if (primaryImage != null)
         {
-            primaryImageUrl = !string.IsNullOrEmpty(primaryImage.ExternalUrl)
-                ? primaryImage.ExternalUrl
-                : _fileStorage.GetRecipeImageUrl(recipe.Id, primaryImage.Id);
+            if (!string.IsNullOrEmpty(primaryImage.ExternalUrl))
+            {
+                primaryImageUrl = primaryImage.ExternalUrl;
+            }
+            else
+            {
+                var token = _tokenService.GenerateToken("recipe-image", primaryImage.Id, primaryImage.TenantId);
+                primaryImageUrl = _fileStorage.GetRecipeImageUrl(recipe.Id, primaryImage.Id, token);
+            }
         }
 
         return new RecipeSummaryDto
@@ -801,7 +810,8 @@ public class RecipeService : IRecipeService
         }
         else if (!string.IsNullOrEmpty(step.ImageFileName))
         {
-            imageUrl = _fileStorage.GetRecipeStepImageUrl(step.RecipeId, step.Id);
+            var token = _tokenService.GenerateToken("recipe-step-image", step.Id, step.TenantId);
+            imageUrl = _fileStorage.GetRecipeStepImageUrl(step.RecipeId, step.Id, token);
         }
 
         return new RecipeStepDto
@@ -859,7 +869,7 @@ public class RecipeService : IRecipeService
             FileSize = image.FileSize,
             SortOrder = image.SortOrder,
             IsPrimary = image.IsPrimary,
-            Url = _fileStorage.GetRecipeImageUrl(image.RecipeId, image.Id),
+            Url = _fileStorage.GetRecipeImageUrl(image.RecipeId, image.Id, _tokenService.GenerateToken("recipe-image", image.Id, image.TenantId)),
             ExternalUrl = image.ExternalUrl,
             ExternalThumbnailUrl = image.ExternalThumbnailUrl,
             ExternalSource = image.ExternalSource,
