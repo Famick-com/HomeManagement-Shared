@@ -75,7 +75,7 @@ public class ExternalCalendarService : IExternalCalendarService
             UserId = userId,
             Name = request.Name,
             IcsUrl = NormalizeIcsUrl(request.IcsUrl),
-            Color = request.Color,
+            Color = NormalizeColor(request.Color),
             SyncIntervalMinutes = request.SyncIntervalMinutes,
             IsActive = true
         };
@@ -102,7 +102,7 @@ public class ExternalCalendarService : IExternalCalendarService
             throw new EntityNotFoundException(nameof(ExternalCalendarSubscription), subscriptionId);
 
         subscription.Name = request.Name;
-        subscription.Color = request.Color;
+        subscription.Color = NormalizeColor(request.Color);
         subscription.IsActive = request.IsActive;
         subscription.SyncIntervalMinutes = request.SyncIntervalMinutes;
 
@@ -282,6 +282,42 @@ public class ExternalCalendarService : IExternalCalendarService
         using var response = await _httpClient.GetAsync(url, cancellationToken);
         response.EnsureSuccessStatusCode();
         return await response.Content.ReadAsStringAsync(cancellationToken);
+    }
+
+    private static readonly Dictionary<string, string> CssColorNames = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["red"] = "#F44336", ["blue"] = "#2196F3", ["green"] = "#4CAF50",
+        ["yellow"] = "#FFEB3B", ["orange"] = "#FF9800", ["purple"] = "#9C27B0",
+        ["pink"] = "#E91E63", ["teal"] = "#009688", ["cyan"] = "#00BCD4",
+        ["brown"] = "#795548", ["gray"] = "#9E9E9E", ["grey"] = "#9E9E9E",
+        ["indigo"] = "#3F51B5", ["amber"] = "#FFC107", ["black"] = "#000000",
+        ["white"] = "#FFFFFF", ["lime"] = "#CDDC39", ["navy"] = "#1A237E",
+        ["maroon"] = "#880E4F", ["olive"] = "#827717", ["aqua"] = "#00BCD4",
+        ["silver"] = "#BDBDBD", ["fuchsia"] = "#E91E63", ["coral"] = "#FF7043",
+        ["salmon"] = "#FF8A65", ["gold"] = "#FFD600", ["tomato"] = "#FF5722",
+        ["violet"] = "#7C4DFF", ["crimson"] = "#D32F2F", ["khaki"] = "#F0E68C",
+    };
+
+    /// <summary>
+    /// Converts CSS color names to hex format. Returns the value as-is if already hex.
+    /// </summary>
+    private static string? NormalizeColor(string? color)
+    {
+        if (string.IsNullOrWhiteSpace(color))
+            return null;
+
+        color = color.Trim();
+
+        // Already hex
+        if (color[0] == '#')
+            return color;
+
+        // Known CSS color name
+        if (CssColorNames.TryGetValue(color, out var hex))
+            return hex;
+
+        // Unknown name - prepend # in case it's hex without the prefix
+        return $"#{color}";
     }
 
     private static string NormalizeIcsUrl(string url)

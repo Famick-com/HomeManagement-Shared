@@ -88,10 +88,20 @@
                           Required="true"
                           Variant="Variant.Outlined"
                           Disabled="@(_editingSub != null)" />
-            <MudTextField @bind-Value="_formColor"
-                          Label="@L["calendar.subscriptions.color"]"
-                          Variant="Variant.Outlined"
-                          HelperText="#hex color" />
+            <div>
+                <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mb-1">@L["calendar.subscriptions.color"]</MudText>
+                <div class="d-flex flex-wrap gap-1">
+                    @foreach (var color in SubscriptionColors)
+                    {
+                        <MudTooltip Text="@color.Name">
+                            <MudIconButton Icon="@(_formColor == color.Hex ? Icons.Material.Filled.CheckCircle : Icons.Material.Filled.Circle)"
+                                           Style="@($"color: {color.Hex};")"
+                                           Size="Size.Small"
+                                           OnClick="@(() => _formColor = color.Hex)" />
+                        </MudTooltip>
+                    }
+                </div>
+            </div>
             <MudNumericField T="int" @bind-Value="_formSyncInterval"
                              Label="@L["calendar.subscriptions.syncInterval"]"
                              Min="15" Max="1440"
@@ -121,8 +131,24 @@
     private ExternalCalendarSubscriptionDto? _editingSub;
     private string _formName = string.Empty;
     private string _formIcsUrl = string.Empty;
-    private string? _formColor;
+    private string? _formColor = "#9E9E9E";
     private int _formSyncInterval = 60;
+
+    private static readonly List<(string Hex, string Name)> SubscriptionColors = new()
+    {
+        ("#9E9E9E", "Gray"),
+        ("#2196F3", "Blue"),
+        ("#4CAF50", "Green"),
+        ("#F44336", "Red"),
+        ("#FF9800", "Orange"),
+        ("#9C27B0", "Purple"),
+        ("#009688", "Teal"),
+        ("#E91E63", "Pink"),
+        ("#3F51B5", "Indigo"),
+        ("#FFC107", "Amber"),
+        ("#00BCD4", "Cyan"),
+        ("#795548", "Brown"),
+    };
 
     protected override async Task OnInitializedAsync()
     {
@@ -155,7 +181,7 @@
         _editingSub = null;
         _formName = string.Empty;
         _formIcsUrl = string.Empty;
-        _formColor = null;
+        _formColor = "#9E9E9E";
         _formSyncInterval = 60;
         _dialogVisible = true;
     }
