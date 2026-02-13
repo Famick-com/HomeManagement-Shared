@@ -33,19 +33,20 @@
 
 @* Date range navigation *@
 <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.Center" Spacing="2" Class="mb-4">
-    <MudIconButton Icon="@Icons.Material.Filled.ChevronLeft" OnClick="PreviousWeek" />
+    <MudIconButton Icon="@Icons.Material.Filled.ChevronLeft" OnClick="PreviousPeriod" />
     <MudButton Variant="Variant.Outlined" OnClick="GoToToday" Size="Size.Small">@L["calendar.today"]</MudButton>
     <MudText Typo="Typo.subtitle1" Style="min-width: 200px; text-align: center;">
-        @_rangeStart.ToString("MMM d") &ndash; @_rangeEnd.ToString("MMM d, yyyy")
+        @GetRangeLabel()
     </MudText>
-    <MudIconButton Icon="@Icons.Material.Filled.ChevronRight" OnClick="NextWeek" />
+    <MudIconButton Icon="@Icons.Material.Filled.ChevronRight" OnClick="NextPeriod" />
 </MudStack>
 
 @* View toggle *@
 <MudStack Row="true" Justify="Justify.Center" Class="mb-4">
-    <MudToggleGroup T="string" @bind-Value="_currentView" Color="Color.Primary" Size="Size.Small">
+    <MudToggleGroup T="string" Value="_currentView" ValueChanged="OnViewChanged" Color="Color.Primary" Size="Size.Small">
         <MudToggleItem T="string" Value="@("agenda")" Text="@L["calendar.agenda"]" />
         <MudToggleItem T="string" Value="@("week")" Text="@L["calendar.week"]" />
+        <MudToggleItem T="string" Value="@("month")" Text="@L["calendar.month"]" />
     </MudToggleGroup>
 </MudStack>
 
@@ -53,7 +54,7 @@
 {
     <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
 }
-else if (_events.Count == 0)
+else if (_events.Count == 0 && _currentView != "month")
 {
     <MudAlert Severity="Severity.Info" Class="mt-4">@L["calendar.noEvents"]</MudAlert>
 }
@@ -75,7 +76,7 @@ else
             </MudStack>
         }
     }
-    else
+    else if (_currentView == "week")
     {
         @* Week View - simple 7-column grid *@
         <MudGrid Spacing="2">
@@ -135,6 +136,59 @@ else
             }
         </MudGrid>
     }
+    else
+    {
+        @* Month View - calendar grid with event indicators *@
+        <div style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px;">
+            @* Day of week headers *@
+            @foreach (var dayName in new[] { "Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun" })
+            {
+                <div style="text-align: center; padding: 4px; font-size: 0.75rem; font-weight: 600; color: var(--mud-palette-text-secondary);">
+                    @dayName
+                </div>
+            }
+
+            @* Calendar cells *@
+            @{
+                var monthStart = new DateTime(_rangeStart.Year, _rangeStart.Month, 1);
+                var firstDayOffset = ((int)monthStart.DayOfWeek + 6) % 7;
+                var gridStart = monthStart.AddDays(-firstDayOffset);
+                var totalDays = firstDayOffset + DateTime.DaysInMonth(_rangeStart.Year, _rangeStart.Month);
+                var rows = (int)Math.Ceiling(totalDays / 7.0);
+            }
+            @for (var i = 0; i < rows * 7; i++)
+            {
+                var date = gridStart.AddDays(i);
+                var isCurrentMonth = date.Month == _rangeStart.Month;
+                var isToday = date == DateTime.Today;
+                var dayEvents = _events.Where(e => e.StartTimeUtc.ToLocalTime().Date == date).ToList();
+
+                <div style="@($"min-height: 80px; padding: 4px; background: {(isCurrentMonth ? "var(--mud-palette-background-grey)" : "transparent")}; border-radius: 4px; cursor: pointer; opacity: {(isCurrentMonth ? "1" : "0.4")};")"
+                     @onclick="@(() => { if (dayEvents.Count > 0) ViewEvent(dayEvents[0]); })">
+                    <div style="@($"font-size: 0.8rem; font-weight: {(isToday ? "700" : "400")}; color: {(isToday ? "var(--mud-palette-primary)" : "inherit")}; text-align: right; margin-bottom: 2px;")">
+                        @date.Day
+                    </div>
+                    @foreach (var evt in dayEvents.Take(3))
+                    {
+                        <div style="@($"font-size: 0.65rem; padding: 1px 4px; margin-bottom: 1px; border-radius: 2px; background: {GetEventColor(evt)}20; border-left: 2px solid {GetEventColor(evt)}; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer;")"
+                             @onclick="@(() => ViewEvent(evt))" @onclick:stopPropagation="true">
+                            @if (!evt.IsAllDay)
+                            {
+                                <span style="color: gray;">@evt.StartTimeUtc.ToLocalTime().ToString("h:mm") </span>
+                            }
+                            @evt.Title
+                        </div>
+                    }
+                    @if (dayEvents.Count > 3)
+                    {
+                        <div style="font-size: 0.6rem; color: var(--mud-palette-text-secondary); text-align: center;">
+                            +@(dayEvents.Count - 3) more
+                        </div>
+                    }
+                </div>
+            }
+        </div>
+    }
 }
 
 @* Event Dialog *@
@@ -184,7 +238,7 @@ else
 
     protected override async Task OnInitializedAsync()
     {
-        SetWeekRange(DateTime.Today);
+        SetRange(DateTime.Today);
         await LoadEventsAsync();
 
         // Open event from query parameter (e.g., dashboard click)
@@ -201,13 +255,30 @@ else
         }
     }
 
+    private void SetRange(DateTime date)
+    {
+        if (_currentView == "month")
+        {
+            SetMonthRange(date);
+        }
+        else
+        {
+            SetWeekRange(date);
+        }
+    }
+
     private void SetWeekRange(DateTime date)
     {
-        // Start from Monday of the week
         var dayOfWeek = (int)date.DayOfWeek;
         var monday = date.AddDays(-(dayOfWeek == 0 ? 6 : dayOfWeek - 1));
         _rangeStart = monday;
         _rangeEnd = monday.AddDays(6);
+    }
+
+    private void SetMonthRange(DateTime date)
+    {
+        _rangeStart = new DateTime(date.Year, date.Month, 1);
+        _rangeEnd = _rangeStart.AddMonths(1).AddDays(-1);
     }
 
     private async Task LoadEventsAsync()
@@ -215,8 +286,24 @@ else
         _isLoading = true;
         try
         {
-            var startUtc = _rangeStart.ToUniversalTime().ToString("O");
-            var endUtc = _rangeEnd.AddDays(1).ToUniversalTime().ToString("O");
+            // For month view, expand query range to include leading/trailing days visible in the grid
+            DateTime queryStart, queryEnd;
+            if (_currentView == "month")
+            {
+                var firstDayOffset = ((int)_rangeStart.DayOfWeek + 6) % 7;
+                queryStart = _rangeStart.AddDays(-firstDayOffset);
+                var totalDays = firstDayOffset + DateTime.DaysInMonth(_rangeStart.Year, _rangeStart.Month);
+                var rows = (int)Math.Ceiling(totalDays / 7.0);
+                queryEnd = queryStart.AddDays(rows * 7);
+            }
+            else
+            {
+                queryStart = _rangeStart;
+                queryEnd = _rangeEnd.AddDays(1);
+            }
+
+            var startUtc = queryStart.ToUniversalTime().ToString("O");
+            var endUtc = queryEnd.ToUniversalTime().ToString("O");
             var result = await ApiClient.GetAsync<List<CalendarOccurrenceDto>>(
                 $"api/v1/calendar/events?startDate={startUtc}&endDate={endUtc}&includeExternalEvents=true");
 
@@ -236,24 +323,54 @@ else
         }
     }
 
-    private async Task PreviousWeek()
+    private async Task PreviousPeriod()
     {
-        _rangeStart = _rangeStart.AddDays(-7);
-        _rangeEnd = _rangeEnd.AddDays(-7);
+        if (_currentView == "month")
+        {
+            SetMonthRange(_rangeStart.AddMonths(-1));
+        }
+        else
+        {
+            _rangeStart = _rangeStart.AddDays(-7);
+            _rangeEnd = _rangeEnd.AddDays(-7);
+        }
         await LoadEventsAsync();
     }
 
-    private async Task NextWeek()
+    private async Task NextPeriod()
     {
-        _rangeStart = _rangeStart.AddDays(7);
-        _rangeEnd = _rangeEnd.AddDays(7);
+        if (_currentView == "month")
+        {
+            SetMonthRange(_rangeStart.AddMonths(1));
+        }
+        else
+        {
+            _rangeStart = _rangeStart.AddDays(7);
+            _rangeEnd = _rangeEnd.AddDays(7);
+        }
         await LoadEventsAsync();
     }
 
     private async Task GoToToday()
     {
-        SetWeekRange(DateTime.Today);
+        SetRange(DateTime.Today);
         await LoadEventsAsync();
+    }
+
+    private async Task OnViewChanged(string newView)
+    {
+        _currentView = newView;
+        SetRange(_rangeStart);
+        await LoadEventsAsync();
+    }
+
+    private string GetRangeLabel()
+    {
+        if (_currentView == "month")
+        {
+            return _rangeStart.ToString("MMMM yyyy");
+        }
+        return $"{_rangeStart:MMM d} \u2013 {_rangeEnd:MMM d, yyyy}";
     }
 
     private void OpenCreateDialog()

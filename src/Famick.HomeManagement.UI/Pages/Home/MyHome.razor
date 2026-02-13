@@ -12,6 +12,7 @@
 @using Famick.HomeManagement.UI.Components.Home
 @using Famick.HomeManagement.UI.Components.Equipment
 @using Famick.HomeManagement.UI.Components.Common
+@using Famick.HomeManagement.UI.Components.Calendar
 
 <MudText Typo="Typo.h4" Class="mb-4">@L["home.title"]</MudText>
 
@@ -603,6 +604,8 @@ else if (_home != null)
                 </MudExpansionPanel>
             </MudExpansionPanels>
         </MudPaper>
+
+        <CalendarDashboardWidget />
     </MudStack>
 }
 
