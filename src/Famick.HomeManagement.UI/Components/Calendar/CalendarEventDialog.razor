@@ -1,0 +1,261 @@
+@inject IApiClient ApiClient
+@inject ISnackbar Snackbar
+@inject ILocalizer L
+
+<MudDialog @bind-Visible="Visible" Options="@(new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true })">
+    <TitleContent>
+        <MudText Typo="Typo.h6">@(IsEdit ? L["calendar.editEvent"] : L["calendar.addEvent"])</MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudForm @ref="_form">
+            <MudStack Spacing="3">
+                <MudTextField @bind-Value="_model.Title"
+                              Label="@L["calendar.event.title"]"
+                              Required="true"
+                              Variant="Variant.Outlined" />
+
+                <MudTextField @bind-Value="_model.Description"
+                              Label="@L["calendar.event.description"]"
+                              Variant="Variant.Outlined"
+                              Lines="3" />
+
+                <MudTextField @bind-Value="_model.Location"
+                              Label="@L["calendar.event.location"]"
+                              Variant="Variant.Outlined" />
+
+                <MudCheckBox T="bool" @bind-Value="_model.IsAllDay"
+                             Label="@L["calendar.event.allDay"]"
+                             Dense="true" />
+
+                <MudGrid>
+                    <MudItem xs="6">
+                        <MudDatePicker @bind-Date="_startDate"
+                                       Label="@L["calendar.event.startDate"]"
+                                       Variant="Variant.Outlined"
+                                       Required="true" />
+                    </MudItem>
+                    @if (!_model.IsAllDay)
+                    {
+                        <MudItem xs="6">
+                            <MudTimePicker @bind-Time="_startTime"
+                                           Label="@L["calendar.event.startTime"]"
+                                           Variant="Variant.Outlined" />
+                        </MudItem>
+                    }
+                    <MudItem xs="6">
+                        <MudDatePicker @bind-Date="_endDate"
+                                       Label="@L["calendar.event.endDate"]"
+                                       Variant="Variant.Outlined"
+                                       Required="true" />
+                    </MudItem>
+                    @if (!_model.IsAllDay)
+                    {
+                        <MudItem xs="6">
+                            <MudTimePicker @bind-Time="_endTime"
+                                           Label="@L["calendar.event.endTime"]"
+                                           Variant="Variant.Outlined" />
+                        </MudItem>
+                    }
+                </MudGrid>
+
+                <MudSelect T="int?" @bind-Value="_model.ReminderMinutesBefore"
+                           Label="@L["calendar.event.reminder"]"
+                           Variant="Variant.Outlined">
+                    <MudSelectItem T="int?" Value="@((int?)null)">@L["calendar.event.noReminder"]</MudSelectItem>
+                    <MudSelectItem T="int?" Value="5">5 minutes before</MudSelectItem>
+                    <MudSelectItem T="int?" Value="10">10 minutes before</MudSelectItem>
+                    <MudSelectItem T="int?" Value="15">15 minutes before</MudSelectItem>
+                    <MudSelectItem T="int?" Value="30">30 minutes before</MudSelectItem>
+                    <MudSelectItem T="int?" Value="60">1 hour before</MudSelectItem>
+                    <MudSelectItem T="int?" Value="1440">1 day before</MudSelectItem>
+                </MudSelect>
+
+                <MudTextField @bind-Value="_model.Color"
+                              Label="@L["calendar.event.color"]"
+                              Variant="Variant.Outlined"
+                              HelperText="#hex color" />
+
+                <RecurrenceEditor @bind-RecurrenceRule="_model.RecurrenceRule"
+                                  @bind-EndDate="_recurrenceEndDate" />
+
+                <MemberParticipationPicker @bind-Members="_model.Members" />
+            </MudStack>
+        </MudForm>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Close">@L["common.cancel"]</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="Save" Disabled="@_isSaving">
+            @if (_isSaving)
+            {
+                <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+            }
+            @L["common.save"]
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [Parameter] public bool Visible { get; set; }
+    [Parameter] public EventCallback<bool> VisibleChanged { get; set; }
+    [Parameter] public EventCallback OnSave { get; set; }
+
+    /// <summary>
+    /// If set, the dialog is in edit mode for this event.
+    /// </summary>
+    [Parameter] public CalendarEventDto? Event { get; set; }
+
+    /// <summary>
+    /// For recurring event edits: the occurrence start time being edited.
+    /// </summary>
+    [Parameter] public DateTime? OccurrenceStartTimeUtc { get; set; }
+
+    /// <summary>
+    /// For recurring event edits: the selected edit scope.
+    /// </summary>
+    [Parameter] public RecurrenceEditScope? EditScope { get; set; }
+
+    private bool IsEdit => Event != null;
+
+    private MudForm _form = null!;
+    private bool _isSaving;
+    private CreateCalendarEventRequest _model = new();
+    private DateTime? _startDate;
+    private TimeSpan? _startTime;
+    private DateTime? _endDate;
+    private TimeSpan? _endTime;
+    private DateTime? _recurrenceEndDate;
+
+    protected override void OnParametersSet()
+    {
+        if (Visible)
+        {
+            InitializeModel();
+        }
+    }
+
+    private void InitializeModel()
+    {
+        if (Event != null)
+        {
+            _model = new CreateCalendarEventRequest
+            {
+                Title = Event.Title,
+                Description = Event.Description,
+                Location = Event.Location,
+                IsAllDay = Event.IsAllDay,
+                RecurrenceRule = Event.RecurrenceRule,
+                RecurrenceEndDate = Event.RecurrenceEndDate,
+                ReminderMinutesBefore = Event.ReminderMinutesBefore,
+                Color = Event.Color,
+                Members = Event.Members.Select(m => new CalendarEventMemberRequest
+                {
+                    UserId = m.UserId,
+                    ParticipationType = m.ParticipationType
+                }).ToList()
+            };
+            _startDate = Event.StartTimeUtc.ToLocalTime().Date;
+            _startTime = Event.StartTimeUtc.ToLocalTime().TimeOfDay;
+            _endDate = Event.EndTimeUtc.ToLocalTime().Date;
+            _endTime = Event.EndTimeUtc.ToLocalTime().TimeOfDay;
+            _recurrenceEndDate = Event.RecurrenceEndDate;
+        }
+        else
+        {
+            var now = DateTime.Now;
+            var nextHour = now.AddHours(1).Date.AddHours(now.Hour + 1);
+            _model = new CreateCalendarEventRequest();
+            _startDate = nextHour.Date;
+            _startTime = nextHour.TimeOfDay;
+            _endDate = nextHour.Date;
+            _endTime = nextHour.AddHours(1).TimeOfDay;
+            _recurrenceEndDate = null;
+        }
+    }
+
+    private async Task Save()
+    {
+        await _form.Validate();
+        if (!_form.IsValid) return;
+
+        _isSaving = true;
+        try
+        {
+            // Build UTC datetimes from local date/time pickers
+            var startLocal = (_startDate ?? DateTime.Today).Add(_startTime ?? TimeSpan.Zero);
+            var endLocal = (_endDate ?? DateTime.Today).Add(_endTime ?? TimeSpan.FromHours(1));
+
+            _model.StartTimeUtc = startLocal.ToUniversalTime();
+            _model.EndTimeUtc = endLocal.ToUniversalTime();
+            _model.RecurrenceEndDate = _recurrenceEndDate?.ToUniversalTime();
+
+            if (IsEdit)
+            {
+                var updateRequest = new UpdateCalendarEventRequest
+                {
+                    Title = _model.Title,
+                    Description = _model.Description,
+                    Location = _model.Location,
+                    StartTimeUtc = _model.StartTimeUtc,
+                    EndTimeUtc = _model.EndTimeUtc,
+                    IsAllDay = _model.IsAllDay,
+                    RecurrenceRule = _model.RecurrenceRule,
+                    RecurrenceEndDate = _model.RecurrenceEndDate,
+                    ReminderMinutesBefore = _model.ReminderMinutesBefore,
+                    Color = _model.Color,
+                    Members = _model.Members,
+                    EditScope = EditScope,
+                    OccurrenceStartTimeUtc = OccurrenceStartTimeUtc
+                };
+
+                var result = await ApiClient.PutAsync<UpdateCalendarEventRequest, CalendarEventDto>(
+                    $"api/v1/calendar/events/{Event!.Id}", updateRequest);
+
+                if (result.IsSuccess)
+                {
+                    Snackbar.Add(L["calendar.event.updated"], Severity.Success);
+                    await CloseAndNotify();
+                }
+                else
+                {
+                    Snackbar.Add(result.ErrorMessage ?? L["common.error"], Severity.Error);
+                }
+            }
+            else
+            {
+                var result = await ApiClient.PostAsync<CreateCalendarEventRequest, CalendarEventDto>(
+                    "api/v1/calendar/events", _model);
+
+                if (result.IsSuccess)
+                {
+                    Snackbar.Add(L["calendar.event.created"], Severity.Success);
+                    await CloseAndNotify();
+                }
+                else
+                {
+                    Snackbar.Add(result.ErrorMessage ?? L["common.error"], Severity.Error);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isSaving = false;
+        }
+    }
+
+    private async Task Close()
+    {
+        Visible = false;
+        await VisibleChanged.InvokeAsync(false);
+    }
+
+    private async Task CloseAndNotify()
+    {
+        Visible = false;
+        await VisibleChanged.InvokeAsync(false);
+        await OnSave.InvokeAsync();
+    }
+}

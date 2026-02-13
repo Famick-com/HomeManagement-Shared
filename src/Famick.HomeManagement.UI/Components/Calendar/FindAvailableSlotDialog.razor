@@ -1,0 +1,191 @@
+@inject IApiClient ApiClient
+@inject ISnackbar Snackbar
+@inject ILocalizer L
+
+<MudDialog @bind-Visible="Visible" Options="@(new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true })">
+    <TitleContent>
+        <MudText Typo="Typo.h6">@L["calendar.availability.title"]</MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudStack Spacing="3">
+            @* Member selection *@
+            <MudSelect T="Guid" MultiSelection="true" @bind-SelectedValues="_selectedUserIds"
+                       Label="@L["calendar.availability.selectMembers"]"
+                       Variant="Variant.Outlined"
+                       MultiSelectionTextFunc="@(new Func<List<string>, string>(GetSelectedMemberText))">
+                @foreach (var user in _users)
+                {
+                    <MudSelectItem T="Guid" Value="@user.Id">@user.DisplayName</MudSelectItem>
+                }
+            </MudSelect>
+
+            <MudNumericField T="int" @bind-Value="_durationMinutes"
+                             Label="@L["calendar.availability.duration"]"
+                             Min="15" Max="480" Step="15"
+                             Variant="Variant.Outlined" />
+
+            <MudGrid>
+                <MudItem xs="6">
+                    <MudDatePicker @bind-Date="_startDate"
+                                   Label="@L["calendar.event.startDate"]"
+                                   Variant="Variant.Outlined" />
+                </MudItem>
+                <MudItem xs="6">
+                    <MudDatePicker @bind-Date="_endDate"
+                                   Label="@L["calendar.event.endDate"]"
+                                   Variant="Variant.Outlined" />
+                </MudItem>
+                <MudItem xs="6">
+                    <MudNumericField T="int?" @bind-Value="_preferredStartHour"
+                                     Label="@L["calendar.availability.startHour"]"
+                                     Min="0" Max="23"
+                                     Variant="Variant.Outlined"
+                                     HelperText="UTC hour (0-23)" />
+                </MudItem>
+                <MudItem xs="6">
+                    <MudNumericField T="int?" @bind-Value="_preferredEndHour"
+                                     Label="@L["calendar.availability.endHour"]"
+                                     Min="0" Max="23"
+                                     Variant="Variant.Outlined"
+                                     HelperText="UTC hour (0-23)" />
+                </MudItem>
+            </MudGrid>
+
+            <MudButton Variant="Variant.Filled"
+                       Color="Color.Primary"
+                       OnClick="FindSlots"
+                       Disabled="@(_isSearching || _selectedUserIds.Count() == 0)"
+                       FullWidth="true">
+                @if (_isSearching)
+                {
+                    <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                }
+                @L["calendar.availability.find"]
+            </MudButton>
+
+            @if (_hasSearched)
+            {
+                <MudDivider />
+                @if (_slots.Count == 0)
+                {
+                    <MudAlert Severity="Severity.Warning">@L["calendar.availability.noSlots"]</MudAlert>
+                }
+                else
+                {
+                    <MudText Typo="Typo.subtitle2">@string.Format(L["calendar.availability.slotsFound"], _slots.Count)</MudText>
+                    @foreach (var slot in _slots)
+                    {
+                        <MudCard Outlined="true">
+                            <MudCardContent>
+                                <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween">
+                                    <MudStack Spacing="0">
+                                        <MudText Typo="Typo.body1" Style="font-weight: 500;">
+                                            @slot.StartTimeUtc.ToLocalTime().ToString("ddd, MMM d")
+                                        </MudText>
+                                        <MudText Typo="Typo.body2" Color="Color.Secondary">
+                                            @slot.StartTimeUtc.ToLocalTime().ToString("h:mm tt") &ndash; @slot.EndTimeUtc.ToLocalTime().ToString("h:mm tt")
+                                        </MudText>
+                                    </MudStack>
+                                    <MudButton Variant="Variant.Outlined"
+                                               Size="Size.Small"
+                                               Color="Color.Primary"
+                                               OnClick="@(() => SelectSlot(slot))">
+                                        @L["calendar.availability.useSlot"]
+                                    </MudButton>
+                                </MudStack>
+                            </MudCardContent>
+                        </MudCard>
+                    }
+                }
+            }
+        </MudStack>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Close">@L["common.close"]</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [Parameter] public bool Visible { get; set; }
+    [Parameter] public EventCallback<bool> VisibleChanged { get; set; }
+    [Parameter] public EventCallback<AvailableSlotDto> OnSlotSelected { get; set; }
+
+    private List<UserItem> _users = new();
+    private IEnumerable<Guid> _selectedUserIds = Enumerable.Empty<Guid>();
+    private int _durationMinutes = 60;
+    private DateTime? _startDate = DateTime.Today;
+    private DateTime? _endDate = DateTime.Today.AddDays(14);
+    private int? _preferredStartHour;
+    private int? _preferredEndHour;
+    private bool _isSearching;
+    private bool _hasSearched;
+    private List<AvailableSlotDto> _slots = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        var result = await ApiClient.GetAsync<List<UserItem>>("api/v1/users");
+        if (result.IsSuccess && result.Data != null)
+        {
+            _users = result.Data;
+        }
+    }
+
+    private string GetSelectedMemberText(List<string> selectedValues)
+    {
+        return $"{selectedValues.Count} member(s) selected";
+    }
+
+    private async Task FindSlots()
+    {
+        _isSearching = true;
+        _hasSearched = true;
+        try
+        {
+            var request = new FindSlotsRequest
+            {
+                UserIds = _selectedUserIds.ToList(),
+                DurationMinutes = _durationMinutes,
+                StartDate = (_startDate ?? DateTime.Today).ToUniversalTime(),
+                EndDate = (_endDate ?? DateTime.Today.AddDays(14)).ToUniversalTime(),
+                PreferredStartHourUtc = _preferredStartHour,
+                PreferredEndHourUtc = _preferredEndHour,
+                MaxResults = 10
+            };
+
+            var result = await ApiClient.PostAsync<FindSlotsRequest, List<AvailableSlotDto>>(
+                "api/v1/calendar/find-slots", request);
+
+            if (result.IsSuccess && result.Data != null)
+            {
+                _slots = result.Data;
+            }
+            else
+            {
+                Snackbar.Add(result.ErrorMessage ?? L["common.error"], Severity.Error);
+            }
+        }
+        finally
+        {
+            _isSearching = false;
+        }
+    }
+
+    private async Task SelectSlot(AvailableSlotDto slot)
+    {
+        Visible = false;
+        await VisibleChanged.InvokeAsync(false);
+        await OnSlotSelected.InvokeAsync(slot);
+    }
+
+    private async Task Close()
+    {
+        Visible = false;
+        await VisibleChanged.InvokeAsync(false);
+    }
+
+    private class UserItem
+    {
+        public Guid Id { get; set; }
+        public string DisplayName { get; set; } = string.Empty;
+    }
+}

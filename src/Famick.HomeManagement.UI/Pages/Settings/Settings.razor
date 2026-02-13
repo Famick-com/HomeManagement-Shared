@@ -62,6 +62,15 @@
     </MudCard>
 </div>
 
+@* Calendar section *@
+<MudText Typo="Typo.h5" Class="mb-3">@L["calendar.settings.title"]</MudText>
+<div class="mb-6">
+    <Famick.HomeManagement.UI.Components.Calendar.ExternalCalendarManager />
+</div>
+<div class="mb-6">
+    <Famick.HomeManagement.UI.Components.Calendar.IcsTokenManager />
+</div>
+
 @* Notification Preferences section *@
 <MudText Typo="Typo.h5" Class="mb-3">@L["notifications.preferences.title"]</MudText>
 <div class="mb-6">

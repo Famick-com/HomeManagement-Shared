@@ -1,0 +1,98 @@
+@inject ILocalizer L
+
+<MudPaper Class="pa-3 mb-2" Elevation="0" Style="@GetCardStyle()" @onclick="HandleClick">
+    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="3">
+        @* Time column *@
+        <div style="min-width: 60px; text-align: center;">
+            @if (Occurrence.IsAllDay)
+            {
+                <MudText Typo="Typo.caption" Color="Color.Secondary">@L["calendar.allDay"]</MudText>
+            }
+            else
+            {
+                <MudText Typo="Typo.body2" Style="font-weight: 600;">@Occurrence.StartTimeUtc.ToLocalTime().ToString("h:mm")</MudText>
+                <MudText Typo="Typo.caption" Color="Color.Secondary">@Occurrence.StartTimeUtc.ToLocalTime().ToString("tt").ToLower()</MudText>
+            }
+        </div>
+
+        @* Color indicator *@
+        <div style="@GetColorBarStyle()"></div>
+
+        @* Event details *@
+        <MudStack Spacing="0" Style="flex: 1; min-width: 0;">
+            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                <MudText Typo="Typo.body1" Style="font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                    @Occurrence.Title
+                </MudText>
+                @if (Occurrence.IsExternal)
+                {
+                    <MudChip T="string" Size="Size.Small" Color="Color.Default" Variant="Variant.Outlined">@L["calendar.external"]</MudChip>
+                }
+            </MudStack>
+
+            @if (!Occurrence.IsAllDay)
+            {
+                <MudText Typo="Typo.caption" Color="Color.Secondary">
+                    @Occurrence.StartTimeUtc.ToLocalTime().ToString("h:mm tt") &ndash; @Occurrence.EndTimeUtc.ToLocalTime().ToString("h:mm tt")
+                </MudText>
+            }
+
+            @if (!string.IsNullOrWhiteSpace(Occurrence.Location))
+            {
+                <MudText Typo="Typo.caption" Color="Color.Secondary">
+                    <MudIcon Icon="@Icons.Material.Filled.LocationOn" Size="Size.Small" Class="mr-1" Style="vertical-align: text-bottom;" />@Occurrence.Location
+                </MudText>
+            }
+
+            @if (Occurrence.Members.Count > 0)
+            {
+                <MudStack Row="true" Spacing="1" Class="mt-1">
+                    @foreach (var member in Occurrence.Members.Take(3))
+                    {
+                        <MudChip T="string" Size="Size.Small" Variant="Variant.Text"
+                                 Color="@(member.ParticipationType == ParticipationType.Involved ? Color.Primary : Color.Default)">
+                            @member.UserDisplayName
+                        </MudChip>
+                    }
+                    @if (Occurrence.Members.Count > 3)
+                    {
+                        <MudChip T="string" Size="Size.Small" Variant="Variant.Text" Color="Color.Default">
+                            +@(Occurrence.Members.Count - 3)
+                        </MudChip>
+                    }
+                </MudStack>
+            }
+        </MudStack>
+    </MudStack>
+</MudPaper>
+
+@code {
+    [Parameter, EditorRequired]
+    public CalendarOccurrenceDto Occurrence { get; set; } = null!;
+
+    [Parameter]
+    public EventCallback OnClick { get; set; }
+
+    private async Task HandleClick()
+    {
+        await OnClick.InvokeAsync();
+    }
+
+    private string GetCardStyle()
+    {
+        return "cursor: pointer; border-left: 3px solid " + GetEventColor() + ";";
+    }
+
+    private string GetColorBarStyle()
+    {
+        return "width: 4px; min-height: 40px; border-radius: 2px; background-color: " + GetEventColor() + ";";
+    }
+
+    private string GetEventColor()
+    {
+        if (!string.IsNullOrEmpty(Occurrence.Color))
+            return Occurrence.Color;
+
+        return Occurrence.IsExternal ? "#9E9E9E" : "#518751";
+    }
+}
