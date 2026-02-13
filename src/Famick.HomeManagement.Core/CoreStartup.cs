@@ -23,6 +23,9 @@ public static class CoreStartup
         // Configure notification settings
         services.Configure<NotificationSettings>(configuration.GetSection(NotificationSettings.SectionName));
 
+        // Configure calendar settings
+        services.Configure<CalendarSettings>(configuration.GetSection(CalendarSettings.SectionName));
+
         return services;
     }
 }

@@ -15,14 +15,17 @@ namespace Famick.HomeManagement.Web.Shared.Controllers.v1;
 public class CalendarController : ApiControllerBase
 {
     private readonly ICalendarEventService _calendarEventService;
+    private readonly IExternalCalendarService _externalCalendarService;
 
     public CalendarController(
         ICalendarEventService calendarEventService,
+        IExternalCalendarService externalCalendarService,
         ITenantProvider tenantProvider,
         ILogger<CalendarController> logger)
         : base(tenantProvider, logger)
     {
         _calendarEventService = calendarEventService;
+        _externalCalendarService = externalCalendarService;
     }
 
     #region Calendar Events
@@ -159,6 +162,137 @@ public class CalendarController : ApiControllerBase
         var occurrences = await _calendarEventService.GetUpcomingEventsAsync(days, userId, cancellationToken);
 
         return ApiResponse(occurrences);
+    }
+
+    #endregion
+
+    #region External Calendar Subscriptions
+
+    /// <summary>
+    /// Gets all external calendar subscriptions for the current user
+    /// </summary>
+    [HttpGet("subscriptions")]
+    [ProducesResponseType(typeof(List<ExternalCalendarSubscriptionDto>), 200)]
+    [ProducesResponseType(401)]
+    public async Task<IActionResult> GetSubscriptions(
+        CancellationToken cancellationToken = default)
+    {
+        var userId = GetCurrentUserId();
+        if (!userId.HasValue)
+        {
+            return UnauthorizedResponse("User context not available");
+        }
+
+        var subscriptions = await _externalCalendarService.GetSubscriptionsAsync(userId.Value, cancellationToken);
+
+        return ApiResponse(subscriptions);
+    }
+
+    /// <summary>
+    /// Gets a single external calendar subscription
+    /// </summary>
+    [HttpGet("subscriptions/{id}")]
+    [ProducesResponseType(typeof(ExternalCalendarSubscriptionDto), 200)]
+    [ProducesResponseType(401)]
+    [ProducesResponseType(404)]
+    public async Task<IActionResult> GetSubscription(
+        Guid id,
+        CancellationToken cancellationToken = default)
+    {
+        var subscription = await _externalCalendarService.GetSubscriptionAsync(id, cancellationToken);
+
+        if (subscription == null)
+        {
+            return NotFoundResponse("External calendar subscription not found");
+        }
+
+        return ApiResponse(subscription);
+    }
+
+    /// <summary>
+    /// Creates a new external calendar subscription
+    /// </summary>
+    [HttpPost("subscriptions")]
+    [Authorize(Policy = "RequireEditor")]
+    [ProducesResponseType(typeof(ExternalCalendarSubscriptionDto), 201)]
+    [ProducesResponseType(400)]
+    [ProducesResponseType(401)]
+    public async Task<IActionResult> CreateSubscription(
+        [FromBody] CreateExternalCalendarSubscriptionRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        var userId = GetCurrentUserId();
+        if (!userId.HasValue)
+        {
+            return UnauthorizedResponse("User context not available");
+        }
+
+        _logger.LogInformation("Creating external calendar subscription '{Name}' for user {UserId}",
+            request.Name, userId.Value);
+
+        var subscription = await _externalCalendarService.CreateSubscriptionAsync(
+            request, userId.Value, cancellationToken);
+
+        return CreatedAtAction(nameof(GetSubscription), new { id = subscription.Id }, subscription);
+    }
+
+    /// <summary>
+    /// Updates an external calendar subscription
+    /// </summary>
+    [HttpPut("subscriptions/{id}")]
+    [Authorize(Policy = "RequireEditor")]
+    [ProducesResponseType(typeof(ExternalCalendarSubscriptionDto), 200)]
+    [ProducesResponseType(400)]
+    [ProducesResponseType(401)]
+    [ProducesResponseType(404)]
+    public async Task<IActionResult> UpdateSubscription(
+        Guid id,
+        [FromBody] UpdateExternalCalendarSubscriptionRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        _logger.LogInformation("Updating external calendar subscription {SubscriptionId}", id);
+
+        var subscription = await _externalCalendarService.UpdateSubscriptionAsync(id, request, cancellationToken);
+
+        return ApiResponse(subscription);
+    }
+
+    /// <summary>
+    /// Deletes an external calendar subscription and all imported events
+    /// </summary>
+    [HttpDelete("subscriptions/{id}")]
+    [Authorize(Policy = "RequireEditor")]
+    [ProducesResponseType(204)]
+    [ProducesResponseType(401)]
+    [ProducesResponseType(404)]
+    public async Task<IActionResult> DeleteSubscription(
+        Guid id,
+        CancellationToken cancellationToken = default)
+    {
+        _logger.LogInformation("Deleting external calendar subscription {SubscriptionId}", id);
+
+        await _externalCalendarService.DeleteSubscriptionAsync(id, cancellationToken);
+
+        return NoContent();
+    }
+
+    /// <summary>
+    /// Triggers an immediate sync of an external calendar subscription
+    /// </summary>
+    [HttpPost("subscriptions/{id}/sync")]
+    [Authorize(Policy = "RequireEditor")]
+    [ProducesResponseType(204)]
+    [ProducesResponseType(401)]
+    [ProducesResponseType(404)]
+    public async Task<IActionResult> SyncSubscription(
+        Guid id,
+        CancellationToken cancellationToken = default)
+    {
+        _logger.LogInformation("Triggering sync for external calendar subscription {SubscriptionId}", id);
+
+        await _externalCalendarService.SyncSubscriptionAsync(id, cancellationToken);
+
+        return NoContent();
     }
 
     #endregion
