@@ -98,6 +98,36 @@ else
                                     <span style="color: gray;">@evt.StartTimeUtc.ToLocalTime().ToString("h:mm")</span>
                                 }
                                 @evt.Title
+                                @if (evt.IsExternal && !string.IsNullOrEmpty(evt.OwnerDisplayName))
+                                {
+                                    <div style="margin-top: 2px;">
+                                        <MudChip T="string" Size="Size.Small" Variant="Variant.Text" Color="Color.Default" Style="font-size: 0.65rem; height: 18px;">
+                                            @evt.OwnerDisplayName
+                                        </MudChip>
+                                    </div>
+                                }
+                                else if (evt.Members.Count > 0)
+                                {
+                                    <div style="margin-top: 2px; display: flex; gap: 2px;">
+                                        @foreach (var member in evt.Members.Take(3))
+                                        {
+                                            <MudTooltip Text="@member.UserDisplayName">
+                                                @if (!string.IsNullOrEmpty(member.ProfileImageUrl))
+                                                {
+                                                    <MudAvatar Size="Size.Small" Style="width: 16px; height: 16px;">
+                                                        <MudImage Src="@member.ProfileImageUrl" Alt="@member.UserDisplayName" />
+                                                    </MudAvatar>
+                                                }
+                                                else
+                                                {
+                                                    <MudAvatar Size="Size.Small" Color="Color.Primary" Style="width: 16px; height: 16px; font-size: 0.5rem;">
+                                                        @GetInitials(member.UserDisplayName)
+                                                    </MudAvatar>
+                                                }
+                                            </MudTooltip>
+                                        }
+                                    </div>
+                                }
                             </MudPaper>
                         }
                     </MudPaper>
@@ -127,6 +157,9 @@ else
     [CascadingParameter(Name = "CanEdit")]
     private bool CanEdit { get; set; }
 
+    [SupplyParameterFromQuery(Name = "eventId")]
+    private string? EventIdParam { get; set; }
+
     private bool _isLoading = true;
     private string _currentView = "agenda";
     private DateTime _rangeStart;
@@ -153,6 +186,19 @@ else
     {
         SetWeekRange(DateTime.Today);
         await LoadEventsAsync();
+
+        // Open event from query parameter (e.g., dashboard click)
+        if (Guid.TryParse(EventIdParam, out var eventId))
+        {
+            var result = await ApiClient.GetAsync<CalendarEventDto>($"api/v1/calendar/events/{eventId}");
+            if (result.IsSuccess && result.Data != null)
+            {
+                _editingEvent = result.Data;
+                _editingOccurrenceStart = null;
+                _editScope = null;
+                _eventDialogVisible = true;
+            }
+        }
     }
 
     private void SetWeekRange(DateTime date)
@@ -283,5 +329,16 @@ else
     {
         if (!string.IsNullOrEmpty(evt.Color)) return evt.Color;
         return evt.IsExternal ? "#9E9E9E" : "#518751";
+    }
+
+    private static string GetInitials(string name)
+    {
+        var parts = name.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        return parts.Length switch
+        {
+            0 => "?",
+            1 => parts[0][..1].ToUpperInvariant(),
+            _ => $"{parts[0][..1]}{parts[^1][..1]}".ToUpperInvariant()
+        };
     }
 }

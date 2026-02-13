@@ -168,6 +168,16 @@ else
             <LinkedAccounts HasPassword="@(_profile?.HasPassword ?? false)" />
         </MudItem>
 
+        @* External Calendars Section *@
+        <MudItem xs="12" md="6">
+            <Famick.HomeManagement.UI.Components.Calendar.ExternalCalendarManager />
+        </MudItem>
+
+        @* Calendar Feed Section *@
+        <MudItem xs="12" md="6">
+            <Famick.HomeManagement.UI.Components.Calendar.IcsTokenManager />
+        </MudItem>
+
         @* Contact Information Section *@
         <MudItem xs="12" md="6">
             <MudPaper Elevation="1" Class="pa-4">

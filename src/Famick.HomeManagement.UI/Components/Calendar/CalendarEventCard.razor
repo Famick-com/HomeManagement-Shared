@@ -44,21 +44,51 @@
                 </MudText>
             }
 
-            @if (Occurrence.Members.Count > 0)
+            @if (Occurrence.IsExternal && !string.IsNullOrEmpty(Occurrence.OwnerDisplayName))
             {
-                <MudStack Row="true" Spacing="1" Class="mt-1">
-                    @foreach (var member in Occurrence.Members.Take(3))
+                <MudStack Row="true" Spacing="1" AlignItems="AlignItems.Center" Class="mt-1">
+                    @if (!string.IsNullOrEmpty(Occurrence.OwnerProfileImageUrl))
                     {
-                        <MudChip T="string" Size="Size.Small" Variant="Variant.Text"
-                                 Color="@(member.ParticipationType == ParticipationType.Involved ? Color.Primary : Color.Default)">
-                            @member.UserDisplayName
-                        </MudChip>
+                        <MudAvatar Size="Size.Small" Style="width: 20px; height: 20px;">
+                            <MudImage Src="@Occurrence.OwnerProfileImageUrl" Alt="@Occurrence.OwnerDisplayName" />
+                        </MudAvatar>
                     }
-                    @if (Occurrence.Members.Count > 3)
+                    else
                     {
-                        <MudChip T="string" Size="Size.Small" Variant="Variant.Text" Color="Color.Default">
-                            +@(Occurrence.Members.Count - 3)
-                        </MudChip>
+                        <MudAvatar Size="Size.Small" Color="Color.Default" Style="width: 20px; height: 20px; font-size: 0.6rem;">
+                            @GetInitials(Occurrence.OwnerDisplayName)
+                        </MudAvatar>
+                    }
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">@Occurrence.OwnerDisplayName</MudText>
+                </MudStack>
+            }
+            else if (Occurrence.Members.Count > 0)
+            {
+                <MudStack Row="true" Spacing="1" AlignItems="AlignItems.Center" Class="mt-1">
+                    @foreach (var member in Occurrence.Members.Take(4))
+                    {
+                        <MudTooltip Text="@member.UserDisplayName">
+                            @if (!string.IsNullOrEmpty(member.ProfileImageUrl))
+                            {
+                                <MudAvatar Size="Size.Small" Style="width: 24px; height: 24px;">
+                                    <MudImage Src="@member.ProfileImageUrl" Alt="@member.UserDisplayName" />
+                                </MudAvatar>
+                            }
+                            else
+                            {
+                                <MudAvatar Size="Size.Small"
+                                           Color="@(member.ParticipationType == ParticipationType.Involved ? Color.Primary : Color.Default)"
+                                           Style="width: 24px; height: 24px; font-size: 0.65rem;">
+                                    @GetInitials(member.UserDisplayName)
+                                </MudAvatar>
+                            }
+                        </MudTooltip>
+                    }
+                    @if (Occurrence.Members.Count > 4)
+                    {
+                        <MudAvatar Size="Size.Small" Color="Color.Default" Style="width: 24px; height: 24px; font-size: 0.65rem;">
+                            +@(Occurrence.Members.Count - 4)
+                        </MudAvatar>
                     }
                 </MudStack>
             }
@@ -94,5 +124,16 @@
             return Occurrence.Color;
 
         return Occurrence.IsExternal ? "#9E9E9E" : "#518751";
+    }
+
+    private static string GetInitials(string name)
+    {
+        var parts = name.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        return parts.Length switch
+        {
+            0 => "?",
+            1 => parts[0][..1].ToUpperInvariant(),
+            _ => $"{parts[0][..1]}{parts[^1][..1]}".ToUpperInvariant()
+        };
     }
 }

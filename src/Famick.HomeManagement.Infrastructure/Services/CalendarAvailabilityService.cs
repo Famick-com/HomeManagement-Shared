@@ -75,6 +75,14 @@ public class CalendarAvailabilityService : ICalendarAvailabilityService
         var mergedBusy = MergeOverlappingSlots(allBusySlots);
         var duration = TimeSpan.FromMinutes(request.DurationMinutes);
 
+        // Resolve timezone for preferred hour conversion
+        TimeZoneInfo? tz = null;
+        if (!string.IsNullOrEmpty(request.TimeZoneId))
+        {
+            try { tz = TimeZoneInfo.FindSystemTimeZoneById(request.TimeZoneId); }
+            catch { _logger.LogWarning("Unknown timezone {TimeZoneId}, ignoring preferred hours", request.TimeZoneId); }
+        }
+
         // Find gaps between busy slots that fit the requested duration
         var availableSlots = new List<AvailableSlotDto>();
         var searchStart = request.StartDate;
@@ -94,7 +102,7 @@ public class CalendarAvailabilityService : ICalendarAvailabilityService
             var gapEnd = busy.StartTimeUtc;
 
             // Find valid slots within this gap
-            FindSlotsInGap(gapStart, gapEnd, duration, request, availableSlots);
+            FindSlotsInGap(gapStart, gapEnd, duration, request, tz, availableSlots);
 
             // Move past this busy period
             if (busy.EndTimeUtc > searchStart)
@@ -244,6 +252,7 @@ public class CalendarAvailabilityService : ICalendarAvailabilityService
         DateTime gapEnd,
         TimeSpan duration,
         FindSlotsRequest request,
+        TimeZoneInfo? tz,
         List<AvailableSlotDto> results)
     {
         if (gapEnd <= gapStart) return;
@@ -253,37 +262,40 @@ public class CalendarAvailabilityService : ICalendarAvailabilityService
 
         while (candidate.Add(duration) <= gapEnd && results.Count < request.MaxResults)
         {
+            // Get the local hour for preferred-hours comparison
+            var localHour = GetLocalHour(candidate, tz);
+
             // Apply preferred hours filter if specified
-            if (request.PreferredStartHourUtc.HasValue && candidate.Hour < request.PreferredStartHourUtc.Value)
+            if (request.PreferredStartHour.HasValue && localHour < request.PreferredStartHour.Value)
             {
-                // Skip to preferred start hour
-                candidate = candidate.Date.AddHours(request.PreferredStartHourUtc.Value);
-                if (candidate < gapStart) candidate = candidate.AddDays(1);
+                // Skip to preferred start hour in local time
+                candidate = AdvanceToLocalHour(candidate, request.PreferredStartHour.Value, tz);
+                if (candidate < gapStart) candidate = AdvanceToLocalHour(candidate.AddDays(1), request.PreferredStartHour.Value, tz);
                 continue;
             }
 
-            if (request.PreferredEndHourUtc.HasValue && candidate.Hour >= request.PreferredEndHourUtc.Value)
+            if (request.PreferredEndHour.HasValue && localHour >= request.PreferredEndHour.Value)
             {
-                // Skip to next day's preferred start hour
-                var nextDay = candidate.Date.AddDays(1);
-                candidate = request.PreferredStartHourUtc.HasValue
-                    ? nextDay.AddHours(request.PreferredStartHourUtc.Value)
-                    : nextDay;
+                // Skip to next day's preferred start hour in local time
+                candidate = AdvanceToLocalHour(candidate.AddDays(1), request.PreferredStartHour ?? 0, tz);
                 continue;
             }
 
             var slotEnd = candidate.Add(duration);
 
-            // Ensure the slot end doesn't exceed preferred hours
-            if (request.PreferredEndHourUtc.HasValue && slotEnd.Hour > request.PreferredEndHourUtc.Value
-                && slotEnd.Date == candidate.Date)
+            // Ensure the slot end doesn't exceed preferred hours in local time
+            if (request.PreferredEndHour.HasValue)
             {
-                // Slot would end after preferred hours, skip to next day
-                var nextDay = candidate.Date.AddDays(1);
-                candidate = request.PreferredStartHourUtc.HasValue
-                    ? nextDay.AddHours(request.PreferredStartHourUtc.Value)
-                    : nextDay;
-                continue;
+                var slotEndLocalHour = GetLocalHour(slotEnd, tz);
+                var slotEndLocalDate = GetLocalDate(slotEnd, tz);
+                var candidateLocalDate = GetLocalDate(candidate, tz);
+
+                if (slotEndLocalHour > request.PreferredEndHour.Value && slotEndLocalDate == candidateLocalDate)
+                {
+                    // Slot would end after preferred hours, skip to next day
+                    candidate = AdvanceToLocalHour(candidate.AddDays(1), request.PreferredStartHour ?? 0, tz);
+                    continue;
+                }
             }
 
             if (slotEnd <= gapEnd)
@@ -298,6 +310,36 @@ public class CalendarAvailabilityService : ICalendarAvailabilityService
             // Move forward by the duration to find non-overlapping slots
             candidate = slotEnd;
         }
+    }
+
+    /// <summary>
+    /// Gets the hour in the specified timezone. Falls back to UTC hour if no timezone provided.
+    /// </summary>
+    private static int GetLocalHour(DateTime utcTime, TimeZoneInfo? tz)
+    {
+        if (tz == null) return utcTime.Hour;
+        return TimeZoneInfo.ConvertTimeFromUtc(DateTime.SpecifyKind(utcTime, DateTimeKind.Utc), tz).Hour;
+    }
+
+    /// <summary>
+    /// Gets the date in the specified timezone. Falls back to UTC date if no timezone provided.
+    /// </summary>
+    private static DateTime GetLocalDate(DateTime utcTime, TimeZoneInfo? tz)
+    {
+        if (tz == null) return utcTime.Date;
+        return TimeZoneInfo.ConvertTimeFromUtc(DateTime.SpecifyKind(utcTime, DateTimeKind.Utc), tz).Date;
+    }
+
+    /// <summary>
+    /// Returns the next UTC DateTime where the local time in the given timezone equals the target hour.
+    /// </summary>
+    private static DateTime AdvanceToLocalHour(DateTime utcTime, int targetLocalHour, TimeZoneInfo? tz)
+    {
+        if (tz == null) return utcTime.Date.AddHours(targetLocalHour);
+
+        var localTime = TimeZoneInfo.ConvertTimeFromUtc(DateTime.SpecifyKind(utcTime, DateTimeKind.Utc), tz);
+        var targetLocal = new DateTime(localTime.Year, localTime.Month, localTime.Day, targetLocalHour, 0, 0, DateTimeKind.Unspecified);
+        return TimeZoneInfo.ConvertTimeToUtc(targetLocal, tz);
     }
 
     #endregion

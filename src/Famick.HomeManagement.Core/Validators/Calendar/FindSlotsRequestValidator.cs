@@ -25,13 +25,13 @@ public class FindSlotsRequestValidator : AbstractValidator<FindSlotsRequest>
             .Must(x => (x.EndDate - x.StartDate).TotalDays <= 30)
             .WithMessage("Search range cannot exceed 30 days");
 
-        RuleFor(x => x.PreferredStartHourUtc)
+        RuleFor(x => x.PreferredStartHour)
             .InclusiveBetween(0, 23).WithMessage("Preferred start hour must be between 0 and 23")
-            .When(x => x.PreferredStartHourUtc.HasValue);
+            .When(x => x.PreferredStartHour.HasValue);
 
-        RuleFor(x => x.PreferredEndHourUtc)
+        RuleFor(x => x.PreferredEndHour)
             .InclusiveBetween(0, 23).WithMessage("Preferred end hour must be between 0 and 23")
-            .When(x => x.PreferredEndHourUtc.HasValue);
+            .When(x => x.PreferredEndHour.HasValue);
 
         RuleFor(x => x.MaxResults)
             .GreaterThan(0).WithMessage("Max results must be greater than 0")

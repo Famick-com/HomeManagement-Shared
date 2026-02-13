@@ -36,4 +36,14 @@ public class CalendarOccurrenceDto
     /// Members involved in this event (empty for external events).
     /// </summary>
     public List<CalendarEventMemberDto> Members { get; set; } = new();
+
+    /// <summary>
+    /// For external events: display name of the user who owns the subscription.
+    /// </summary>
+    public string? OwnerDisplayName { get; set; }
+
+    /// <summary>
+    /// For external events: profile image URL of the subscription owner.
+    /// </summary>
+    public string? OwnerProfileImageUrl { get; set; }
 }

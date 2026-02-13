@@ -26,14 +26,19 @@ public class FindSlotsRequest
     public DateTime EndDate { get; set; }
 
     /// <summary>
-    /// Earliest hour of the day to consider (0-23, in UTC). Null means no restriction.
+    /// Earliest hour of the day to consider (0-23), in the household's timezone. Null means no restriction.
     /// </summary>
-    public int? PreferredStartHourUtc { get; set; }
+    public int? PreferredStartHour { get; set; }
 
     /// <summary>
-    /// Latest hour of the day to consider (0-23, in UTC). Null means no restriction.
+    /// Latest hour of the day to consider (0-23), in the household's timezone. Null means no restriction.
     /// </summary>
-    public int? PreferredEndHourUtc { get; set; }
+    public int? PreferredEndHour { get; set; }
+
+    /// <summary>
+    /// IANA timezone ID for interpreting preferred hours (e.g. "America/New_York").
+    /// </summary>
+    public string? TimeZoneId { get; set; }
 
     /// <summary>
     /// Maximum number of slots to return.

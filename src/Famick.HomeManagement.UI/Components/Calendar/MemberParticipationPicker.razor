@@ -61,11 +61,26 @@
     protected override async Task OnInitializedAsync()
     {
         await LoadUsersAsync();
+
+        // Auto-add the current user as Involved when creating a new event
+        if (Members.Count == 0)
+        {
+            var currentUser = _users.FirstOrDefault(u => u.IsCurrentUser);
+            if (currentUser != null)
+            {
+                Members.Add(new CalendarEventMemberRequest
+                {
+                    UserId = currentUser.Id,
+                    ParticipationType = ParticipationType.Involved
+                });
+                await MembersChanged.InvokeAsync(Members);
+            }
+        }
     }
 
     private async Task LoadUsersAsync()
     {
-        var result = await ApiClient.GetAsync<List<UserItem>>("api/v1/users");
+        var result = await ApiClient.GetAsync<List<UserItem>>("api/v1/calendar/members");
         if (result.IsSuccess && result.Data != null)
         {
             _users = result.Data;
@@ -96,5 +111,6 @@
     {
         public Guid Id { get; set; }
         public string DisplayName { get; set; } = string.Empty;
+        public bool IsCurrentUser { get; set; }
     }
 }

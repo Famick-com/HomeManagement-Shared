@@ -3,6 +3,7 @@ using Famick.HomeManagement.Core.DTOs.Calendar;
 using Famick.HomeManagement.Core.Exceptions;
 using Famick.HomeManagement.Core.Interfaces;
 using Famick.HomeManagement.Domain.Entities;
+using Famick.HomeManagement.Domain.Enums;
 using Famick.HomeManagement.Infrastructure.Data;
 using Ical.Net;
 using Ical.Net.CalendarComponents;
@@ -145,7 +146,7 @@ public class CalendarFeedService : ICalendarFeedService
     {
         var events = await _context.CalendarEvents
             .IgnoreQueryFilters()
-            .Include(e => e.Members)
+            .Include(e => e.Members).ThenInclude(m => m.User)
             .Include(e => e.Exceptions)
             .Where(e => e.TenantId == tenantId)
             .Where(e => e.Members.Any(m => m.UserId == userId))
@@ -204,6 +205,21 @@ public class CalendarFeedService : ICalendarFeedService
                     Trigger = new Trigger(TimeSpan.FromMinutes(-evt.ReminderMinutesBefore.Value))
                 };
                 icalEvent.Alarms.Add(alarm);
+            }
+
+            // Add members as ATTENDEE entries with email addresses
+            foreach (var member in evt.Members)
+            {
+                if (member.User == null || string.IsNullOrEmpty(member.User.Email))
+                    continue;
+
+                var attendee = new Attendee
+                {
+                    CommonName = $"{member.User.FirstName} {member.User.LastName}".Trim(),
+                    Value = new Uri($"mailto:{member.User.Email}"),
+                    Rsvp = member.ParticipationType == ParticipationType.Involved
+                };
+                icalEvent.Attendees.Add(attendee);
             }
 
             calendar.Events.Add(icalEvent);

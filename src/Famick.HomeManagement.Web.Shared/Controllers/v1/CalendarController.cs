@@ -1,5 +1,7 @@
 using Famick.HomeManagement.Core.DTOs.Calendar;
+using Famick.HomeManagement.Core.DTOs.Users;
 using Famick.HomeManagement.Core.Interfaces;
+using Famick.HomeManagement.Domain.Enums;
 using Famick.HomeManagement.Web.Shared.Controllers;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -17,11 +19,13 @@ public class CalendarController : ApiControllerBase
     private readonly ICalendarEventService _calendarEventService;
     private readonly IExternalCalendarService _externalCalendarService;
     private readonly ICalendarAvailabilityService _availabilityService;
+    private readonly IUserManagementService _userManagementService;
 
     public CalendarController(
         ICalendarEventService calendarEventService,
         IExternalCalendarService externalCalendarService,
         ICalendarAvailabilityService availabilityService,
+        IUserManagementService userManagementService,
         ITenantProvider tenantProvider,
         ILogger<CalendarController> logger)
         : base(tenantProvider, logger)
@@ -29,6 +33,7 @@ public class CalendarController : ApiControllerBase
         _calendarEventService = calendarEventService;
         _externalCalendarService = externalCalendarService;
         _availabilityService = availabilityService;
+        _userManagementService = userManagementService;
     }
 
     #region Calendar Events
@@ -133,9 +138,16 @@ public class CalendarController : ApiControllerBase
     [ProducesResponseType(404)]
     public async Task<IActionResult> DeleteEvent(
         Guid id,
-        [FromBody] DeleteCalendarEventRequest request,
+        [FromQuery] RecurrenceEditScope? editScope = null,
+        [FromQuery] DateTime? occurrenceStartTimeUtc = null,
         CancellationToken cancellationToken = default)
     {
+        var request = new DeleteCalendarEventRequest
+        {
+            EditScope = editScope,
+            OccurrenceStartTimeUtc = occurrenceStartTimeUtc
+        };
+
         _logger.LogInformation("Deleting calendar event {EventId} for tenant {TenantId} with scope {EditScope}",
             id, TenantId, request.EditScope);
 
@@ -165,6 +177,35 @@ public class CalendarController : ApiControllerBase
         var occurrences = await _calendarEventService.GetUpcomingEventsAsync(days, userId, cancellationToken);
 
         return ApiResponse(occurrences);
+    }
+
+    #endregion
+
+    #region Members
+
+    /// <summary>
+    /// Gets household members for the calendar member picker.
+    /// Returns all users in the tenant with a flag indicating the current user.
+    /// </summary>
+    [HttpGet("members")]
+    [ProducesResponseType(typeof(List<CalendarMemberItem>), 200)]
+    [ProducesResponseType(401)]
+    public async Task<IActionResult> GetMembers(CancellationToken cancellationToken = default)
+    {
+        var currentUserId = GetCurrentUserId();
+        var users = await _userManagementService.GetAllUsersAsync(cancellationToken);
+
+        var members = users
+            .Where(u => u.IsActive)
+            .Select(u => new CalendarMemberItem
+            {
+                Id = u.Id,
+                DisplayName = $"{u.FirstName} {u.LastName}".Trim(),
+                IsCurrentUser = u.Id == currentUserId
+            })
+            .ToList();
+
+        return ApiResponse(members);
     }
 
     #endregion
@@ -347,4 +388,14 @@ public class CalendarController : ApiControllerBase
     {
         return _tenantProvider.UserId;
     }
+}
+
+/// <summary>
+/// Lightweight DTO for the calendar member picker
+/// </summary>
+public class CalendarMemberItem
+{
+    public Guid Id { get; set; }
+    public string DisplayName { get; set; } = string.Empty;
+    public bool IsCurrentUser { get; set; }
 }

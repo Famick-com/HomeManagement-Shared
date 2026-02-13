@@ -70,6 +70,11 @@ public class CalendarMappingProfile : Profile
                 src.Subscription != null ? src.Subscription.Color : null))
             .ForMember(dest => dest.IsExternal, opt => opt.MapFrom(_ => true))
             .ForMember(dest => dest.OriginalStartTimeUtc, opt => opt.Ignore())
-            .ForMember(dest => dest.Members, opt => opt.Ignore());
+            .ForMember(dest => dest.Members, opt => opt.Ignore())
+            .ForMember(dest => dest.OwnerDisplayName, opt => opt.MapFrom(src =>
+                src.Subscription != null && src.Subscription.User != null
+                    ? $"{src.Subscription.User.FirstName} {src.Subscription.User.LastName}".Trim()
+                    : null))
+            .ForMember(dest => dest.OwnerProfileImageUrl, opt => opt.Ignore());
     }
 }

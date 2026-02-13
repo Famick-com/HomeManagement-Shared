@@ -314,6 +314,20 @@
       "rerun": "Re-run Home Setup Wizard",
       "rerunDescription": "Update your home details, household members, and maintenance info."
     },
+    "household": {
+      "title": "Household Settings",
+      "saved": "Household settings updated"
+    },
+    "timezone": {
+      "title": "Household Time Zone",
+      "description": "Set the time zone for your household. This affects calendar display and reminder scheduling.",
+      "label": "Time Zone",
+      "saved": "Time zone updated"
+    },
+    "defaultEventColor": {
+      "label": "Default Event Color",
+      "description": "Color used for new household calendar events."
+    },
     "dataSources": {
       "title": "Data Sources",
       "description": "Famick uses external databases to look up product information.",
@@ -1940,7 +1954,8 @@
       "created": "Event created",
       "updated": "Event updated",
       "deleted": "Event deleted",
-      "createdBy": "Created by"
+      "createdBy": "Created by",
+      "confirmDelete": "Are you sure you want to delete this event? This action cannot be undone."
     },
     "members": {
       "title": "Members",
@@ -2029,7 +2044,8 @@
       "find": "Find Slots",
       "noSlots": "No available slots found",
       "slotsFound": "{0} slot(s) found",
-      "useSlot": "Use This Slot"
+      "useSlot": "Use This Slot",
+      "timezoneHint": "Times shown in"
     },
     "settings": {
       "title": "Calendar Settings"

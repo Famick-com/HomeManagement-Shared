@@ -16,15 +16,21 @@ public class CalendarEventService : ICalendarEventService
 {
     private readonly HomeManagementDbContext _context;
     private readonly IMapper _mapper;
+    private readonly IFileAccessTokenService _fileAccessTokenService;
+    private readonly IFileStorageService _fileStorageService;
     private readonly ILogger<CalendarEventService> _logger;
 
     public CalendarEventService(
         HomeManagementDbContext context,
         IMapper mapper,
+        IFileAccessTokenService fileAccessTokenService,
+        IFileStorageService fileStorageService,
         ILogger<CalendarEventService> logger)
     {
         _context = context;
         _mapper = mapper;
+        _fileAccessTokenService = fileAccessTokenService;
+        _fileStorageService = fileStorageService;
         _logger = logger;
     }
 
@@ -49,8 +55,24 @@ public class CalendarEventService : ICalendarEventService
         if (filter.IncludeExternalEvents)
         {
             var externalEvents = await GetExternalEventsInRangeAsync(filter, cancellationToken);
-            occurrences.AddRange(_mapper.Map<List<CalendarOccurrenceDto>>(externalEvents));
+            var externalOccurrences = _mapper.Map<List<CalendarOccurrenceDto>>(externalEvents);
+
+            // Populate owner profile image URLs for external events
+            foreach (var (occ, evt) in externalOccurrences.Zip(externalEvents))
+            {
+                var contact = evt.Subscription?.User?.Contact;
+                if (contact != null && !string.IsNullOrEmpty(contact.ProfileImageFileName))
+                {
+                    var token = _fileAccessTokenService.GenerateToken("contact-profile-image", contact.Id, contact.TenantId);
+                    occ.OwnerProfileImageUrl = _fileStorageService.GetContactProfileImageUrl(contact.Id, token);
+                }
+            }
+
+            occurrences.AddRange(externalOccurrences);
         }
+
+        // Populate member profile image URLs for all occurrences
+        PopulateMemberProfileImageUrls(occurrences, famickEvents);
 
         return occurrences.OrderBy(o => o.StartTimeUtc).ToList();
     }
@@ -63,14 +85,28 @@ public class CalendarEventService : ICalendarEventService
 
         var evt = await _context.CalendarEvents
             .Include(e => e.CreatedByUser)
-            .Include(e => e.Members).ThenInclude(m => m.User)
+            .Include(e => e.Members).ThenInclude(m => m.User).ThenInclude(u => u!.Contact)
             .Include(e => e.Exceptions)
             .FirstOrDefaultAsync(e => e.Id == eventId, cancellationToken);
 
         if (evt == null)
             return null;
 
-        return _mapper.Map<CalendarEventDto>(evt);
+        var dto = _mapper.Map<CalendarEventDto>(evt);
+
+        // Populate member profile image URLs
+        foreach (var memberDto in dto.Members)
+        {
+            var member = evt.Members.FirstOrDefault(m => m.UserId == memberDto.UserId);
+            var contact = member?.User?.Contact;
+            if (contact != null && !string.IsNullOrEmpty(contact.ProfileImageFileName))
+            {
+                var token = _fileAccessTokenService.GenerateToken("contact-profile-image", contact.Id, contact.TenantId);
+                memberDto.ProfileImageUrl = _fileStorageService.GetContactProfileImageUrl(contact.Id, token);
+            }
+        }
+
+        return dto;
     }
 
     public async Task<CalendarEventDto> CreateCalendarEventAsync(
@@ -83,6 +119,16 @@ public class CalendarEventService : ICalendarEventService
         var evt = _mapper.Map<CalendarEvent>(request);
         evt.Id = Guid.NewGuid();
         evt.CreatedByUserId = createdByUserId;
+
+        // Ensure the creator is included as Involved
+        if (request.Members.All(m => m.UserId != createdByUserId))
+        {
+            request.Members.Insert(0, new CalendarEventMemberRequest
+            {
+                UserId = createdByUserId,
+                ParticipationType = ParticipationType.Involved
+            });
+        }
 
         // Add members
         foreach (var memberReq in request.Members)
@@ -235,7 +281,7 @@ public class CalendarEventService : ICalendarEventService
         CancellationToken cancellationToken)
     {
         var query = _context.CalendarEvents
-            .Include(e => e.Members).ThenInclude(m => m.User)
+            .Include(e => e.Members).ThenInclude(m => m.User).ThenInclude(u => u!.Contact)
             .Include(e => e.Exceptions)
             .AsQueryable();
 
@@ -262,7 +308,7 @@ public class CalendarEventService : ICalendarEventService
         CancellationToken cancellationToken)
     {
         var query = _context.ExternalCalendarEvents
-            .Include(e => e.Subscription)
+            .Include(e => e.Subscription).ThenInclude(s => s!.User).ThenInclude(u => u!.Contact)
             .Where(e => e.Subscription!.IsActive)
             .Where(e => e.StartTimeUtc < filter.EndDate && e.EndTimeUtc > filter.StartDate);
 
@@ -483,19 +529,21 @@ public class CalendarEventService : ICalendarEventService
 
     private void SyncMembers(CalendarEvent evt, List<CalendarEventMemberRequest> requestedMembers)
     {
-        // Remove members not in the request
-        var requestedUserIds = requestedMembers.Select(m => m.UserId).ToHashSet();
+        var requestedUserIds = requestedMembers.Select(r => r.UserId).ToHashSet();
+        var existingByUserId = evt.Members.ToDictionary(m => m.UserId);
+
+        // Remove members no longer in the request
         var toRemove = evt.Members.Where(m => !requestedUserIds.Contains(m.UserId)).ToList();
         foreach (var member in toRemove)
         {
+            evt.Members.Remove(member);
             _context.CalendarEventMembers.Remove(member);
         }
 
-        // Update existing or add new members
+        // Update existing members or add new ones
         foreach (var memberReq in requestedMembers)
         {
-            var existing = evt.Members.FirstOrDefault(m => m.UserId == memberReq.UserId);
-            if (existing != null)
+            if (existingByUserId.TryGetValue(memberReq.UserId, out var existing))
             {
                 existing.ParticipationType = memberReq.ParticipationType;
             }
@@ -508,6 +556,44 @@ public class CalendarEventService : ICalendarEventService
                     UserId = memberReq.UserId,
                     ParticipationType = memberReq.ParticipationType
                 });
+            }
+        }
+    }
+
+    #endregion
+
+    #region Private Methods - Profile Images
+
+    private void PopulateMemberProfileImageUrls(
+        List<CalendarOccurrenceDto> occurrences,
+        List<CalendarEvent> famickEvents)
+    {
+        // Build a lookup of userId -> profile image URL to avoid duplicate token generation
+        var profileImageUrls = new Dictionary<Guid, string>();
+
+        foreach (var evt in famickEvents)
+        {
+            foreach (var member in evt.Members)
+            {
+                if (profileImageUrls.ContainsKey(member.UserId)) continue;
+
+                var contact = member.User?.Contact;
+                if (contact != null && !string.IsNullOrEmpty(contact.ProfileImageFileName))
+                {
+                    var token = _fileAccessTokenService.GenerateToken("contact-profile-image", contact.Id, contact.TenantId);
+                    profileImageUrls[member.UserId] = _fileStorageService.GetContactProfileImageUrl(contact.Id, token);
+                }
+            }
+        }
+
+        foreach (var occ in occurrences)
+        {
+            foreach (var memberDto in occ.Members)
+            {
+                if (profileImageUrls.TryGetValue(memberDto.UserId, out var url))
+                {
+                    memberDto.ProfileImageUrl = url;
+                }
             }
         }
     }

@@ -1,100 +1,150 @@
 @inject IApiClient ApiClient
 @inject ISnackbar Snackbar
+@inject IDialogService DialogService
 @inject ILocalizer L
+@using Famick.HomeManagement.Domain.Enums
+@using Famick.HomeManagement.Core.DTOs.Tenant
 
-<MudDialog @bind-Visible="Visible" Options="@(new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true })">
+<MudDialog @bind-Visible="Visible" Options="@(new DialogOptions { MaxWidth = MaxWidth.Large, FullWidth = true })">
     <TitleContent>
         <MudText Typo="Typo.h6">@(IsEdit ? L["calendar.editEvent"] : L["calendar.addEvent"])</MudText>
     </TitleContent>
     <DialogContent>
         <MudForm @ref="_form">
-            <MudStack Spacing="3">
-                <MudTextField @bind-Value="_model.Title"
-                              Label="@L["calendar.event.title"]"
-                              Required="true"
-                              Variant="Variant.Outlined" />
+            <MudGrid Spacing="3">
+                @* Left column: Event details *@
+                <MudItem xs="12" md="7">
+                    <MudStack Spacing="3">
+                        <MudTextField @bind-Value="_model.Title"
+                                      Label="@L["calendar.event.title"]"
+                                      Required="true"
+                                      Variant="Variant.Outlined" />
 
-                <MudTextField @bind-Value="_model.Description"
-                              Label="@L["calendar.event.description"]"
-                              Variant="Variant.Outlined"
-                              Lines="3" />
+                        <MudTextField @bind-Value="_model.Description"
+                                      Label="@L["calendar.event.description"]"
+                                      Variant="Variant.Outlined"
+                                      Lines="2" />
 
-                <MudTextField @bind-Value="_model.Location"
-                              Label="@L["calendar.event.location"]"
-                              Variant="Variant.Outlined" />
+                        <MudTextField @bind-Value="_model.Location"
+                                      Label="@L["calendar.event.location"]"
+                                      Variant="Variant.Outlined" />
 
-                <MudCheckBox T="bool" @bind-Value="_model.IsAllDay"
-                             Label="@L["calendar.event.allDay"]"
-                             Dense="true" />
+                        <div>
+                            <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mb-1">@L["calendar.event.color"]</MudText>
+                            <div class="d-flex flex-wrap gap-1">
+                                @foreach (var color in EventColors)
+                                {
+                                    <MudTooltip Text="@color.Name">
+                                        <MudIconButton Icon="@(_model.Color == color.Hex ? Icons.Material.Filled.CheckCircle : Icons.Material.Filled.Circle)"
+                                                       Style="@($"color: {color.Hex};")"
+                                                       Size="Size.Small"
+                                                       OnClick="@(() => _model.Color = color.Hex)" />
+                                    </MudTooltip>
+                                }
+                            </div>
+                        </div>
 
-                <MudGrid>
-                    <MudItem xs="6">
-                        <MudDatePicker @bind-Date="_startDate"
-                                       Label="@L["calendar.event.startDate"]"
-                                       Variant="Variant.Outlined"
-                                       Required="true" />
-                    </MudItem>
-                    @if (!_model.IsAllDay)
-                    {
-                        <MudItem xs="6">
-                            <MudTimePicker @bind-Time="_startTime"
-                                           Label="@L["calendar.event.startTime"]"
-                                           Variant="Variant.Outlined" />
-                        </MudItem>
-                    }
-                    <MudItem xs="6">
-                        <MudDatePicker @bind-Date="_endDate"
-                                       Label="@L["calendar.event.endDate"]"
-                                       Variant="Variant.Outlined"
-                                       Required="true" />
-                    </MudItem>
-                    @if (!_model.IsAllDay)
-                    {
-                        <MudItem xs="6">
-                            <MudTimePicker @bind-Time="_endTime"
-                                           Label="@L["calendar.event.endTime"]"
-                                           Variant="Variant.Outlined" />
-                        </MudItem>
-                    }
-                </MudGrid>
+                        <MudGrid Spacing="2">
+                            <MudItem xs="6" sm="4">
+                                <MudCheckBox T="bool" @bind-Value="_model.IsAllDay"
+                                             Label="@L["calendar.event.allDay"]"
+                                             Dense="true" />
+                            </MudItem>
+                            <MudItem xs="6" sm="8">
+                                <MudSelect T="int?" @bind-Value="_model.ReminderMinutesBefore"
+                                           Label="@L["calendar.event.reminder"]"
+                                           Variant="Variant.Outlined"
+                                           Dense="true">
+                                    <MudSelectItem T="int?" Value="@((int?)null)">@L["calendar.event.noReminder"]</MudSelectItem>
+                                    <MudSelectItem T="int?" Value="5">5 minutes before</MudSelectItem>
+                                    <MudSelectItem T="int?" Value="10">10 minutes before</MudSelectItem>
+                                    <MudSelectItem T="int?" Value="15">15 minutes before</MudSelectItem>
+                                    <MudSelectItem T="int?" Value="30">30 minutes before</MudSelectItem>
+                                    <MudSelectItem T="int?" Value="60">1 hour before</MudSelectItem>
+                                    <MudSelectItem T="int?" Value="1440">1 day before</MudSelectItem>
+                                </MudSelect>
+                            </MudItem>
+                        </MudGrid>
 
-                <MudSelect T="int?" @bind-Value="_model.ReminderMinutesBefore"
-                           Label="@L["calendar.event.reminder"]"
-                           Variant="Variant.Outlined">
-                    <MudSelectItem T="int?" Value="@((int?)null)">@L["calendar.event.noReminder"]</MudSelectItem>
-                    <MudSelectItem T="int?" Value="5">5 minutes before</MudSelectItem>
-                    <MudSelectItem T="int?" Value="10">10 minutes before</MudSelectItem>
-                    <MudSelectItem T="int?" Value="15">15 minutes before</MudSelectItem>
-                    <MudSelectItem T="int?" Value="30">30 minutes before</MudSelectItem>
-                    <MudSelectItem T="int?" Value="60">1 hour before</MudSelectItem>
-                    <MudSelectItem T="int?" Value="1440">1 day before</MudSelectItem>
-                </MudSelect>
+                        <MudGrid Spacing="2">
+                            <MudItem xs="6">
+                                <MudDatePicker @bind-Date="_startDate"
+                                               Label="@L["calendar.event.startDate"]"
+                                               Variant="Variant.Outlined"
+                                               Required="true" />
+                            </MudItem>
+                            @if (!_model.IsAllDay)
+                            {
+                                <MudItem xs="6">
+                                    <MudTimePicker @bind-Time="_startTime"
+                                                   Label="@L["calendar.event.startTime"]"
+                                                   Variant="Variant.Outlined"
+                                                   AmPm="true" />
+                                </MudItem>
+                            }
+                            <MudItem xs="6">
+                                <MudDatePicker @bind-Date="_endDate"
+                                               Label="@L["calendar.event.endDate"]"
+                                               Variant="Variant.Outlined"
+                                               Required="true" />
+                            </MudItem>
+                            @if (!_model.IsAllDay)
+                            {
+                                <MudItem xs="6">
+                                    <MudTimePicker @bind-Time="_endTime"
+                                                   Label="@L["calendar.event.endTime"]"
+                                                   Variant="Variant.Outlined"
+                                                   AmPm="true" />
+                                </MudItem>
+                            }
+                        </MudGrid>
+                    </MudStack>
+                </MudItem>
 
-                <MudTextField @bind-Value="_model.Color"
-                              Label="@L["calendar.event.color"]"
-                              Variant="Variant.Outlined"
-                              HelperText="#hex color" />
+                @* Right column: Recurrence + Members *@
+                <MudItem xs="12" md="5">
+                    <MudStack Spacing="3">
+                        <RecurrenceEditor @bind-RecurrenceRule="_model.RecurrenceRule"
+                                          @bind-EndDate="_recurrenceEndDate" />
 
-                <RecurrenceEditor @bind-RecurrenceRule="_model.RecurrenceRule"
-                                  @bind-EndDate="_recurrenceEndDate" />
+                        <MudDivider Class="my-1" />
 
-                <MemberParticipationPicker @bind-Members="_model.Members" />
-            </MudStack>
+                        <MemberParticipationPicker @bind-Members="_model.Members" />
+                    </MudStack>
+                </MudItem>
+            </MudGrid>
         </MudForm>
     </DialogContent>
     <DialogActions>
+        @if (IsEdit && CanEdit)
+        {
+            <MudButton Color="Color.Error" Variant="Variant.Text" OnClick="Delete" Disabled="@_isDeleting"
+                       StartIcon="@Icons.Material.Filled.Delete" Class="mr-auto">
+                @if (_isDeleting)
+                {
+                    <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                }
+                @L["common.delete"]
+            </MudButton>
+        }
         <MudButton OnClick="Close">@L["common.cancel"]</MudButton>
-        <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="Save" Disabled="@_isSaving">
-            @if (_isSaving)
-            {
-                <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
-            }
-            @L["common.save"]
-        </MudButton>
+        @if (CanEdit)
+        {
+            <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="Save" Disabled="@_isSaving">
+                @if (_isSaving)
+                {
+                    <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                }
+                @L["common.save"]
+            </MudButton>
+        }
     </DialogActions>
 </MudDialog>
 
 @code {
+    [CascadingParameter(Name = "CanEdit")]
+    private bool CanEdit { get; set; }
+
     [Parameter] public bool Visible { get; set; }
     [Parameter] public EventCallback<bool> VisibleChanged { get; set; }
     [Parameter] public EventCallback OnSave { get; set; }
@@ -118,18 +168,53 @@
 
     private MudForm _form = null!;
     private bool _isSaving;
+    private bool _isDeleting;
     private CreateCalendarEventRequest _model = new();
     private DateTime? _startDate;
     private TimeSpan? _startTime;
     private DateTime? _endDate;
     private TimeSpan? _endTime;
     private DateTime? _recurrenceEndDate;
+    private string _defaultEventColor = "#4CAF50";
 
-    protected override void OnParametersSet()
+    public static readonly List<(string Hex, string Name)> EventColors = new()
+    {
+        ("#4CAF50", "Green"),
+        ("#2196F3", "Blue"),
+        ("#F44336", "Red"),
+        ("#FF9800", "Orange"),
+        ("#9C27B0", "Purple"),
+        ("#009688", "Teal"),
+        ("#E91E63", "Pink"),
+        ("#3F51B5", "Indigo"),
+        ("#FFC107", "Amber"),
+        ("#00BCD4", "Cyan"),
+        ("#795548", "Brown"),
+        ("#607D8B", "Blue Grey"),
+    };
+
+    protected override async Task OnParametersSetAsync()
     {
         if (Visible)
         {
+            await LoadTenantDefaultsAsync();
             InitializeModel();
+        }
+    }
+
+    private async Task LoadTenantDefaultsAsync()
+    {
+        try
+        {
+            var result = await ApiClient.GetAsync<TenantDto>("api/v1/tenant");
+            if (result.IsSuccess && result.Data != null)
+            {
+                _defaultEventColor = result.Data.DefaultEventColor;
+            }
+        }
+        catch
+        {
+            // Fall through with default
         }
     }
 
@@ -163,7 +248,10 @@
         {
             var now = DateTime.Now;
             var nextHour = now.AddHours(1).Date.AddHours(now.Hour + 1);
-            _model = new CreateCalendarEventRequest();
+            _model = new CreateCalendarEventRequest
+            {
+                Color = _defaultEventColor
+            };
             _startDate = nextHour.Date;
             _startTime = nextHour.TimeOfDay;
             _endDate = nextHour.Date;
@@ -243,6 +331,85 @@
         finally
         {
             _isSaving = false;
+        }
+    }
+
+    private async Task Delete()
+    {
+        if (Event == null) return;
+
+        var isRecurring = !string.IsNullOrEmpty(Event.RecurrenceRule);
+
+        if (!isRecurring)
+        {
+            // Non-recurring: confirm and delete
+            var confirmed = await DialogService.ShowMessageBox(
+                L["confirmations.deleteTitle"],
+                L["calendar.event.confirmDelete"],
+                yesText: L["common.delete"],
+                cancelText: L["common.cancel"]);
+
+            if (confirmed != true) return;
+
+            await ExecuteDelete(null, null);
+        }
+        else
+        {
+            // Recurring: use scope from the parent page if available, otherwise prompt
+            if (EditScope.HasValue)
+            {
+                await ExecuteDelete(EditScope.Value, OccurrenceStartTimeUtc);
+            }
+            else
+            {
+                // Prompt for scope via the parent's scope dialog is preferred,
+                // but as a fallback, ask directly
+                var confirmed = await DialogService.ShowMessageBox(
+                    L["confirmations.deleteTitle"],
+                    L["calendar.event.confirmDelete"],
+                    yesText: L["common.delete"],
+                    cancelText: L["common.cancel"]);
+
+                if (confirmed != true) return;
+
+                await ExecuteDelete(RecurrenceEditScope.EntireSeries, null);
+            }
+        }
+    }
+
+    private async Task ExecuteDelete(RecurrenceEditScope? scope, DateTime? occurrenceStart)
+    {
+        _isDeleting = true;
+        try
+        {
+            var url = $"api/v1/calendar/events/{Event!.Id}";
+            var queryParams = new List<string>();
+            if (scope.HasValue)
+                queryParams.Add($"editScope={(int)scope.Value}");
+            if (occurrenceStart.HasValue)
+                queryParams.Add($"occurrenceStartTimeUtc={occurrenceStart.Value.ToString("O")}");
+            if (queryParams.Count > 0)
+                url += "?" + string.Join("&", queryParams);
+
+            var result = await ApiClient.DeleteAsync(url);
+
+            if (result.IsSuccess)
+            {
+                Snackbar.Add(L["calendar.event.deleted"], Severity.Success);
+                await CloseAndNotify();
+            }
+            else
+            {
+                Snackbar.Add(result.ErrorMessage ?? L["common.error"], Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isDeleting = false;
         }
     }
 

@@ -50,6 +50,11 @@ public class Tenant : BaseEntity
     public string TimeZoneId { get; set; } = "America/New_York";
 
     /// <summary>
+    /// Default display color for household calendar events (hex, e.g. "#4CAF50").
+    /// </summary>
+    public string DefaultEventColor { get; set; } = "#4CAF50";
+
+    /// <summary>
     /// JSON array of plugin IDs that an admin has disabled for this tenant.
     /// e.g., ["usda", "openfoodfacts"]. Null or empty means all plugins are enabled.
     /// </summary>

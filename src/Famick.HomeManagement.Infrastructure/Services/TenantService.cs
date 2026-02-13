@@ -75,6 +75,16 @@ public class TenantService : ITenantService
 
         tenant.Name = request.Name;
 
+        if (!string.IsNullOrWhiteSpace(request.TimeZoneId))
+        {
+            tenant.TimeZoneId = request.TimeZoneId;
+        }
+
+        if (!string.IsNullOrWhiteSpace(request.DefaultEventColor))
+        {
+            tenant.DefaultEventColor = request.DefaultEventColor;
+        }
+
         // Handle address update
         if (request.Address != null)
         {
