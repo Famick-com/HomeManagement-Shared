@@ -124,6 +124,14 @@ public class HomeManagementDbContext : DbContext
     public DbSet<NotificationPreference> NotificationPreferences => Set<NotificationPreference>();
     public DbSet<UserDeviceToken> UserDeviceTokens => Set<UserDeviceToken>();
 
+    // Calendar
+    public DbSet<CalendarEvent> CalendarEvents => Set<CalendarEvent>();
+    public DbSet<CalendarEventMember> CalendarEventMembers => Set<CalendarEventMember>();
+    public DbSet<CalendarEventException> CalendarEventExceptions => Set<CalendarEventException>();
+    public DbSet<ExternalCalendarSubscription> ExternalCalendarSubscriptions => Set<ExternalCalendarSubscription>();
+    public DbSet<ExternalCalendarEvent> ExternalCalendarEvents => Set<ExternalCalendarEvent>();
+    public DbSet<UserCalendarIcsToken> UserCalendarIcsTokens => Set<UserCalendarIcsToken>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);

@@ -71,11 +71,16 @@ public static class InfrastructureStartup
         services.AddScoped<ITodoItemService, TodoItemService>();
         services.AddScoped<IVehicleService, VehicleService>();
         services.AddScoped<IWizardService, WizardService>();
+        services.AddScoped<ICalendarEventService, CalendarEventService>();
+        services.AddHttpClient<IExternalCalendarService, ExternalCalendarService>();
+        services.AddScoped<ICalendarFeedService, CalendarFeedService>();
+        services.AddScoped<ICalendarAvailabilityService, CalendarAvailabilityService>();
 
         // Register notification services
         services.AddScoped<INotificationService, NotificationService>();
         services.AddScoped<INotificationEvaluator, ExpiryAndStockEvaluator>();
         services.AddScoped<INotificationEvaluator, TaskSummaryEvaluator>();
+        services.AddScoped<INotificationEvaluator, CalendarEventEvaluator>();
         services.AddScoped<INotificationDispatcher, InAppNotificationDispatcher>();
         services.AddScoped<INotificationDispatcher, EmailNotificationDispatcher>();
         services.AddSingleton<IDistributedLockService, NoOpDistributedLockService>();

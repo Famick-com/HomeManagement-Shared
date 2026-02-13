@@ -119,6 +119,209 @@ namespace Famick.HomeManagement.Infrastructure.Migrations
                     b.ToTable("addresses", (string)null);
                 });
 
+            modelBuilder.Entity("Famick.HomeManagement.Domain.Entities.CalendarEvent", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("Color")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("color");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.Property<Guid>("CreatedByUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by_user_id");
+
+                    b.Property<string>("Description")
+                        .HasColumnType("text")
+                        .HasColumnName("description");
+
+                    b.Property<DateTime>("EndTimeUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("end_time_utc");
+
+                    b.Property<bool>("IsAllDay")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false)
+                        .HasColumnName("is_all_day");
+
+                    b.Property<string>("Location")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("location");
+
+                    b.Property<DateTime?>("RecurrenceEndDate")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("recurrence_end_date");
+
+                    b.Property<string>("RecurrenceRule")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("recurrence_rule");
+
+                    b.Property<int?>("ReminderMinutesBefore")
+                        .HasColumnType("integer")
+                        .HasColumnName("reminder_minutes_before");
+
+                    b.Property<DateTime>("StartTimeUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("start_time_utc");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)")
+                        .HasColumnName("title");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedByUserId")
+                        .HasDatabaseName("ix_calendar_events_created_by");
+
+                    b.HasIndex("TenantId")
+                        .HasDatabaseName("ix_calendar_events_tenant_id");
+
+                    b.HasIndex("TenantId", "StartTimeUtc")
+                        .HasDatabaseName("ix_calendar_events_tenant_start");
+
+                    b.ToTable("calendar_events", (string)null);
+                });
+
+            modelBuilder.Entity("Famick.HomeManagement.Domain.Entities.CalendarEventException", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("CalendarEventId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("calendar_event_id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.Property<bool>("IsDeleted")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false)
+                        .HasColumnName("is_deleted");
+
+                    b.Property<DateTime>("OriginalStartTimeUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("original_start_time_utc");
+
+                    b.Property<string>("OverrideDescription")
+                        .HasColumnType("text")
+                        .HasColumnName("override_description");
+
+                    b.Property<DateTime?>("OverrideEndTimeUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("override_end_time_utc");
+
+                    b.Property<bool?>("OverrideIsAllDay")
+                        .HasColumnType("boolean")
+                        .HasColumnName("override_is_all_day");
+
+                    b.Property<string>("OverrideLocation")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("override_location");
+
+                    b.Property<DateTime?>("OverrideStartTimeUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("override_start_time_utc");
+
+                    b.Property<string>("OverrideTitle")
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)")
+                        .HasColumnName("override_title");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CalendarEventId")
+                        .HasDatabaseName("ix_calendar_event_exceptions_event_id");
+
+                    b.HasIndex("CalendarEventId", "OriginalStartTimeUtc")
+                        .IsUnique()
+                        .HasDatabaseName("ix_calendar_event_exceptions_event_occurrence");
+
+                    b.ToTable("calendar_event_exceptions", (string)null);
+                });
+
+            modelBuilder.Entity("Famick.HomeManagement.Domain.Entities.CalendarEventMember", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("CalendarEventId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("calendar_event_id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.Property<int>("ParticipationType")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(1)
+                        .HasColumnName("participation_type");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId");
+
+                    b.HasIndex("CalendarEventId", "UserId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_calendar_event_members_event_user");
+
+                    b.ToTable("calendar_event_members", (string)null);
+                });
+
             modelBuilder.Entity("Famick.HomeManagement.Domain.Entities.Chore", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1333,6 +1536,145 @@ namespace Famick.HomeManagement.Infrastructure.Migrations
                         .HasDatabaseName("ix_equipment_usage_logs_equipment_date");
 
                     b.ToTable("equipment_usage_logs", (string)null);
+                });
+
+            modelBuilder.Entity("Famick.HomeManagement.Domain.Entities.ExternalCalendarEvent", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.Property<DateTime>("EndTimeUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("end_time_utc");
+
+                    b.Property<string>("ExternalUid")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("external_uid");
+
+                    b.Property<bool>("IsAllDay")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false)
+                        .HasColumnName("is_all_day");
+
+                    b.Property<DateTime>("StartTimeUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("start_time_utc");
+
+                    b.Property<Guid>("SubscriptionId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("subscription_id");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("title");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("SubscriptionId", "ExternalUid")
+                        .IsUnique()
+                        .HasDatabaseName("ix_external_calendar_events_subscription_uid");
+
+                    b.HasIndex("SubscriptionId", "StartTimeUtc")
+                        .HasDatabaseName("ix_external_calendar_events_subscription_start");
+
+                    b.ToTable("external_calendar_events", (string)null);
+                });
+
+            modelBuilder.Entity("Famick.HomeManagement.Domain.Entities.ExternalCalendarSubscription", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("Color")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("color");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.Property<string>("IcsUrl")
+                        .IsRequired()
+                        .HasMaxLength(2048)
+                        .HasColumnType("character varying(2048)")
+                        .HasColumnName("ics_url");
+
+                    b.Property<bool>("IsActive")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(true)
+                        .HasColumnName("is_active");
+
+                    b.Property<string>("LastSyncStatus")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("last_sync_status");
+
+                    b.Property<DateTime?>("LastSyncedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("last_synced_at");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)")
+                        .HasColumnName("name");
+
+                    b.Property<int>("SyncIntervalMinutes")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(60)
+                        .HasColumnName("sync_interval_minutes");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TenantId")
+                        .HasDatabaseName("ix_external_calendar_subscriptions_tenant_id");
+
+                    b.HasIndex("UserId");
+
+                    b.HasIndex("TenantId", "UserId")
+                        .HasDatabaseName("ix_external_calendar_subscriptions_tenant_user");
+
+                    b.ToTable("external_calendar_subscriptions", (string)null);
                 });
 
             modelBuilder.Entity("Famick.HomeManagement.Domain.Entities.Home", b =>
@@ -3522,6 +3864,14 @@ namespace Famick.HomeManagement.Infrastructure.Migrations
                         .HasColumnName("created_at")
                         .HasDefaultValueSql("CURRENT_TIMESTAMP");
 
+                    b.Property<string>("DefaultEventColor")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasDefaultValue("#4CAF50")
+                        .HasColumnName("default_event_color");
+
                     b.Property<string>("DisabledPluginIds")
                         .HasColumnType("text");
 
@@ -3590,6 +3940,14 @@ namespace Famick.HomeManagement.Infrastructure.Migrations
                         .HasColumnType("integer")
                         .HasDefaultValue(0)
                         .HasColumnName("subscription_tier");
+
+                    b.Property<string>("TimeZoneId")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasDefaultValue("America/New_York")
+                        .HasColumnName("time_zone_id");
 
                     b.Property<DateTime?>("TrialEndsAt")
                         .HasColumnType("timestamp with time zone")
@@ -3807,6 +4165,67 @@ namespace Famick.HomeManagement.Infrastructure.Migrations
                         .IsUnique();
 
                     b.ToTable("users", (string)null);
+                });
+
+            modelBuilder.Entity("Famick.HomeManagement.Domain.Entities.UserCalendarIcsToken", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.Property<bool>("IsRevoked")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false)
+                        .HasColumnName("is_revoked");
+
+                    b.Property<string>("Label")
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)")
+                        .HasColumnName("label");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.Property<string>("Token")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)")
+                        .HasColumnName("token");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TenantId")
+                        .HasDatabaseName("ix_user_calendar_ics_tokens_tenant_id");
+
+                    b.HasIndex("Token")
+                        .IsUnique()
+                        .HasDatabaseName("ix_user_calendar_ics_tokens_token");
+
+                    b.HasIndex("UserId");
+
+                    b.HasIndex("TenantId", "UserId")
+                        .HasDatabaseName("ix_user_calendar_ics_tokens_tenant_user");
+
+                    b.ToTable("user_calendar_ics_tokens", (string)null);
                 });
 
             modelBuilder.Entity("Famick.HomeManagement.Domain.Entities.UserDeviceToken", b =>
@@ -4383,6 +4802,51 @@ namespace Famick.HomeManagement.Infrastructure.Migrations
                     b.ToTable("vehicle_mileage_logs", (string)null);
                 });
 
+            modelBuilder.Entity("Famick.HomeManagement.Domain.Entities.CalendarEvent", b =>
+                {
+                    b.HasOne("Famick.HomeManagement.Domain.Entities.User", "CreatedByUser")
+                        .WithMany()
+                        .HasForeignKey("CreatedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_calendar_events_created_by_user");
+
+                    b.Navigation("CreatedByUser");
+                });
+
+            modelBuilder.Entity("Famick.HomeManagement.Domain.Entities.CalendarEventException", b =>
+                {
+                    b.HasOne("Famick.HomeManagement.Domain.Entities.CalendarEvent", "CalendarEvent")
+                        .WithMany("Exceptions")
+                        .HasForeignKey("CalendarEventId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_calendar_event_exceptions_event");
+
+                    b.Navigation("CalendarEvent");
+                });
+
+            modelBuilder.Entity("Famick.HomeManagement.Domain.Entities.CalendarEventMember", b =>
+                {
+                    b.HasOne("Famick.HomeManagement.Domain.Entities.CalendarEvent", "CalendarEvent")
+                        .WithMany("Members")
+                        .HasForeignKey("CalendarEventId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_calendar_event_members_event");
+
+                    b.HasOne("Famick.HomeManagement.Domain.Entities.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_calendar_event_members_user");
+
+                    b.Navigation("CalendarEvent");
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("Famick.HomeManagement.Domain.Entities.Chore", b =>
                 {
                     b.HasOne("Famick.HomeManagement.Domain.Entities.Equipment", "Equipment")
@@ -4638,6 +5102,30 @@ namespace Famick.HomeManagement.Infrastructure.Migrations
                         .HasConstraintName("fk_equipment_usage_logs_equipment");
 
                     b.Navigation("Equipment");
+                });
+
+            modelBuilder.Entity("Famick.HomeManagement.Domain.Entities.ExternalCalendarEvent", b =>
+                {
+                    b.HasOne("Famick.HomeManagement.Domain.Entities.ExternalCalendarSubscription", "Subscription")
+                        .WithMany("Events")
+                        .HasForeignKey("SubscriptionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_external_calendar_events_subscription");
+
+                    b.Navigation("Subscription");
+                });
+
+            modelBuilder.Entity("Famick.HomeManagement.Domain.Entities.ExternalCalendarSubscription", b =>
+                {
+                    b.HasOne("Famick.HomeManagement.Domain.Entities.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_external_calendar_subscriptions_user");
+
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("Famick.HomeManagement.Domain.Entities.HomeUtility", b =>
@@ -5034,6 +5522,18 @@ namespace Famick.HomeManagement.Infrastructure.Migrations
                     b.Navigation("Contact");
                 });
 
+            modelBuilder.Entity("Famick.HomeManagement.Domain.Entities.UserCalendarIcsToken", b =>
+                {
+                    b.HasOne("Famick.HomeManagement.Domain.Entities.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_user_calendar_ics_tokens_user");
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("Famick.HomeManagement.Domain.Entities.UserDeviceToken", b =>
                 {
                     b.HasOne("Famick.HomeManagement.Domain.Entities.User", "User")
@@ -5158,6 +5658,13 @@ namespace Famick.HomeManagement.Infrastructure.Migrations
                     b.Navigation("Vehicle");
                 });
 
+            modelBuilder.Entity("Famick.HomeManagement.Domain.Entities.CalendarEvent", b =>
+                {
+                    b.Navigation("Exceptions");
+
+                    b.Navigation("Members");
+                });
+
             modelBuilder.Entity("Famick.HomeManagement.Domain.Entities.Chore", b =>
                 {
                     b.Navigation("LogEntries");
@@ -5212,6 +5719,11 @@ namespace Famick.HomeManagement.Infrastructure.Migrations
             modelBuilder.Entity("Famick.HomeManagement.Domain.Entities.EquipmentDocumentTag", b =>
                 {
                     b.Navigation("Documents");
+                });
+
+            modelBuilder.Entity("Famick.HomeManagement.Domain.Entities.ExternalCalendarSubscription", b =>
+                {
+                    b.Navigation("Events");
                 });
 
             modelBuilder.Entity("Famick.HomeManagement.Domain.Entities.Home", b =>

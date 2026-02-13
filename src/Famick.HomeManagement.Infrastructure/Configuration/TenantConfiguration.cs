@@ -50,6 +50,20 @@ public class TenantConfiguration : IEntityTypeConfiguration<Tenant>
             .HasForeignKey(t => t.AddressId)
             .OnDelete(DeleteBehavior.SetNull);
 
+        builder.Property(t => t.TimeZoneId)
+            .HasColumnName("time_zone_id")
+            .HasColumnType("character varying(100)")
+            .HasMaxLength(100)
+            .IsRequired()
+            .HasDefaultValue("America/New_York");
+
+        builder.Property(t => t.DefaultEventColor)
+            .HasColumnName("default_event_color")
+            .HasColumnType("character varying(20)")
+            .HasMaxLength(20)
+            .IsRequired()
+            .HasDefaultValue("#4CAF50");
+
         // --- Cloud billing columns (unused in self-hosted mode) ---
 
         // Subscription

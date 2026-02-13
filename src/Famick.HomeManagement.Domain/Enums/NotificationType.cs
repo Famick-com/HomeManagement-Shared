@@ -18,5 +18,10 @@ public enum NotificationType
     /// <summary>
     /// Feature announcements from Famick (cloud only)
     /// </summary>
-    NewFeatures = 3
+    NewFeatures = 3,
+
+    /// <summary>
+    /// Reminder for an upcoming calendar event (only sent to Involved members)
+    /// </summary>
+    CalendarReminder = 4
 }
