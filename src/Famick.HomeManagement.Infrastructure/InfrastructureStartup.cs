@@ -80,6 +80,7 @@ public static class InfrastructureStartup
         services.AddScoped<INotificationService, NotificationService>();
         services.AddScoped<INotificationEvaluator, ExpiryAndStockEvaluator>();
         services.AddScoped<INotificationEvaluator, TaskSummaryEvaluator>();
+        services.AddScoped<INotificationEvaluator, CalendarEventEvaluator>();
         services.AddScoped<INotificationDispatcher, InAppNotificationDispatcher>();
         services.AddScoped<INotificationDispatcher, EmailNotificationDispatcher>();
         services.AddSingleton<IDistributedLockService, NoOpDistributedLockService>();
