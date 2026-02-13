@@ -16,16 +16,19 @@ public class CalendarController : ApiControllerBase
 {
     private readonly ICalendarEventService _calendarEventService;
     private readonly IExternalCalendarService _externalCalendarService;
+    private readonly ICalendarAvailabilityService _availabilityService;
 
     public CalendarController(
         ICalendarEventService calendarEventService,
         IExternalCalendarService externalCalendarService,
+        ICalendarAvailabilityService availabilityService,
         ITenantProvider tenantProvider,
         ILogger<CalendarController> logger)
         : base(tenantProvider, logger)
     {
         _calendarEventService = calendarEventService;
         _externalCalendarService = externalCalendarService;
+        _availabilityService = availabilityService;
     }
 
     #region Calendar Events
@@ -162,6 +165,49 @@ public class CalendarController : ApiControllerBase
         var occurrences = await _calendarEventService.GetUpcomingEventsAsync(days, userId, cancellationToken);
 
         return ApiResponse(occurrences);
+    }
+
+    #endregion
+
+    #region Availability
+
+    /// <summary>
+    /// Gets free/busy information for one or more users within a date range
+    /// </summary>
+    [HttpGet("freebusy")]
+    [ProducesResponseType(typeof(List<FreeBusyDto>), 200)]
+    [ProducesResponseType(401)]
+    public async Task<IActionResult> GetFreeBusy(
+        [FromQuery] List<Guid> userIds,
+        [FromQuery] DateTime startDate,
+        [FromQuery] DateTime endDate,
+        CancellationToken cancellationToken = default)
+    {
+        _logger.LogInformation("Getting free/busy for {UserCount} user(s) from {Start} to {End}",
+            userIds.Count, startDate, endDate);
+
+        var result = await _availabilityService.GetFreeBusyAsync(userIds, startDate, endDate, cancellationToken);
+
+        return ApiResponse(result);
+    }
+
+    /// <summary>
+    /// Finds available time slots when all specified users are free
+    /// </summary>
+    [HttpPost("find-slots")]
+    [ProducesResponseType(typeof(List<AvailableSlotDto>), 200)]
+    [ProducesResponseType(400)]
+    [ProducesResponseType(401)]
+    public async Task<IActionResult> FindAvailableSlots(
+        [FromBody] FindSlotsRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        _logger.LogInformation("Finding available slots for {UserCount} user(s), duration={Duration}min",
+            request.UserIds.Count, request.DurationMinutes);
+
+        var slots = await _availabilityService.FindAvailableSlotsAsync(request, cancellationToken);
+
+        return ApiResponse(slots);
     }
 
     #endregion

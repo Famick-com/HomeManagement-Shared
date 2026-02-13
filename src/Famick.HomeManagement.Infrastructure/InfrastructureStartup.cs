@@ -74,6 +74,7 @@ public static class InfrastructureStartup
         services.AddScoped<ICalendarEventService, CalendarEventService>();
         services.AddHttpClient<IExternalCalendarService, ExternalCalendarService>();
         services.AddScoped<ICalendarFeedService, CalendarFeedService>();
+        services.AddScoped<ICalendarAvailabilityService, CalendarAvailabilityService>();
 
         // Register notification services
         services.AddScoped<INotificationService, NotificationService>();
