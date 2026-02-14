@@ -191,12 +191,7 @@
             var setupResult = await ApiClient.GetAsync<SetupStatusResponse>("api/v1/home/setup-status");
             if (setupResult.IsSuccess && setupResult.Data?.IsSetupComplete == true)
             {
-                // Setup is complete, but also check tenant name
-                var tenantResult = await ApiClient.GetAsync<TenantDto>("api/v1/tenant");
-                if (tenantResult.IsSuccess && !string.IsNullOrWhiteSpace(tenantResult.Data?.Name))
-                {
-                    return false;
-                }
+                return false;
             }
             return true;
         }
