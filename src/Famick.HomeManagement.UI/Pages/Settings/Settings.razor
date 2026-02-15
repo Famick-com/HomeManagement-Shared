@@ -155,13 +155,10 @@
     <DataSourcesSection />
 </div>
 
-@* Transfer to Cloud - Admin only, feature-flagged *@
+@* Transfer to Cloud - Admin only, self-hosted only, feature-flagged *@
 <AuthorizeView Policy="RequireAdmin">
     <Authorized>
-        <MudText Typo="Typo.h5" Class="mb-3">@L["settings.transferToCloud.title"]</MudText>
-        <div class="mb-6">
-            <TransferToCloudSection />
-        </div>
+        <TransferToCloudSection />
     </Authorized>
 </AuthorizeView>
 

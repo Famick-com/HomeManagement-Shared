@@ -4,21 +4,24 @@
 
 @if (_isAvailable)
 {
-    <MudCard Outlined="true" Class="cursor-pointer" @onclick="OpenDialog">
-        <MudCardContent>
-            <div class="d-flex align-center gap-4">
-                <MudIcon Icon="@Icons.Material.Filled.CloudUpload" Size="Size.Large" Color="Color.Primary" />
-                <div>
-                    <MudText Typo="Typo.subtitle1">@L["settings.transferToCloud.title"]</MudText>
-                    <MudText Typo="Typo.body2" Color="Color.Secondary">
-                        @L["settings.transferToCloud.description"]
-                    </MudText>
+    <MudText Typo="Typo.h5" Class="mb-3">@L["settings.transferToCloud.title"]</MudText>
+    <div class="mb-6">
+        <MudCard Outlined="true" Class="cursor-pointer" @onclick="OpenDialog">
+            <MudCardContent>
+                <div class="d-flex align-center gap-4">
+                    <MudIcon Icon="@Icons.Material.Filled.CloudUpload" Size="Size.Large" Color="Color.Primary" />
+                    <div>
+                        <MudText Typo="Typo.subtitle1">@L["settings.transferToCloud.title"]</MudText>
+                        <MudText Typo="Typo.body2" Color="Color.Secondary">
+                            @L["settings.transferToCloud.description"]
+                        </MudText>
+                    </div>
+                    <MudSpacer />
+                    <MudIcon Icon="@Icons.Material.Filled.ChevronRight" />
                 </div>
-                <MudSpacer />
-                <MudIcon Icon="@Icons.Material.Filled.ChevronRight" />
-            </div>
-        </MudCardContent>
-    </MudCard>
+            </MudCardContent>
+        </MudCard>
+    </div>
 }
 
 <TransferToCloudDialog @bind-Visible="_dialogVisible" />
