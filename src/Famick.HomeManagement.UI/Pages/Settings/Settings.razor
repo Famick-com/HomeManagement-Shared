@@ -155,6 +155,16 @@
     <DataSourcesSection />
 </div>
 
+@* Transfer to Cloud - Admin only, feature-flagged *@
+<AuthorizeView Policy="RequireAdmin">
+    <Authorized>
+        <MudText Typo="Typo.h5" Class="mb-3">@L["settings.transferToCloud.title"]</MudText>
+        <div class="mb-6">
+            <TransferToCloudSection />
+        </div>
+    </Authorized>
+</AuthorizeView>
+
 @code {
     private bool _mobileAppSetupEnabled = false;
     private bool _isLoadingTenant = true;

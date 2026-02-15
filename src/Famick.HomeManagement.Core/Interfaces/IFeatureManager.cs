@@ -69,4 +69,10 @@ public static class FeatureNames
     /// Self-hosted has PWA only, cloud has native apps
     /// </summary>
     public const string NativeMobileApps = "NativeMobileApps";
+
+    /// <summary>
+    /// Transfer to Cloud feature
+    /// Allows self-hosted users to transfer their data to the cloud version
+    /// </summary>
+    public const string TransferToCloud = "TransferToCloud";
 }
