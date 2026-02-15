@@ -32,10 +32,10 @@
 
     protected override async Task OnInitializedAsync()
     {
-        // Check if transfer feature is available by calling the session endpoint
+        // Check if transfer feature is available (only exists on self-hosted)
         try
         {
-            var result = await ApiClient.GetAsync<object>("api/v1/transfer/session");
+            var result = await ApiClient.GetAsync<object>("api/v1/transfer/available");
             _isAvailable = result.IsSuccess;
         }
         catch
