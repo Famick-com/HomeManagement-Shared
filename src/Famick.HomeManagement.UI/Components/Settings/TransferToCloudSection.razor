@@ -33,7 +33,7 @@
         try
         {
             var result = await ApiClient.GetAsync<object>("api/v1/transfer/session");
-            _isAvailable = result.StatusCode != 403;
+            _isAvailable = result.IsSuccess;
         }
         catch
         {
