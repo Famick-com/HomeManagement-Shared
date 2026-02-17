@@ -79,6 +79,11 @@ public interface IApiClient
     Task<ApiResult> PutAsync<TRequest>(string endpoint, TRequest request);
 
     /// <summary>
+    /// Send a POST request without a body to the specified endpoint.
+    /// </summary>
+    Task<ApiResult> PostAsync(string endpoint);
+
+    /// <summary>
     /// Send a DELETE request to the specified endpoint.
     /// </summary>
     Task<ApiResult> DeleteAsync(string endpoint);

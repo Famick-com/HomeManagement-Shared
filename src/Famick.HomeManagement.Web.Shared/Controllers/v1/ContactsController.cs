@@ -1,4 +1,5 @@
 using Famick.HomeManagement.Core.DTOs.Contacts;
+using Famick.HomeManagement.Core.Exceptions;
 using Famick.HomeManagement.Core.Interfaces;
 using Famick.HomeManagement.Web.Shared.Controllers;
 using Microsoft.AspNetCore.Authorization;
@@ -172,6 +173,178 @@ public class ContactsController : ApiControllerBase
         await _contactService.DeleteAsync(id, ct);
 
         return NoContent();
+    }
+
+    #endregion
+
+    #region Contact Groups
+
+    /// <summary>
+    /// Gets a list of contact groups with optional filtering and pagination
+    /// </summary>
+    [HttpGet("groups")]
+    [ProducesResponseType(typeof(PagedResult<ContactGroupSummaryDto>), 200)]
+    [ProducesResponseType(401)]
+    public async Task<IActionResult> ListGroups(
+        [FromQuery] ContactFilterRequest filter,
+        CancellationToken ct)
+    {
+        _logger.LogInformation("Listing contact groups for tenant {TenantId}", TenantId);
+
+        var result = await _contactService.ListGroupsAsync(filter, ct);
+
+        return ApiResponse(result);
+    }
+
+    /// <summary>
+    /// Gets a contact group by ID with its members
+    /// </summary>
+    [HttpGet("groups/{id}")]
+    [ProducesResponseType(typeof(ContactDto), 200)]
+    [ProducesResponseType(401)]
+    [ProducesResponseType(404)]
+    public async Task<IActionResult> GetGroup(Guid id, CancellationToken ct)
+    {
+        _logger.LogInformation("Getting contact group {GroupId} for tenant {TenantId}", id, TenantId);
+
+        try
+        {
+            var group = await _contactService.GetGroupByIdAsync(id, ct);
+            return ApiResponse(group);
+        }
+        catch (EntityNotFoundException ex)
+        {
+            return NotFoundResponse(ex.Message);
+        }
+    }
+
+    /// <summary>
+    /// Creates a new contact group
+    /// </summary>
+    [HttpPost("groups")]
+    [Authorize(Policy = "RequireEditor")]
+    [ProducesResponseType(typeof(ContactGroupSummaryDto), 201)]
+    [ProducesResponseType(400)]
+    [ProducesResponseType(401)]
+    public async Task<IActionResult> CreateGroup(
+        [FromBody] CreateContactGroupRequest request,
+        CancellationToken ct)
+    {
+        _logger.LogInformation("Creating contact group '{GroupName}' for tenant {TenantId}",
+            request.GroupName, TenantId);
+
+        var group = await _contactService.CreateGroupAsync(request, ct);
+
+        return CreatedAtAction(nameof(GetGroup), new { id = group.Id }, group);
+    }
+
+    /// <summary>
+    /// Updates an existing contact group
+    /// </summary>
+    [HttpPut("groups/{id}")]
+    [Authorize(Policy = "RequireEditor")]
+    [ProducesResponseType(204)]
+    [ProducesResponseType(400)]
+    [ProducesResponseType(401)]
+    [ProducesResponseType(404)]
+    public async Task<IActionResult> UpdateGroup(
+        Guid id,
+        [FromBody] UpdateContactGroupRequest request,
+        CancellationToken ct)
+    {
+        _logger.LogInformation("Updating contact group {GroupId} for tenant {TenantId}", id, TenantId);
+
+        try
+        {
+            await _contactService.UpdateGroupAsync(id, request, ct);
+            return NoContent();
+        }
+        catch (EntityNotFoundException ex)
+        {
+            return NotFoundResponse(ex.Message);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return ErrorResponse(ex.Message);
+        }
+    }
+
+    /// <summary>
+    /// Deletes a contact group (members are moved to tenant household)
+    /// </summary>
+    [HttpDelete("groups/{id}")]
+    [Authorize(Policy = "RequireEditor")]
+    [ProducesResponseType(204)]
+    [ProducesResponseType(401)]
+    [ProducesResponseType(404)]
+    public async Task<IActionResult> DeleteGroup(Guid id, CancellationToken ct)
+    {
+        _logger.LogInformation("Deleting contact group {GroupId} for tenant {TenantId}", id, TenantId);
+
+        try
+        {
+            await _contactService.DeleteGroupAsync(id, ct);
+            return NoContent();
+        }
+        catch (EntityNotFoundException ex)
+        {
+            return NotFoundResponse(ex.Message);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return ErrorResponse(ex.Message);
+        }
+    }
+
+    /// <summary>
+    /// Gets the tenant's household group
+    /// </summary>
+    [HttpGet("groups/my-household")]
+    [ProducesResponseType(typeof(ContactDto), 200)]
+    [ProducesResponseType(401)]
+    [ProducesResponseType(404)]
+    public async Task<IActionResult> GetMyHousehold(CancellationToken ct)
+    {
+        _logger.LogInformation("Getting tenant household for tenant {TenantId}", TenantId);
+
+        try
+        {
+            var household = await _contactService.GetTenantHouseholdAsync(ct);
+            return ApiResponse(household);
+        }
+        catch (EntityNotFoundException ex)
+        {
+            return NotFoundResponse(ex.Message);
+        }
+    }
+
+    /// <summary>
+    /// Moves a contact to a different group
+    /// </summary>
+    [HttpPost("{id}/move-to-group/{groupId}")]
+    [Authorize(Policy = "RequireEditor")]
+    [ProducesResponseType(204)]
+    [ProducesResponseType(400)]
+    [ProducesResponseType(401)]
+    [ProducesResponseType(404)]
+    public async Task<IActionResult> MoveToGroup(Guid id, Guid groupId, CancellationToken ct)
+    {
+        _logger.LogInformation("Moving contact {ContactId} to group {GroupId} for tenant {TenantId}",
+            id, groupId, TenantId);
+
+        try
+        {
+            await _contactService.MoveContactToGroupAsync(id, groupId, ct);
+            return NoContent();
+        }
+        catch (EntityNotFoundException ex)
+        {
+            return NotFoundResponse(ex.Message);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return ErrorResponse(ex.Message);
+        }
     }
 
     #endregion

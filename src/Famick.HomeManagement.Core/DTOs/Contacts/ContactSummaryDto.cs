@@ -15,6 +15,11 @@ public class ContactSummaryDto
     public string? ProfileImageUrl { get; set; }
     public string? GravatarUrl { get; set; }
 
+    public ContactType? ContactType { get; set; }
+    public Guid? ParentContactId { get; set; }
+    public string? ParentGroupName { get; set; }
+    public bool IsGroup { get; set; }
+
     /// <summary>
     /// Display name for the contact
     /// </summary>

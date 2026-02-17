@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
 using AutoMapper;
 using Famick.HomeManagement.Core.DTOs.Common;
@@ -55,6 +56,24 @@ public partial class ContactService : IContactService
         contact.CreatedByUserId = userId;
         contact.IsActive = true;
 
+        // Default ParentContactId to tenant household if not specified
+        if (request.ParentContactId.HasValue)
+        {
+            var parentGroup = await _context.Contacts
+                .FirstOrDefaultAsync(c => c.Id == request.ParentContactId.Value && c.ParentContactId == null, ct)
+                ?? throw new EntityNotFoundException("Contact group", request.ParentContactId.Value);
+            contact.ParentContactId = request.ParentContactId.Value;
+        }
+        else
+        {
+            var tenantHousehold = await _context.Contacts
+                .FirstOrDefaultAsync(c => c.IsTenantHousehold, ct);
+            if (tenantHousehold != null)
+            {
+                contact.ParentContactId = tenantHousehold.Id;
+            }
+        }
+
         _context.Contacts.Add(contact);
         await _context.SaveChangesAsync(ct);
 
@@ -81,6 +100,10 @@ public partial class ContactService : IContactService
         var tenant = await _context.Tenants
             .FirstOrDefaultAsync(t => t.Id == user.TenantId, ct);
 
+        // Default to tenant household group
+        var tenantHousehold = await _context.Contacts
+            .FirstOrDefaultAsync(c => c.TenantId == user.TenantId && c.IsTenantHousehold, ct);
+
         var contact = new Contact
         {
             Id = Guid.NewGuid(),
@@ -91,7 +114,8 @@ public partial class ContactService : IContactService
             UsesTenantAddress = true,
             CreatedByUserId = user.Id,
             Visibility = ContactVisibilityLevel.TenantShared,
-            IsActive = true
+            IsActive = true,
+            ParentContactId = tenantHousehold?.Id
         };
 
         _context.Contacts.Add(contact);
@@ -145,6 +169,8 @@ public partial class ContactService : IContactService
     public async Task<ContactDto?> GetByIdAsync(Guid id, CancellationToken ct = default)
     {
         var contact = await _context.Contacts
+            .Include(c => c.ParentContact)
+            .Include(c => c.Members)
             .Include(c => c.LinkedUser)
             .Include(c => c.CreatedByUser)
             .Include(c => c.Addresses)
@@ -164,6 +190,12 @@ public partial class ContactService : IContactService
         if (contact == null) return null;
 
         var dto = _mapper.Map<ContactDto>(contact);
+
+        // Populate members list for group contacts
+        if (contact.IsGroup && contact.Members.Count > 0)
+        {
+            dto.Members = _mapper.Map<List<ContactSummaryDto>>(contact.Members);
+        }
 
         // Set profile image URL if exists (with signed token for browser access)
         if (!string.IsNullOrEmpty(contact.ProfileImageFileName))
@@ -221,6 +253,7 @@ public partial class ContactService : IContactService
     public async Task<PagedResult<ContactSummaryDto>> ListAsync(ContactFilterRequest filter, CancellationToken ct = default)
     {
         var query = _context.Contacts
+            .Include(c => c.ParentContact)
             .Include(c => c.PhoneNumbers)
             .Include(c => c.EmailAddresses)
             .Include(c => c.Addresses)
@@ -228,6 +261,24 @@ public partial class ContactService : IContactService
             .Include(c => c.Tags)
                 .ThenInclude(t => t.Tag)
             .AsQueryable();
+
+        // Group filters
+        if (filter.IsGroup.HasValue)
+        {
+            query = filter.IsGroup.Value
+                ? query.Where(c => c.ParentContactId == null)
+                : query.Where(c => c.ParentContactId != null);
+        }
+
+        if (filter.ContactType.HasValue)
+        {
+            query = query.Where(c => c.ContactType == filter.ContactType.Value);
+        }
+
+        if (filter.ParentContactId.HasValue)
+        {
+            query = query.Where(c => c.ParentContactId == filter.ParentContactId.Value);
+        }
 
         // Apply filters
         if (!string.IsNullOrWhiteSpace(filter.SearchTerm))
@@ -380,8 +431,31 @@ public partial class ContactService : IContactService
     {
         var contact = await _context.Contacts
             .Include(c => c.LinkedUser)
+            .Include(c => c.Members)
             .FirstOrDefaultAsync(c => c.Id == id, ct)
             ?? throw new EntityNotFoundException(nameof(Contact), id);
+
+        // Cannot delete tenant household via this method
+        if (contact.IsTenantHousehold)
+        {
+            throw new InvalidOperationException("Cannot delete the tenant household group");
+        }
+
+        // If this is a group, move members to tenant household first
+        if (contact.IsGroup && contact.Members.Count > 0)
+        {
+            var tenantHousehold = await _context.Contacts
+                .FirstOrDefaultAsync(c => c.IsTenantHousehold && c.TenantId == contact.TenantId, ct);
+
+            if (tenantHousehold != null)
+            {
+                foreach (var member in contact.Members)
+                {
+                    member.ParentContactId = tenantHousehold.Id;
+                }
+                await _context.SaveChangesAsync(ct);
+            }
+        }
 
         // Remove user link if exists
         if (contact.LinkedUser != null)
@@ -1522,6 +1596,312 @@ public partial class ContactService : IContactService
 
     #endregion
 
+    #region Contact Groups
+
+    /// <inheritdoc />
+    public async Task<ContactGroupSummaryDto> CreateGroupAsync(CreateContactGroupRequest request, CancellationToken ct = default)
+    {
+        var userId = GetCurrentUserId();
+        _logger.LogInformation("Creating contact group: {GroupName} ({ContactType})", request.GroupName, request.ContactType);
+
+        var contact = new Contact
+        {
+            Id = Guid.NewGuid(),
+            CompanyName = request.GroupName,
+            ContactType = request.ContactType,
+            Notes = request.Notes,
+            Website = request.ContactType == Domain.Enums.ContactType.Business ? request.Website : null,
+            BusinessCategory = request.ContactType == Domain.Enums.ContactType.Business ? request.BusinessCategory : null,
+            CreatedByUserId = userId,
+            Visibility = ContactVisibilityLevel.TenantShared,
+            IsActive = true
+        };
+
+        _context.Contacts.Add(contact);
+        await _context.SaveChangesAsync(ct);
+
+        // Add initial tags if provided
+        if (request.TagIds?.Count > 0)
+        {
+            await SetContactTagsAsync(contact.Id, request.TagIds, ct);
+        }
+
+        await LogAuditAsync(contact.Id, ContactAuditAction.Created, null, contact, "Contact group created", ct);
+
+        _logger.LogInformation("Created contact group: {Id}", contact.Id);
+
+        return new ContactGroupSummaryDto
+        {
+            Id = contact.Id,
+            ContactType = request.ContactType,
+            GroupName = request.GroupName,
+            MemberCount = 0,
+            IsTenantHousehold = false,
+            Website = contact.Website,
+            BusinessCategory = contact.BusinessCategory,
+            CreatedAt = contact.CreatedAt
+        };
+    }
+
+    /// <inheritdoc />
+    public async Task<ContactDto> GetGroupByIdAsync(Guid id, CancellationToken ct = default)
+    {
+        var dto = await GetByIdAsync(id, ct)
+            ?? throw new EntityNotFoundException("Contact group", id);
+
+        if (!dto.IsGroup)
+        {
+            throw new InvalidOperationException("Contact is not a group");
+        }
+
+        return dto;
+    }
+
+    /// <inheritdoc />
+    public async Task<PagedResult<ContactGroupSummaryDto>> ListGroupsAsync(ContactFilterRequest filter, CancellationToken ct = default)
+    {
+        var query = _context.Contacts
+            .Include(c => c.Members)
+            .Include(c => c.Addresses)
+                .ThenInclude(a => a.Address)
+            .Include(c => c.Tags)
+                .ThenInclude(t => t.Tag)
+            .Where(c => c.ParentContactId == null)
+            .AsQueryable();
+
+        if (filter.ContactType.HasValue)
+        {
+            query = query.Where(c => c.ContactType == filter.ContactType.Value);
+        }
+
+        if (!string.IsNullOrWhiteSpace(filter.SearchTerm))
+        {
+            var searchTerm = filter.SearchTerm.ToLower();
+            query = query.Where(c =>
+                (c.CompanyName != null && c.CompanyName.ToLower().Contains(searchTerm)) ||
+                c.Members.Any(m =>
+                    (m.FirstName != null && m.FirstName.ToLower().Contains(searchTerm)) ||
+                    (m.LastName != null && m.LastName.ToLower().Contains(searchTerm))));
+        }
+
+        if (filter.IsActive.HasValue)
+        {
+            query = query.Where(c => c.IsActive == filter.IsActive.Value);
+        }
+
+        if (filter.TagIds?.Count > 0)
+        {
+            query = query.Where(c => c.Tags.Any(t => filter.TagIds.Contains(t.TagId)));
+        }
+
+        // Sort groups
+        query = filter.SortBy?.ToLower() switch
+        {
+            "createdat" => filter.SortDescending
+                ? query.OrderByDescending(c => c.CreatedAt)
+                : query.OrderBy(c => c.CreatedAt),
+            _ => filter.SortDescending
+                ? query.OrderByDescending(c => c.CompanyName)
+                : query.OrderBy(c => c.CompanyName)
+        };
+
+        var totalCount = await query.CountAsync(ct);
+        var items = await query
+            .Skip((filter.Page - 1) * filter.PageSize)
+            .Take(filter.PageSize)
+            .ToListAsync(ct);
+
+        var dtos = items.Select(c => new ContactGroupSummaryDto
+        {
+            Id = c.Id,
+            ContactType = c.ContactType ?? Domain.Enums.ContactType.Household,
+            GroupName = c.CompanyName ?? "Unknown",
+            MemberCount = c.Members.Count,
+            IsTenantHousehold = c.IsTenantHousehold,
+            PrimaryAddress = c.Addresses
+                .Where(a => a.IsPrimary)
+                .Select(a => a.Address.FormattedAddress ?? $"{a.Address.City}, {a.Address.StateProvince}")
+                .FirstOrDefault(),
+            TagNames = c.Tags.Select(t => t.Tag.Name).ToList(),
+            TagColors = c.Tags.Select(t => t.Tag.Color).ToList(),
+            Website = c.Website,
+            BusinessCategory = c.BusinessCategory,
+            CreatedAt = c.CreatedAt
+        }).ToList();
+
+        return new PagedResult<ContactGroupSummaryDto>
+        {
+            Items = dtos,
+            TotalCount = totalCount,
+            Page = filter.Page,
+            PageSize = filter.PageSize
+        };
+    }
+
+    /// <inheritdoc />
+    public async Task UpdateGroupAsync(Guid id, UpdateContactGroupRequest request, CancellationToken ct = default)
+    {
+        var contact = await _context.Contacts.FindAsync(new object[] { id }, ct)
+            ?? throw new EntityNotFoundException("Contact group", id);
+
+        if (contact.ParentContactId != null)
+        {
+            throw new InvalidOperationException("Contact is not a group");
+        }
+
+        var oldValues = System.Text.Json.JsonSerializer.Serialize(new
+        {
+            contact.CompanyName,
+            contact.ContactType,
+            contact.Notes,
+            contact.Website,
+            contact.BusinessCategory,
+            contact.IsActive
+        });
+
+        contact.CompanyName = request.GroupName;
+        contact.ContactType = request.ContactType;
+        contact.Notes = request.Notes;
+        contact.Website = request.ContactType == Domain.Enums.ContactType.Business ? request.Website : null;
+        contact.BusinessCategory = request.ContactType == Domain.Enums.ContactType.Business ? request.BusinessCategory : null;
+        contact.IsActive = request.IsActive;
+        contact.UpdatedAt = DateTime.UtcNow;
+
+        await _context.SaveChangesAsync(ct);
+
+        var newValues = System.Text.Json.JsonSerializer.Serialize(new
+        {
+            contact.CompanyName,
+            contact.ContactType,
+            contact.Notes,
+            contact.Website,
+            contact.BusinessCategory,
+            contact.IsActive
+        });
+
+        await LogAuditAsync(id, ContactAuditAction.Updated, oldValues, newValues, "Contact group updated", ct);
+
+        _logger.LogInformation("Updated contact group: {Id}", id);
+    }
+
+    /// <inheritdoc />
+    public async Task DeleteGroupAsync(Guid id, CancellationToken ct = default)
+    {
+        var contact = await _context.Contacts
+            .Include(c => c.Members)
+            .FirstOrDefaultAsync(c => c.Id == id, ct)
+            ?? throw new EntityNotFoundException("Contact group", id);
+
+        if (contact.ParentContactId != null)
+        {
+            throw new InvalidOperationException("Contact is not a group");
+        }
+
+        if (contact.IsTenantHousehold)
+        {
+            throw new InvalidOperationException("Cannot delete the tenant household group");
+        }
+
+        // Move members to tenant household
+        if (contact.Members.Count > 0)
+        {
+            var tenantHousehold = await _context.Contacts
+                .FirstOrDefaultAsync(c => c.IsTenantHousehold && c.TenantId == contact.TenantId, ct)
+                ?? throw new InvalidOperationException("Tenant household not found");
+
+            foreach (var member in contact.Members)
+            {
+                member.ParentContactId = tenantHousehold.Id;
+            }
+            await _context.SaveChangesAsync(ct);
+        }
+
+        _context.Contacts.Remove(contact);
+        await _context.SaveChangesAsync(ct);
+
+        _logger.LogInformation("Deleted contact group: {Id}", id);
+    }
+
+    /// <inheritdoc />
+    public async Task MoveContactToGroupAsync(Guid contactId, Guid targetGroupId, CancellationToken ct = default)
+    {
+        var contact = await _context.Contacts.FindAsync(new object[] { contactId }, ct)
+            ?? throw new EntityNotFoundException(nameof(Contact), contactId);
+
+        if (contact.ParentContactId == null)
+        {
+            throw new InvalidOperationException("Cannot move a group contact. Only members can be moved.");
+        }
+
+        var targetGroup = await _context.Contacts
+            .FirstOrDefaultAsync(c => c.Id == targetGroupId && c.ParentContactId == null, ct)
+            ?? throw new EntityNotFoundException("Target contact group", targetGroupId);
+
+        contact.ParentContactId = targetGroupId;
+        contact.UpdatedAt = DateTime.UtcNow;
+        await _context.SaveChangesAsync(ct);
+
+        _logger.LogInformation("Moved contact {ContactId} to group {GroupId}", contactId, targetGroupId);
+    }
+
+    /// <inheritdoc />
+    public async Task<ContactDto> GetTenantHouseholdAsync(CancellationToken ct = default)
+    {
+        var tenantHousehold = await _context.Contacts
+            .FirstOrDefaultAsync(c => c.IsTenantHousehold, ct)
+            ?? throw new EntityNotFoundException("Tenant household", Guid.Empty);
+
+        return await GetByIdAsync(tenantHousehold.Id, ct)
+            ?? throw new InvalidOperationException("Failed to retrieve tenant household");
+    }
+
+    /// <inheritdoc />
+    public async Task<ContactDto> EnsureTenantHouseholdAsync(string householdName, CancellationToken ct = default)
+    {
+        var existing = await _context.Contacts
+            .FirstOrDefaultAsync(c => c.IsTenantHousehold, ct);
+
+        if (existing != null)
+        {
+            // Update the name if it changed
+            if (existing.CompanyName != householdName)
+            {
+                existing.CompanyName = householdName;
+                existing.UpdatedAt = DateTime.UtcNow;
+                await _context.SaveChangesAsync(ct);
+            }
+
+            return await GetByIdAsync(existing.Id, ct)
+                ?? throw new InvalidOperationException("Failed to retrieve tenant household");
+        }
+
+        // Create new tenant household
+        var userId = GetCurrentUserId();
+        var contact = new Contact
+        {
+            Id = Guid.NewGuid(),
+            CompanyName = householdName,
+            ContactType = Domain.Enums.ContactType.Household,
+            IsTenantHousehold = true,
+            CreatedByUserId = userId,
+            Visibility = ContactVisibilityLevel.TenantShared,
+            IsActive = true,
+            UsesTenantAddress = true
+        };
+
+        _context.Contacts.Add(contact);
+        await _context.SaveChangesAsync(ct);
+
+        await LogAuditAsync(contact.Id, ContactAuditAction.Created, null, contact, "Tenant household created", ct);
+
+        _logger.LogInformation("Created tenant household: {Id}", contact.Id);
+
+        return await GetByIdAsync(contact.Id, ct)
+            ?? throw new InvalidOperationException("Failed to retrieve created tenant household");
+    }
+
+    #endregion
+
     #region Private Helpers
 
     private Guid GetCurrentUserId()
@@ -1544,11 +1924,16 @@ public partial class ContactService : IContactService
         var tenantId = _tenantProvider.TenantId;
         if (!tenantId.HasValue) return;
 
+        var serializerOptions = new JsonSerializerOptions
+        {
+            ReferenceHandler = ReferenceHandler.IgnoreCycles
+        };
+
         string? newValues = newValuesObject switch
         {
             null => null,
             string s => s,
-            _ => JsonSerializer.Serialize(newValuesObject)
+            _ => JsonSerializer.Serialize(newValuesObject, serializerOptions)
         };
 
         var log = new ContactAuditLog

@@ -63,6 +63,31 @@ public class ContactConfiguration : IEntityTypeConfiguration<Contact>
         builder.Property(c => c.Notes)
             .HasMaxLength(4000);
 
+        // Contact Group hierarchy
+        builder.Property(c => c.ContactType)
+            .HasConversion<string>()
+            .HasMaxLength(50);
+
+        builder.Property(c => c.IsTenantHousehold)
+            .IsRequired()
+            .HasDefaultValue(false);
+
+        builder.Property(c => c.UsesGroupAddress)
+            .IsRequired()
+            .HasDefaultValue(false);
+
+        builder.Property(c => c.Website)
+            .HasMaxLength(500);
+
+        builder.Property(c => c.BusinessCategory)
+            .HasMaxLength(100);
+
+        // Self-referencing FK: Parent group -> Members
+        builder.HasOne(c => c.ParentContact)
+            .WithMany(c => c.Members)
+            .HasForeignKey(c => c.ParentContactId)
+            .OnDelete(DeleteBehavior.Restrict);
+
         // Visibility
         builder.Property(c => c.Visibility)
             .HasConversion<string>()
@@ -89,6 +114,13 @@ public class ContactConfiguration : IEntityTypeConfiguration<Contact>
         builder.HasIndex(c => new { c.TenantId, c.Visibility });
         builder.HasIndex(c => new { c.TenantId, c.IsActive });
 
+        // Contact Group indexes
+        builder.HasIndex(c => new { c.TenantId, c.ParentContactId });
+        builder.HasIndex(c => new { c.TenantId, c.ContactType });
+        builder.HasIndex(c => new { c.TenantId, c.IsTenantHousehold })
+            .HasFilter("\"IsTenantHousehold\" = true")
+            .IsUnique();
+
         // FK to CreatedByUser
         builder.HasOne(c => c.CreatedByUser)
             .WithMany()
@@ -98,5 +130,6 @@ public class ContactConfiguration : IEntityTypeConfiguration<Contact>
         // Ignore computed properties
         builder.Ignore(c => c.DisplayName);
         builder.Ignore(c => c.FullName);
+        builder.Ignore(c => c.IsGroup);
     }
 }

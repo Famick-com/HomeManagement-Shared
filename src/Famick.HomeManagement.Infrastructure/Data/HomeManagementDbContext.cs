@@ -190,6 +190,9 @@ public class HomeManagementDbContext : DbContext
                 modelBuilder.Entity(entityType.ClrType).HasQueryFilter(lambda);
             }
         }
+
+        // Filter non-tenant child entities through their parent's TenantId
+        ApplyChildEntityQueryFilters(modelBuilder);
     }
 
     /// <summary>
@@ -220,6 +223,25 @@ public class HomeManagementDbContext : DbContext
                 modelBuilder.Entity(entityType.ClrType).HasQueryFilter(lambda);
             }
         }
+
+        // Filter non-tenant child entities through their parent's TenantId
+        ApplyChildEntityQueryFilters(modelBuilder);
+    }
+
+    /// <summary>
+    /// Adds query filters for child entities that don't have their own TenantId
+    /// but are always accessed through a tenant-filtered parent.
+    /// </summary>
+    private void ApplyChildEntityQueryFilters(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<CalendarEventException>()
+            .HasQueryFilter(e => CurrentTenantId == null || e.CalendarEvent!.TenantId == CurrentTenantId);
+
+        modelBuilder.Entity<CalendarEventMember>()
+            .HasQueryFilter(m => CurrentTenantId == null || m.CalendarEvent!.TenantId == CurrentTenantId);
+
+        modelBuilder.Entity<ExternalCalendarEvent>()
+            .HasQueryFilter(e => CurrentTenantId == null || e.Subscription!.TenantId == CurrentTenantId);
     }
 
     public override int SaveChanges()

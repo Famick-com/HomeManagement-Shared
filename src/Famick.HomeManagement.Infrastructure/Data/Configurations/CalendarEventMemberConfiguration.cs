@@ -31,7 +31,8 @@ public class CalendarEventMemberConfiguration : IEntityTypeConfiguration<Calenda
         builder.Property(m => m.ParticipationType)
             .HasColumnName("participation_type")
             .IsRequired()
-            .HasDefaultValue(ParticipationType.Involved);
+            .HasDefaultValue(ParticipationType.Involved)
+            .HasSentinel((ParticipationType)0);
 
         builder.Property(m => m.CreatedAt)
             .HasColumnName("created_at")

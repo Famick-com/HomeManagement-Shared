@@ -33,6 +33,21 @@ public class ContactFilterRequest
     public bool? IsUserLinked { get; set; }
 
     /// <summary>
+    /// Filter by contact group type (Household or Business)
+    /// </summary>
+    public ContactType? ContactType { get; set; }
+
+    /// <summary>
+    /// Filter members by parent group ID
+    /// </summary>
+    public Guid? ParentContactId { get; set; }
+
+    /// <summary>
+    /// Filter groups vs members (true = groups only, false = members only)
+    /// </summary>
+    public bool? IsGroup { get; set; }
+
+    /// <summary>
     /// Filter by relationship type to a specific contact
     /// </summary>
     public Guid? RelatedToContactId { get; set; }

@@ -13,21 +13,178 @@
 <MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-4">
     <MudIconButton Icon="@Icons.Material.Filled.ArrowBack"
                    OnClick="NavigateBack" />
-    <MudText Typo="Typo.h4">
-        @(IsNew ? L["contacts.add"] : $"{_contact?.FirstName} {_contact?.LastName}")
-    </MudText>
-    @if (_contact?.LinkedUserId != null)
+    @if (_contact is { IsGroup: true })
     {
-        <MudChip T="string" Size="Size.Small" Color="Color.Info" Variant="Variant.Filled">@L["contacts.linkedUser"]</MudChip>
+        <MudIcon Icon="@(_contact.ContactType == ContactType.Business ? Icons.Material.Filled.Business : Icons.Material.Filled.Home)"
+                 Size="Size.Large" Color="Color.Primary" />
+        <MudText Typo="Typo.h4">@(_contact.CompanyName ?? _contact.DisplayName)</MudText>
+        @if (_contact.IsTenantHousehold)
+        {
+            <MudChip T="string" Size="Size.Small" Color="Color.Info" Variant="Variant.Filled">@L["contact.groups.myHousehold"]</MudChip>
+        }
+    }
+    else
+    {
+        <MudText Typo="Typo.h4">
+            @(IsNew ? L["contacts.add"] : $"{_contact?.FirstName} {_contact?.LastName}")
+        </MudText>
+        @if (_contact?.LinkedUserId != null)
+        {
+            <MudChip T="string" Size="Size.Small" Color="Color.Info" Variant="Variant.Filled">@L["contacts.linkedUser"]</MudChip>
+        }
     }
 </MudStack>
+
+@* Member-of chip and actions for non-group contacts *@
+@if (_contact != null && !_contact.IsGroup && !IsNew && _contact.ParentContactId.HasValue)
+{
+    <MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-4" Spacing="2">
+        <MudChip T="string" Size="Size.Small" Color="Color.Default" Variant="Variant.Outlined"
+                 Icon="@Icons.Material.Filled.Group"
+                 OnClick="NavigateToParentGroup">
+            @L["contact.groups.memberOf"] @_contact.ParentGroupName
+        </MudChip>
+        @if (CanEdit)
+        {
+            <MudButton Variant="Variant.Text"
+                       Size="Size.Small"
+                       StartIcon="@Icons.Material.Filled.SwapHoriz"
+                       OnClick="OpenMoveToGroupDialog">
+                @L["contact.groups.moveToGroup"]
+            </MudButton>
+        }
+    </MudStack>
+}
 
 @if (_isLoading)
 {
     <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
 }
+else if (_contact is { IsGroup: true })
+{
+    @* ===== GROUP VIEW ===== *@
+    <MudTabs Elevation="1" Rounded="true" ApplyEffectsToContainer="true" PanelClass="pa-4">
+        @* Group Info Tab *@
+        <MudTabPanel Text="@L["contact.groups.groupInfo"]" Icon="@Icons.Material.Filled.Info">
+            <MudForm @ref="_form">
+                <MudGrid Spacing="3">
+                    @if (!IsNew)
+                    {
+                        <MudItem xs="12">
+                            <ContactProfileImage ContactId="@(Id ?? Guid.Empty)"
+                                                 ProfileImageUrl="@_contact?.ProfileImageUrl"
+                                                 GravatarUrl="@_contact?.GravatarUrl"
+                                                 ReadOnly="@(!CanEdit)"
+                                                 OnImageChanged="OnProfileImageChanged" />
+                        </MudItem>
+                    }
+                    <MudItem xs="12" md="6">
+                        <MudStack Spacing="3">
+                            <MudText Typo="Typo.h6">@L["contact.groups.groupInfo"]</MudText>
+
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudText Typo="Typo.body2" Color="Color.Secondary">@L["contact.groups.type"]:</MudText>
+                                <MudChip T="string" Size="Size.Small"
+                                         Color="@(_contact!.ContactType == ContactType.Business ? Color.Tertiary : Color.Primary)"
+                                         Variant="Variant.Filled">
+                                    @(_contact.ContactType == ContactType.Business ? L["contact.groups.business"] : L["contact.groups.household"])
+                                </MudChip>
+                            </MudStack>
+
+                            <MudTextField @bind-Value="_groupModel.GroupName"
+                                          Label="@L["contact.groups.groupName"]"
+                                          Variant="Variant.Outlined"
+                                          Required="true"
+                                          ReadOnly="@(!CanEdit || _contact.IsTenantHousehold)" />
+
+                            @if (_contact.ContactType == ContactType.Business)
+                            {
+                                <MudTextField @bind-Value="_groupModel.Website"
+                                              Label="@L["contact.groups.website"]"
+                                              Variant="Variant.Outlined"
+                                              ReadOnly="@(!CanEdit)"
+                                              Placeholder="https://..." />
+
+                                <MudTextField @bind-Value="_groupModel.BusinessCategory"
+                                              Label="@L["contact.groups.businessCategory"]"
+                                              Variant="Variant.Outlined"
+                                              ReadOnly="@(!CanEdit)" />
+                            }
+
+                            <MudTextField @bind-Value="_groupModel.Notes"
+                                          Label="@L["contact.groups.notes"]"
+                                          Variant="Variant.Outlined"
+                                          Lines="3"
+                                          ReadOnly="@(!CanEdit)" />
+                        </MudStack>
+                    </MudItem>
+
+                    <MudItem xs="12" md="6">
+                        <MudStack Spacing="3">
+                            <MudText Typo="Typo.h6">@L["contacts.tags.title"]</MudText>
+                            <ContactTagSelector ContactId="@Id"
+                                                SelectedTagIds="@_selectedTagIds"
+                                                SelectedTagIdsChanged="OnTagsChanged"
+                                                ReadOnly="@(!CanEdit)" />
+                        </MudStack>
+                    </MudItem>
+
+                    <MudItem xs="12">
+                        <MudStack Row="true" Justify="Justify.FlexEnd" Spacing="2">
+                            @if (!_contact.IsTenantHousehold)
+                            {
+                                <MudTooltip Text="@(CanEdit ? null : L["common.viewerNoPermission"])" Disabled="@CanEdit">
+                                    <MudButton Variant="Variant.Outlined"
+                                               Color="Color.Error"
+                                               OnClick="DeleteGroup"
+                                               Disabled="@(!CanEdit)">
+                                        @L["contact.groups.deleteGroup"]
+                                    </MudButton>
+                                </MudTooltip>
+                            }
+                            <MudTooltip Text="@(CanEdit ? null : L["common.viewerNoPermission"])" Disabled="@CanEdit">
+                                <MudButton Variant="Variant.Filled"
+                                           Color="Color.Primary"
+                                           OnClick="SaveGroup"
+                                           Disabled="@(!CanEdit || _isSaving)">
+                                    @if (_isSaving)
+                                    {
+                                        <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                                    }
+                                    @L["common.save"]
+                                </MudButton>
+                            </MudTooltip>
+                        </MudStack>
+                    </MudItem>
+                </MudGrid>
+            </MudForm>
+        </MudTabPanel>
+
+        @* Members Tab *@
+        <MudTabPanel Text="@L["contact.groups.members"]" Icon="@Icons.Material.Filled.People">
+            <ContactGroupMemberList GroupId="@(Id ?? Guid.Empty)"
+                                    Members="@_contact.Members?.ToList()"
+                                    IsTenantHousehold="@_contact.IsTenantHousehold"
+                                    ReadOnly="@(!CanEdit)"
+                                    OnMembersChanged="LoadDataAsync" />
+        </MudTabPanel>
+
+        @* Addresses Tab *@
+        <MudTabPanel Text="@L["contacts.addresses"]" Icon="@Icons.Material.Filled.LocationOn">
+            <ContactAddressList ContactId="@(Id ?? Guid.Empty)"
+                                UsesTenantAddress="@(_contact.UsesTenantAddress)"
+                                ReadOnly="@(!CanEdit)" />
+        </MudTabPanel>
+
+        @* Audit Log Tab *@
+        <MudTabPanel Text="@L["contacts.auditLog"]" Icon="@Icons.Material.Filled.History">
+            <ContactAuditLog ContactId="@(Id ?? Guid.Empty)" />
+        </MudTabPanel>
+    </MudTabs>
+}
 else
 {
+    @* ===== MEMBER / INDIVIDUAL VIEW ===== *@
     <MudTabs Elevation="1" Rounded="true" ApplyEffectsToContainer="true" PanelClass="pa-4">
         @* Basic Info Tab *@
         <MudTabPanel Text="@L["contacts.basicInfo"]" Icon="@Icons.Material.Filled.Person">
@@ -147,7 +304,7 @@ else
                         </MudStack>
 
                         <MudStack Spacing="3" Class="mt-4">
-                            <MudText Typo="Typo.h6">@L["contacts.tags"]</MudText>
+                            <MudText Typo="Typo.h6">@L["contacts.tags.title"]</MudText>
                             <ContactTagSelector ContactId="@Id"
                                                 SelectedTagIds="@_selectedTagIds"
                                                 SelectedTagIdsChanged="OnTagsChanged"
@@ -243,6 +400,9 @@ else
     [CascadingParameter(Name = "CanEdit")]
     private bool CanEdit { get; set; }
 
+    [SupplyParameterFromQuery(Name = "groupId")]
+    private Guid? GroupIdFromQuery { get; set; }
+
     private bool IsNew => Id == null;
 
     private MudForm _form = null!;
@@ -251,11 +411,19 @@ else
 
     private ContactDto? _contact;
     private ContactFormModel _model = new();
+    private GroupFormModel _groupModel = new();
     private List<Guid> _selectedTagIds = new();
+    private Guid? _loadedId;
+    private bool _hasLoaded;
 
-    protected override async Task OnInitializedAsync()
+    protected override async Task OnParametersSetAsync()
     {
-        await LoadDataAsync();
+        if (!_hasLoaded || Id != _loadedId)
+        {
+            _hasLoaded = true;
+            _loadedId = Id;
+            await LoadDataAsync();
+        }
     }
 
     private async Task LoadDataAsync()
@@ -269,26 +437,40 @@ else
                 if (result.IsSuccess && result.Data != null)
                 {
                     _contact = result.Data;
-                    _model = new ContactFormModel
+
+                    if (_contact.IsGroup)
                     {
-                        FirstName = _contact.FirstName,
-                        MiddleName = _contact.MiddleName,
-                        LastName = _contact.LastName,
-                        PreferredName = _contact.PreferredName,
-                        CompanyName = _contact.CompanyName,
-                        Title = _contact.Title,
-                        Gender = _contact.Gender,
-                        BirthYear = _contact.BirthYear,
-                        BirthMonth = _contact.BirthMonth,
-                        BirthDay = _contact.BirthDay,
-                        BirthDatePrecision = _contact.BirthDatePrecision,
-                        DeathYear = _contact.DeathYear,
-                        DeathMonth = _contact.DeathMonth,
-                        DeathDay = _contact.DeathDay,
-                        DeathDatePrecision = _contact.DeathDatePrecision,
-                        Notes = _contact.Notes,
-                        UseGravatar = _contact.UseGravatar
-                    };
+                        _groupModel = new GroupFormModel
+                        {
+                            GroupName = _contact.CompanyName ?? _contact.DisplayName,
+                            Website = _contact.Website,
+                            BusinessCategory = _contact.BusinessCategory,
+                            Notes = _contact.Notes
+                        };
+                    }
+                    else
+                    {
+                        _model = new ContactFormModel
+                        {
+                            FirstName = _contact.FirstName,
+                            MiddleName = _contact.MiddleName,
+                            LastName = _contact.LastName,
+                            PreferredName = _contact.PreferredName,
+                            CompanyName = _contact.CompanyName,
+                            Title = _contact.Title,
+                            Gender = _contact.Gender,
+                            BirthYear = _contact.BirthYear,
+                            BirthMonth = _contact.BirthMonth,
+                            BirthDay = _contact.BirthDay,
+                            BirthDatePrecision = _contact.BirthDatePrecision,
+                            DeathYear = _contact.DeathYear,
+                            DeathMonth = _contact.DeathMonth,
+                            DeathDay = _contact.DeathDay,
+                            DeathDatePrecision = _contact.DeathDatePrecision,
+                            Notes = _contact.Notes,
+                            UseGravatar = _contact.UseGravatar
+                        };
+                    }
                     _selectedTagIds = _contact.Tags.Select(t => t.Id).ToList();
                 }
                 else
@@ -307,6 +489,8 @@ else
             _isLoading = false;
         }
     }
+
+    #region Member Actions
 
     private async Task SaveContact()
     {
@@ -337,7 +521,8 @@ else
                     DeathDay = _model.DeathDay,
                     DeathDatePrecision = _model.DeathDatePrecision,
                     Notes = _model.Notes,
-                    UseGravatar = _model.UseGravatar
+                    UseGravatar = _model.UseGravatar,
+                    ParentContactId = GroupIdFromQuery
                 };
 
                 var result = await ApiClient.PostAsync<CreateContactRequest, ContactDto>("api/v1/contacts", request);
@@ -425,6 +610,99 @@ else
         }
     }
 
+    private async Task OpenMoveToGroupDialog()
+    {
+        var parameters = new DialogParameters<MoveToGroupDialog>
+        {
+            { x => x.ContactId, Id!.Value },
+            { x => x.ExcludeGroupId, _contact?.ParentContactId }
+        };
+
+        var dialog = await DialogService.ShowAsync<MoveToGroupDialog>(
+            L["contact.groups.moveToGroup"], parameters);
+        var dialogResult = await dialog.Result;
+
+        if (dialogResult is { Canceled: false })
+        {
+            await LoadDataAsync();
+        }
+    }
+
+    #endregion
+
+    #region Group Actions
+
+    private async Task SaveGroup()
+    {
+        await _form.Validate();
+        if (!_form.IsValid) return;
+
+        _isSaving = true;
+        try
+        {
+            var request = new UpdateContactGroupRequest
+            {
+                ContactType = _contact!.ContactType ?? ContactType.Household,
+                GroupName = _groupModel.GroupName,
+                Notes = _groupModel.Notes,
+                Website = _groupModel.Website,
+                BusinessCategory = _groupModel.BusinessCategory,
+                IsActive = true
+            };
+            var result = await ApiClient.PutAsync($"api/v1/contacts/groups/{Id}", request);
+            if (result.IsSuccess)
+            {
+                Snackbar.Add(L["contact.groups.groupUpdated"], Severity.Success);
+                await LoadDataAsync();
+            }
+            else
+            {
+                Snackbar.Add(result.ErrorMessage ?? L["common.error"], Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isSaving = false;
+        }
+    }
+
+    private async Task DeleteGroup()
+    {
+        var confirmed = await DialogService.ShowMessageBox(
+            L["contact.groups.deleteGroup"],
+            L["contact.groups.confirmDeleteGroup"],
+            yesText: L["common.delete"],
+            cancelText: L["common.cancel"]);
+
+        if (confirmed != true) return;
+
+        try
+        {
+            var result = await ApiClient.DeleteAsync($"api/v1/contacts/groups/{Id}");
+            if (result.IsSuccess)
+            {
+                Snackbar.Add(L["contact.groups.groupDeleted"], Severity.Success);
+                Navigation.NavigateTo("/contacts");
+            }
+            else
+            {
+                Snackbar.Add(result.ErrorMessage ?? L["common.error"], Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error: {ex.Message}", Severity.Error);
+        }
+    }
+
+    #endregion
+
+    #region Shared Actions
+
     private void OnTagsChanged(List<Guid> tagIds)
     {
         _selectedTagIds = tagIds;
@@ -432,7 +710,6 @@ else
 
     private async Task OnProfileImageChanged(string? newImageUrl)
     {
-        // Reload the contact to get the updated profile image URL
         await LoadDataAsync();
     }
 
@@ -440,6 +717,18 @@ else
     {
         Navigation.NavigateTo("/contacts");
     }
+
+    private void NavigateToParentGroup()
+    {
+        if (_contact?.ParentContactId != null)
+        {
+            Navigation.NavigateTo($"/contacts/{_contact.ParentContactId}");
+        }
+    }
+
+    #endregion
+
+    #region Form Models
 
     private class ContactFormModel
     {
@@ -461,4 +750,14 @@ else
         public string? Notes { get; set; }
         public bool UseGravatar { get; set; } = true;
     }
+
+    private class GroupFormModel
+    {
+        public string GroupName { get; set; } = string.Empty;
+        public string? Notes { get; set; }
+        public string? Website { get; set; }
+        public string? BusinessCategory { get; set; }
+    }
+
+    #endregion
 }

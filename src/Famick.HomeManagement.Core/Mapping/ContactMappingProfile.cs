@@ -31,12 +31,21 @@ public class ContactMappingProfile : Profile
             .ForMember(dest => dest.Relationships,
                 opt => opt.MapFrom(src => src.RelationshipsAsSource))
             .ForMember(dest => dest.ProfileImageUrl, opt => opt.Ignore()) // Set in service
-            .ForMember(dest => dest.GravatarUrl, opt => opt.Ignore()); // Set in service
+            .ForMember(dest => dest.GravatarUrl, opt => opt.Ignore()) // Set in service
+            .ForMember(dest => dest.IsGroup,
+                opt => opt.MapFrom(src => src.ParentContactId == null))
+            .ForMember(dest => dest.ParentGroupName,
+                opt => opt.MapFrom(src => src.ParentContact != null ? src.ParentContact.CompanyName : null))
+            .ForMember(dest => dest.Members, opt => opt.Ignore()); // Set in service
 
         // Contact -> ContactSummaryDto
         CreateMap<Contact, ContactSummaryDto>()
             .ForMember(dest => dest.IsUserLinked,
                 opt => opt.MapFrom(src => src.LinkedUserId.HasValue))
+            .ForMember(dest => dest.IsGroup,
+                opt => opt.MapFrom(src => src.ParentContactId == null))
+            .ForMember(dest => dest.ParentGroupName,
+                opt => opt.MapFrom(src => src.ParentContact != null ? src.ParentContact.CompanyName : null))
             .ForMember(dest => dest.PrimaryEmail,
                 opt => opt.MapFrom(src => src.EmailAddresses
                     .Where(e => e.IsPrimary)
@@ -80,8 +89,15 @@ public class ContactMappingProfile : Profile
             .ForMember(dest => dest.CreatedByUserId, opt => opt.Ignore())
             .ForMember(dest => dest.IsActive, opt => opt.Ignore())
             .ForMember(dest => dest.ProfileImageFileName, opt => opt.Ignore())
+            .ForMember(dest => dest.ContactType, opt => opt.Ignore())
+            .ForMember(dest => dest.IsTenantHousehold, opt => opt.Ignore())
+            .ForMember(dest => dest.UsesGroupAddress, opt => opt.Ignore())
+            .ForMember(dest => dest.Website, opt => opt.Ignore())
+            .ForMember(dest => dest.BusinessCategory, opt => opt.Ignore())
             .ForMember(dest => dest.LinkedUser, opt => opt.Ignore())
             .ForMember(dest => dest.CreatedByUser, opt => opt.Ignore())
+            .ForMember(dest => dest.ParentContact, opt => opt.Ignore())
+            .ForMember(dest => dest.Members, opt => opt.Ignore())
             .ForMember(dest => dest.Addresses, opt => opt.Ignore())
             .ForMember(dest => dest.PhoneNumbers, opt => opt.Ignore())
             .ForMember(dest => dest.EmailAddresses, opt => opt.Ignore())
@@ -103,8 +119,16 @@ public class ContactMappingProfile : Profile
             .ForMember(dest => dest.UsesTenantAddress, opt => opt.Ignore())
             .ForMember(dest => dest.CreatedByUserId, opt => opt.Ignore())
             .ForMember(dest => dest.ProfileImageFileName, opt => opt.Ignore())
+            .ForMember(dest => dest.ParentContactId, opt => opt.Ignore())
+            .ForMember(dest => dest.ContactType, opt => opt.Ignore())
+            .ForMember(dest => dest.IsTenantHousehold, opt => opt.Ignore())
+            .ForMember(dest => dest.UsesGroupAddress, opt => opt.Ignore())
+            .ForMember(dest => dest.Website, opt => opt.Ignore())
+            .ForMember(dest => dest.BusinessCategory, opt => opt.Ignore())
             .ForMember(dest => dest.LinkedUser, opt => opt.Ignore())
             .ForMember(dest => dest.CreatedByUser, opt => opt.Ignore())
+            .ForMember(dest => dest.ParentContact, opt => opt.Ignore())
+            .ForMember(dest => dest.Members, opt => opt.Ignore())
             .ForMember(dest => dest.Addresses, opt => opt.Ignore())
             .ForMember(dest => dest.PhoneNumbers, opt => opt.Ignore())
             .ForMember(dest => dest.EmailAddresses, opt => opt.Ignore())

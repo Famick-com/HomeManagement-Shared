@@ -297,6 +297,16 @@ public class HttpApiClient : IApiClient
         });
     }
 
+    public async Task<ApiResult> PostAsync(string endpoint)
+    {
+        return await ExecuteWithRetry(async () =>
+        {
+            await SetAuthorizationHeader();
+            var response = await _httpClient.PostAsync(endpoint, null);
+            return await HandleResponse(response);
+        });
+    }
+
     public async Task<ApiResult<TResponse>> PutAsync<TRequest, TResponse>(string endpoint, TRequest request)
     {
         return await ExecuteWithRetry(async () =>

@@ -56,6 +56,20 @@ public class ContactDto
 
     #endregion
 
+    #region Contact Group
+
+    public ContactType? ContactType { get; set; }
+    public Guid? ParentContactId { get; set; }
+    public string? ParentGroupName { get; set; }
+    public bool IsTenantHousehold { get; set; }
+    public bool UsesGroupAddress { get; set; }
+    public string? Website { get; set; }
+    public string? BusinessCategory { get; set; }
+    public bool IsGroup { get; set; }
+    public List<ContactSummaryDto>? Members { get; set; }
+
+    #endregion
+
     #region Profile Image
 
     public string? ProfileImageFileName { get; set; }

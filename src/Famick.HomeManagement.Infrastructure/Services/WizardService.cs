@@ -216,6 +216,10 @@ public class WizardService : IWizardService
         var existingContact = await _context.Contacts
             .FirstOrDefaultAsync(c => c.LinkedUserId == currentUser.Id, cancellationToken);
 
+        // Get tenant household for linking
+        var tenantHousehold = await _context.Contacts
+            .FirstOrDefaultAsync(c => c.TenantId == tenantId.Value && c.IsTenantHousehold, cancellationToken);
+
         if (existingContact == null)
         {
             // Use ContactService to create contact linked to user (handles email, address, user.ContactId)
@@ -224,6 +228,7 @@ public class WizardService : IWizardService
             // Set household membership
             var contact = await _context.Contacts.FindAsync(new object[] { contactDto.Id }, cancellationToken);
             contact!.HouseholdTenantId = tenantId.Value;
+            contact.ParentContactId = tenantHousehold?.Id;
             await _context.SaveChangesAsync(cancellationToken);
 
             _logger.LogInformation("Current user contact created: {ContactId}", contactDto.Id);
@@ -303,6 +308,10 @@ public class WizardService : IWizardService
         string? firstName, lastName, displayName, profileImage;
         bool hasUserAccount;
 
+        // Get tenant household group for linking
+        var tenantHousehold = await _context.Contacts
+            .FirstOrDefaultAsync(c => c.TenantId == tenantId.Value && c.IsTenantHousehold, cancellationToken);
+
         if (request.ExistingContactId.HasValue)
         {
             // Link existing contact to household
@@ -312,6 +321,7 @@ public class WizardService : IWizardService
 
             contact.HouseholdTenantId = tenantId.Value;
             contact.UsesTenantAddress = true;
+            contact.ParentContactId = tenantHousehold?.Id;
             await _context.SaveChangesAsync(cancellationToken);
 
             contactId = contact.Id;
@@ -337,7 +347,8 @@ public class WizardService : IWizardService
                 IsActive = true,
                 HouseholdTenantId = tenantId.Value,
                 UsesTenantAddress = true,
-                TenantId = tenantId.Value
+                TenantId = tenantId.Value,
+                ParentContactId = tenantHousehold?.Id
             };
 
             _context.Contacts.Add(contact);
@@ -555,6 +566,9 @@ public class WizardService : IWizardService
         tenant.Address.Country = info.Country;
 
         await _context.SaveChangesAsync(cancellationToken);
+
+        // Ensure tenant household contact group exists
+        await _contactService.EnsureTenantHouseholdAsync(info.Name + " Household", cancellationToken);
     }
 
     public async Task SaveHomeStatisticsAsync(HomeStatisticsDto stats, CancellationToken cancellationToken = default)

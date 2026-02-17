@@ -70,4 +70,13 @@ public class CreateContactRequest
     public bool UseGravatar { get; set; } = true;
 
     #endregion
+
+    #region Group Membership
+
+    /// <summary>
+    /// Parent group to add this contact to. Defaults to tenant household if null.
+    /// </summary>
+    public Guid? ParentContactId { get; set; }
+
+    #endregion
 }

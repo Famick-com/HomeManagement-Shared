@@ -53,6 +53,50 @@ public interface IContactService
 
     #endregion
 
+    #region Contact Groups
+
+    /// <summary>
+    /// Creates a new contact group (Household or Business)
+    /// </summary>
+    Task<ContactGroupSummaryDto> CreateGroupAsync(CreateContactGroupRequest request, CancellationToken ct = default);
+
+    /// <summary>
+    /// Gets a group by ID with members
+    /// </summary>
+    Task<ContactDto> GetGroupByIdAsync(Guid id, CancellationToken ct = default);
+
+    /// <summary>
+    /// Lists contact groups with filtering and pagination
+    /// </summary>
+    Task<PagedResult<ContactGroupSummaryDto>> ListGroupsAsync(ContactFilterRequest filter, CancellationToken ct = default);
+
+    /// <summary>
+    /// Updates an existing contact group
+    /// </summary>
+    Task UpdateGroupAsync(Guid id, UpdateContactGroupRequest request, CancellationToken ct = default);
+
+    /// <summary>
+    /// Deletes a contact group (moves members to tenant household)
+    /// </summary>
+    Task DeleteGroupAsync(Guid id, CancellationToken ct = default);
+
+    /// <summary>
+    /// Moves a contact to a different group
+    /// </summary>
+    Task MoveContactToGroupAsync(Guid contactId, Guid targetGroupId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Gets the tenant's household group
+    /// </summary>
+    Task<ContactDto> GetTenantHouseholdAsync(CancellationToken ct = default);
+
+    /// <summary>
+    /// Ensures a tenant household group exists, creating one if necessary
+    /// </summary>
+    Task<ContactDto> EnsureTenantHouseholdAsync(string householdName, CancellationToken ct = default);
+
+    #endregion
+
     #region Address Management
 
     /// <summary>

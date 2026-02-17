@@ -43,6 +43,37 @@ public class Contact : BaseTenantEntity
 
     public string? Notes { get; set; }
 
+    // Contact Group hierarchy
+    /// <summary>
+    /// Type of contact group (Household or Business). Set on group contacts, null on members.
+    /// </summary>
+    public ContactType? ContactType { get; set; }
+
+    /// <summary>
+    /// Parent group contact ID. Null = this is a group contact, set = this is a member.
+    /// </summary>
+    public Guid? ParentContactId { get; set; }
+
+    /// <summary>
+    /// Marks the special tenant household group (one per tenant)
+    /// </summary>
+    public bool IsTenantHousehold { get; set; }
+
+    /// <summary>
+    /// When true, this member uses the parent group's address
+    /// </summary>
+    public bool UsesGroupAddress { get; set; }
+
+    /// <summary>
+    /// Website URL (Business groups only)
+    /// </summary>
+    public string? Website { get; set; }
+
+    /// <summary>
+    /// Business category (Business groups only)
+    /// </summary>
+    public string? BusinessCategory { get; set; }
+
     /// <summary>
     /// Reference to another tenant if this contact belongs to a different household
     /// </summary>
@@ -71,6 +102,8 @@ public class Contact : BaseTenantEntity
     public bool IsActive { get; set; } = true;
 
     // Navigation properties
+    public virtual Contact? ParentContact { get; set; }
+    public virtual ICollection<Contact> Members { get; set; } = new List<Contact>();
     public virtual User? LinkedUser { get; set; }
     public virtual User CreatedByUser { get; set; } = null!;
     public virtual ICollection<ContactAddress> Addresses { get; set; } = new List<ContactAddress>();
@@ -82,6 +115,11 @@ public class Contact : BaseTenantEntity
     public virtual ICollection<ContactTagLink> Tags { get; set; } = new List<ContactTagLink>();
     public virtual ICollection<ContactUserShare> SharedWithUsers { get; set; } = new List<ContactUserShare>();
     public virtual ICollection<ContactAuditLog> AuditLogs { get; set; } = new List<ContactAuditLog>();
+
+    /// <summary>
+    /// Whether this contact is a group (has no parent)
+    /// </summary>
+    public bool IsGroup => ParentContactId == null;
 
     /// <summary>
     /// Gets the display name for this contact.
