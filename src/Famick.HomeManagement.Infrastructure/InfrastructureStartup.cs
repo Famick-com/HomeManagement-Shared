@@ -123,6 +123,8 @@ public static class InfrastructureStartup
         }
         services.AddScoped<IPasskeyService, PasskeyService>();
 
+        services.AddScoped<IAddressService, AddressService>();
+
         // Configure Geoapify address normalization service
         services.Configure<GeoapifyOptions>(configuration.GetSection(GeoapifyOptions.SectionName));
         services.AddHttpClient<IAddressNormalizationService, GeoapifyAddressService>();

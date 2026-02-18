@@ -15,17 +15,39 @@ namespace Famick.HomeManagement.Web.Shared.Controllers.v1;
 public class AddressController : ApiControllerBase
 {
     private readonly IAddressNormalizationService _addressService;
+    private readonly IAddressService _addressSearchService;
     private readonly IValidator<NormalizeAddressRequest> _normalizeValidator;
 
     public AddressController(
         IAddressNormalizationService addressService,
+        IAddressService addressSearchService,
         IValidator<NormalizeAddressRequest> normalizeValidator,
         ITenantProvider tenantProvider,
         ILogger<AddressController> logger)
         : base(tenantProvider, logger)
     {
         _addressService = addressService;
+        _addressSearchService = addressSearchService;
         _normalizeValidator = normalizeValidator;
+    }
+
+    /// <summary>
+    /// Searches existing addresses within the current tenant
+    /// </summary>
+    [HttpGet("search")]
+    [ProducesResponseType(typeof(List<AddressDto>), 200)]
+    [ProducesResponseType(401)]
+    public async Task<IActionResult> Search(
+        [FromQuery] string query = "",
+        [FromQuery] int limit = 10,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(query) || query.Trim().Length < 2)
+            return ApiResponse(new List<AddressDto>());
+
+        limit = Math.Clamp(limit, 1, 25);
+        var results = await _addressSearchService.SearchAsync(query, limit, cancellationToken);
+        return ApiResponse(results);
     }
 
     /// <summary>

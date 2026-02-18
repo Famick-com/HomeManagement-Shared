@@ -1730,7 +1730,11 @@
     "matchType.city": "City",
     "matchType.county": "County",
     "matchType.state": "State/Province",
-    "matchType.country": "Country"
+    "matchType.country": "Country",
+    "search": "Search existing addresses...",
+    "noSearchResults": "No matching addresses found. Enter a new address below.",
+    "selectedExisting": "Using existing address",
+    "clearSelection": "Enter different address"
   },
 
   "roles": {

@@ -122,21 +122,40 @@ else
                     }
                 </MudSelect>
 
-                <AddressForm Address="@_formAddress" ReadOnly="false" />
+                @if (_selectedAddressId.HasValue)
+                {
+                    <MudAlert Severity="Severity.Info" Dense="true" Class="my-0">
+                        <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween">
+                            <MudText Typo="Typo.body2">@L["address.selectedExisting"]</MudText>
+                            <MudButton Size="Size.Small" Variant="Variant.Text" Color="Color.Primary" OnClick="ClearAutocompleteSelection">
+                                @L["address.clearSelection"]
+                            </MudButton>
+                        </MudStack>
+                    </MudAlert>
+                }
 
-                <MudStack Row="true" Justify="Justify.FlexEnd" Class="mt-2">
-                    <MudButton Variant="Variant.Outlined"
-                               Color="Color.Secondary"
-                               StartIcon="@Icons.Material.Filled.LocationOn"
-                               OnClick="NormalizeAddress"
-                               Disabled="@(_isNormalizing || !_formAddress.HasContent)">
-                        @if (_isNormalizing)
-                        {
-                            <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
-                        }
-                        @L["address.normalize"]
-                    </MudButton>
-                </MudStack>
+                <AddressForm @ref="_addressForm"
+                             Address="@_formAddress"
+                             ReadOnly="@(_selectedAddressId.HasValue)"
+                             EnableSearch="@(!_editingAddressId.HasValue)"
+                             OnExistingAddressSelected="HandleExistingAddressSelected" />
+
+                @if (!_selectedAddressId.HasValue)
+                {
+                    <MudStack Row="true" Justify="Justify.FlexEnd" Class="mt-2">
+                        <MudButton Variant="Variant.Outlined"
+                                   Color="Color.Secondary"
+                                   StartIcon="@Icons.Material.Filled.LocationOn"
+                                   OnClick="NormalizeAddress"
+                                   Disabled="@(_isNormalizing || !_formAddress.HasContent)">
+                            @if (_isNormalizing)
+                            {
+                                <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                            }
+                            @L["address.normalize"]
+                        </MudButton>
+                    </MudStack>
+                }
 
                 <MudCheckBox @bind-Value="_formIsPrimary"
                              Label="@L["contacts.addresses.makePrimary"]"
@@ -184,6 +203,8 @@ else
     private List<NormalizedAddressResult>? _addressSuggestions;
     private bool _pendingSave;
     private Guid? _editingAddressId;
+    private Guid? _selectedAddressId;
+    private AddressForm? _addressForm;
 
     protected override async Task OnInitializedAsync()
     {
@@ -214,6 +235,7 @@ else
     private void OpenAddDialog()
     {
         _editingAddressId = null;
+        _selectedAddressId = null;
         _formTag = AddressTag.Home;
         _formAddress = new AddressForm.AddressEditModel();
         _formIsPrimary = _addresses.Count == 0;
@@ -258,7 +280,8 @@ else
         }
 
         // If address has content and hasn't been normalized yet, normalize first
-        if (_formAddress.HasContent && !_formAddress.Latitude.HasValue)
+        // Skip normalization when reusing an existing address
+        if (!_selectedAddressId.HasValue && _formAddress.HasContent && !_formAddress.Latitude.HasValue)
         {
             _pendingSave = true;
             await NormalizeAddress();
@@ -275,6 +298,7 @@ else
         {
             var request = new AddContactAddressRequest
             {
+                AddressId = _selectedAddressId,
                 Tag = _formTag,
                 IsPrimary = _formIsPrimary,
                 AddressLine1 = _formAddress.AddressLine1,
@@ -447,6 +471,26 @@ else
         {
             _pendingSave = false;
         }
+    }
+
+    private void HandleExistingAddressSelected(AddressDto? address)
+    {
+        if (address != null)
+        {
+            _selectedAddressId = address.Id;
+            // Fields are already populated by AddressForm
+        }
+        else
+        {
+            ClearAutocompleteSelection();
+        }
+    }
+
+    private void ClearAutocompleteSelection()
+    {
+        _selectedAddressId = null;
+        _formAddress = new AddressForm.AddressEditModel();
+        _addressForm?.ClearSelection();
     }
 
     private static Color GetTagColor(AddressTag tag) => tag switch
