@@ -455,6 +455,13 @@
                     return;
                 }
 
+                // Check if user must accept terms before accessing the app (cloud only)
+                if (result.Data?.MustAcceptTerms == true)
+                {
+                    Navigation.NavigateTo("/accept-terms");
+                    return;
+                }
+
                 var returnUrl = string.IsNullOrEmpty(ReturnUrl) ? "/" : ReturnUrl;
                 Navigation.NavigateTo(returnUrl);
             }
@@ -499,6 +506,13 @@
         if (response.MustChangePassword)
         {
             Navigation.NavigateTo("/force-change-password");
+            return;
+        }
+
+        // Check if user must accept terms before accessing the app (cloud only)
+        if (response.MustAcceptTerms)
+        {
+            Navigation.NavigateTo("/accept-terms");
             return;
         }
 

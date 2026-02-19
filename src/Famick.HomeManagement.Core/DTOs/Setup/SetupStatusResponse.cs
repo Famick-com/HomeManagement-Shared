@@ -14,4 +14,10 @@ public class SetupStatusResponse
     /// The reason setup is required (e.g., "no_users")
     /// </summary>
     public string? Reason { get; set; }
+
+    /// <summary>
+    /// Whether the registration page should show a legal consent checkbox.
+    /// True for cloud, false for self-hosted.
+    /// </summary>
+    public bool RequireLegalConsent { get; set; }
 }

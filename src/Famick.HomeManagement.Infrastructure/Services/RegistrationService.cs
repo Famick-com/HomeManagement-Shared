@@ -260,6 +260,7 @@ public class RegistrationService : IRegistrationService
         _context.Tenants.Add(tenant);
 
         // Create user
+        var currentTermsVersion = _configuration["LegalTerms:CurrentVersion"];
         var user = new User
         {
             Id = Guid.NewGuid(),
@@ -272,6 +273,10 @@ public class RegistrationService : IRegistrationService
                 ? string.Empty // OAuth user - no password
                 : _passwordHasher.HashPassword(request.Password),
             IsActive = true,
+            // Record terms acceptance at registration (cloud flow)
+            TermsAcceptedAt = !string.IsNullOrEmpty(currentTermsVersion) ? DateTime.UtcNow : null,
+            TermsVersion = currentTermsVersion,
+            TermsAcceptedIpAddress = !string.IsNullOrEmpty(currentTermsVersion) ? ipAddress : null,
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow
         };

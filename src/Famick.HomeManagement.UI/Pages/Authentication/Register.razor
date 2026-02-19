@@ -100,6 +100,23 @@
                                   Disabled="@_isLoading"
                                   Class="mb-4" />
 
+                    @if (_requireLegalConsent)
+                    {
+                        <MudCheckBox @bind-Value="_termsAccepted"
+                                     Color="Color.Primary"
+                                     Disabled="@_isLoading"
+                                     Required="true"
+                                     RequiredError="You must accept the Terms of Service and Privacy Policy"
+                                     Class="mb-4">
+                            <MudText Typo="Typo.body2">
+                                I agree to the
+                                <MudLink Href="https://famick.com/terms" Target="_blank" Typo="Typo.body2">Terms of Service</MudLink>
+                                and
+                                <MudLink Href="https://famick.com/privacy" Target="_blank" Typo="Typo.body2">Privacy Policy</MudLink>
+                            </MudText>
+                        </MudCheckBox>
+                    }
+
                     @if (!string.IsNullOrEmpty(_errorMessage))
                     {
                         <MudAlert Severity="Severity.Error" Class="mb-4">@_errorMessage</MudAlert>
@@ -133,6 +150,8 @@
     private bool _isLoading;
     private bool _isCheckingSetup = true;
     private bool _registrationDisabled;
+    private bool _requireLegalConsent;
+    private bool _termsAccepted;
     private bool _showPassword;
     private bool _showConfirmPassword;
     private string _firstName = string.Empty;
@@ -156,6 +175,7 @@
             {
                 // If setup is not required, registration is disabled
                 _registrationDisabled = !result.Data.SetupRequired;
+                _requireLegalConsent = result.Data.RequireLegalConsent;
             }
         }
         catch

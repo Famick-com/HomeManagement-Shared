@@ -18,6 +18,21 @@ public class User : BaseEntity, ITenantEntity
     public DateTime? LastLoginAt { get; set; }
 
     /// <summary>
+    /// When the user accepted the Terms of Service and Privacy Policy (null = not yet accepted)
+    /// </summary>
+    public DateTime? TermsAcceptedAt { get; set; }
+
+    /// <summary>
+    /// Version of the terms the user accepted (matches effective date, e.g. "2026-02-19")
+    /// </summary>
+    public string? TermsVersion { get; set; }
+
+    /// <summary>
+    /// IP address from which terms were accepted
+    /// </summary>
+    public string? TermsAcceptedIpAddress { get; set; }
+
+    /// <summary>
     /// User's preferred language code (e.g., "en", "es", "fr")
     /// </summary>
     public string? PreferredLanguage { get; set; }

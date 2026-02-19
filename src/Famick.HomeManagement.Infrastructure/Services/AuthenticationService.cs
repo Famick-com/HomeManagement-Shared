@@ -6,6 +6,7 @@ using Famick.HomeManagement.Core.Exceptions;
 using Famick.HomeManagement.Core.Interfaces;
 using Famick.HomeManagement.Domain.Entities;
 using Famick.HomeManagement.Domain.Enums;
+using Famick.HomeManagement.Infrastructure.Configuration;
 using Famick.HomeManagement.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -24,6 +25,7 @@ public class AuthenticationService : IAuthenticationService
     private readonly IMapper _mapper;
     private readonly IConfiguration _configuration;
     private readonly IContactService _contactService;
+    private readonly IMultiTenancyOptions _multiTenancyOptions;
     private readonly ILogger<AuthenticationService> _logger;
 
     public AuthenticationService(
@@ -33,7 +35,8 @@ public class AuthenticationService : IAuthenticationService
         IMapper mapper,
         IConfiguration configuration,
         IContactService contactService,
-        ILogger<AuthenticationService> logger)
+        ILogger<AuthenticationService> logger,
+        IMultiTenancyOptions? multiTenancyOptions = null)
     {
         _context = context;
         _passwordHasher = passwordHasher;
@@ -41,6 +44,7 @@ public class AuthenticationService : IAuthenticationService
         _mapper = mapper;
         _configuration = configuration;
         _contactService = contactService;
+        _multiTenancyOptions = multiTenancyOptions ?? new MultiTenancyOptions { IsMultiTenantEnabled = true };
         _logger = logger;
     }
 
@@ -185,8 +189,19 @@ public class AuthenticationService : IAuthenticationService
             .Select(ur => ur.Role)
             .ToList();
 
+        // Check if user must accept terms (cloud only)
+        var mustAcceptTerms = false;
+        if (_multiTenancyOptions.IsMultiTenantEnabled)
+        {
+            var currentVersion = _configuration["LegalTerms:CurrentVersion"];
+            if (!string.IsNullOrEmpty(currentVersion))
+            {
+                mustAcceptTerms = user.TermsAcceptedAt == null || user.TermsVersion != currentVersion;
+            }
+        }
+
         // Generate access token
-        var accessToken = _tokenService.GenerateAccessToken(user, permissions, roles);
+        var accessToken = _tokenService.GenerateAccessToken(user, permissions, roles, mustAcceptTerms);
         var accessTokenExpiration = _tokenService.GetTokenExpiration();
 
         // Generate refresh token
@@ -233,6 +248,7 @@ public class AuthenticationService : IAuthenticationService
             RefreshToken = refreshTokenString,
             ExpiresAt = accessTokenExpiration,
             MustChangePassword = user.MustChangePassword,
+            MustAcceptTerms = mustAcceptTerms,
             User = userDto
             // Tenant = tenantDto // Removed - cloud-specific
         };
@@ -291,8 +307,19 @@ public class AuthenticationService : IAuthenticationService
             .Select(ur => ur.Role)
             .ToList();
 
+        // Check if user must accept terms (cloud only)
+        var mustAcceptTerms = false;
+        if (_multiTenancyOptions.IsMultiTenantEnabled)
+        {
+            var currentVersion = _configuration["LegalTerms:CurrentVersion"];
+            if (!string.IsNullOrEmpty(currentVersion))
+            {
+                mustAcceptTerms = refreshToken.User.TermsAcceptedAt == null || refreshToken.User.TermsVersion != currentVersion;
+            }
+        }
+
         // Generate new access token
-        var newAccessToken = _tokenService.GenerateAccessToken(refreshToken.User, permissions, roles);
+        var newAccessToken = _tokenService.GenerateAccessToken(refreshToken.User, permissions, roles, mustAcceptTerms);
         var newAccessTokenExpiration = _tokenService.GetTokenExpiration();
 
         // Generate new refresh token (rotation)

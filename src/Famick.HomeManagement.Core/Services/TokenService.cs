@@ -39,7 +39,7 @@ public class TokenService : ITokenService
     }
 
     /// <inheritdoc />
-    public string GenerateAccessToken(User user, IEnumerable<string> permissions, IEnumerable<Role>? roles = null)
+    public string GenerateAccessToken(User user, IEnumerable<string> permissions, IEnumerable<Role>? roles = null, bool mustAcceptTerms = false)
     {
         if (user == null)
         {
@@ -59,6 +59,12 @@ public class TokenService : ITokenService
         if (user.MustChangePassword)
         {
             claims.Add(new Claim("must_change_password", "true"));
+        }
+
+        // Add must_accept_terms claim if the user needs to accept terms (cloud only)
+        if (mustAcceptTerms)
+        {
+            claims.Add(new Claim("must_accept_terms", "true"));
         }
 
         // Add permissions as separate claims

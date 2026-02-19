@@ -1,5 +1,6 @@
 using Famick.HomeManagement.Core.DTOs.Setup;
 using Famick.HomeManagement.Core.Interfaces;
+using Famick.HomeManagement.Infrastructure.Configuration;
 using Famick.HomeManagement.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -12,13 +13,16 @@ namespace Famick.HomeManagement.Infrastructure.Services;
 public class SetupService : ISetupService
 {
     private readonly HomeManagementDbContext _context;
+    private readonly IMultiTenancyOptions _multiTenancyOptions;
     private readonly ILogger<SetupService> _logger;
 
     public SetupService(
         HomeManagementDbContext context,
-        ILogger<SetupService> logger)
+        ILogger<SetupService> logger,
+        IMultiTenancyOptions? multiTenancyOptions = null)
     {
         _context = context;
+        _multiTenancyOptions = multiTenancyOptions ?? new MultiTenancyOptions { IsMultiTenantEnabled = true };
         _logger = logger;
     }
 
@@ -33,14 +37,16 @@ public class SetupService : ISetupService
             return new SetupStatusResponse
             {
                 SetupRequired = true,
-                Reason = "no_users"
+                Reason = "no_users",
+                RequireLegalConsent = _multiTenancyOptions.IsMultiTenantEnabled
             };
         }
 
         return new SetupStatusResponse
         {
             SetupRequired = false,
-            Reason = null
+            Reason = null,
+            RequireLegalConsent = _multiTenancyOptions.IsMultiTenantEnabled
         };
     }
 

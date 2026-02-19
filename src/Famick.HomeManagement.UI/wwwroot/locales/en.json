@@ -144,6 +144,17 @@
       "message": "Your administrator requires you to change your password before continuing.",
       "submit": "Change Password",
       "success": "Password changed successfully. Signing you in..."
+    },
+    "acceptTerms": {
+      "title": "Terms of Service",
+      "message": "Please review and accept our Terms of Service and Privacy Policy to continue using Famick.",
+      "termsLink": "Terms of Service",
+      "privacyLink": "Privacy Policy",
+      "checkboxLabel": "I have read and agree to the Terms of Service and Privacy Policy",
+      "checkboxRequired": "You must accept the Terms of Service and Privacy Policy",
+      "submit": "Accept & Continue",
+      "accepting": "Accepting...",
+      "error": "Failed to accept terms. Please try again."
     }
   },
 

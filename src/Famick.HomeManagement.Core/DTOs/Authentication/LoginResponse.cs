@@ -26,6 +26,12 @@ public class LoginResponse
     public bool MustChangePassword { get; set; }
 
     /// <summary>
+    /// Indicates the user must accept Terms of Service and Privacy Policy before accessing the app.
+    /// Only applies to cloud deployments.
+    /// </summary>
+    public bool MustAcceptTerms { get; set; }
+
+    /// <summary>
     /// Authenticated user information
     /// </summary>
     public UserDto User { get; set; } = null!;

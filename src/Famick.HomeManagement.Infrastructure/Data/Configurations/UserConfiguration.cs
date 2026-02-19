@@ -51,6 +51,13 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
             .IsRequired()
             .HasDefaultValueSql("CURRENT_TIMESTAMP");
 
+        // Terms acceptance (cloud legal consent)
+        builder.Property(u => u.TermsVersion)
+            .HasMaxLength(50);
+
+        builder.Property(u => u.TermsAcceptedIpAddress)
+            .HasMaxLength(45);
+
         // Navigation
 //         builder.HasOne(u => u.Tenant)
 //             .WithMany(t => t.Users)

@@ -15,7 +15,7 @@ public interface ITokenService
     /// <param name="permissions">The user's permissions to include in the token claims</param>
     /// <param name="roles">The user's roles to include in the token claims</param>
     /// <returns>The signed JWT token string</returns>
-    string GenerateAccessToken(User user, IEnumerable<string> permissions, IEnumerable<Role>? roles = null);
+    string GenerateAccessToken(User user, IEnumerable<string> permissions, IEnumerable<Role>? roles = null, bool mustAcceptTerms = false);
 
     /// <summary>
     /// Generates a cryptographically secure random refresh token

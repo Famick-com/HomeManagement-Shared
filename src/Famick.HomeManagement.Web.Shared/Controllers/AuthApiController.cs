@@ -3,9 +3,12 @@ using Famick.HomeManagement.Core.Configuration;
 using Famick.HomeManagement.Core.DTOs.Authentication;
 using Famick.HomeManagement.Core.Exceptions;
 using Famick.HomeManagement.Core.Interfaces;
+using Famick.HomeManagement.Infrastructure.Data;
 using FluentValidation;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Options;
 
 namespace Famick.HomeManagement.Web.Shared.Controllers;
@@ -21,6 +24,9 @@ public class AuthApiController : ControllerBase
     private readonly ISetupService _setupService;
     private readonly IPasswordResetService _passwordResetService;
     private readonly IRegistrationService _registrationService;
+    private readonly ITokenService _tokenService;
+    private readonly HomeManagementDbContext _context;
+    private readonly IConfiguration _configuration;
     private readonly IValidator<LoginRequest> _loginValidator;
     private readonly IValidator<ForgotPasswordRequest> _forgotPasswordValidator;
     private readonly IValidator<ResetPasswordRequest> _resetPasswordValidator;
@@ -32,6 +38,9 @@ public class AuthApiController : ControllerBase
         ISetupService setupService,
         IPasswordResetService passwordResetService,
         IRegistrationService registrationService,
+        ITokenService tokenService,
+        HomeManagementDbContext context,
+        IConfiguration configuration,
         IValidator<LoginRequest> loginValidator,
         IValidator<ForgotPasswordRequest> forgotPasswordValidator,
         IValidator<ResetPasswordRequest> resetPasswordValidator,
@@ -42,6 +51,9 @@ public class AuthApiController : ControllerBase
         _setupService = setupService;
         _passwordResetService = passwordResetService;
         _registrationService = registrationService;
+        _tokenService = tokenService;
+        _context = context;
+        _configuration = configuration;
         _loginValidator = loginValidator;
         _forgotPasswordValidator = forgotPasswordValidator;
         _resetPasswordValidator = resetPasswordValidator;
@@ -555,6 +567,111 @@ public class AuthApiController : ControllerBase
     }
 
     /// <summary>
+    /// Accept Terms of Service and Privacy Policy (cloud only).
+    /// Records acceptance and returns fresh tokens without the must_accept_terms claim.
+    /// </summary>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>Login response with fresh tokens</returns>
+    [HttpPost("accept-terms")]
+    [Authorize]
+    [ProducesResponseType(typeof(LoginResponse), 200)]
+    [ProducesResponseType(401)]
+    [ProducesResponseType(500)]
+    public async Task<IActionResult> AcceptTerms(CancellationToken cancellationToken)
+    {
+        var userId = GetCurrentUserId();
+        if (userId == null)
+        {
+            return Unauthorized(new { error_message = "User ID not found in token" });
+        }
+
+        try
+        {
+            var user = await _context.Users
+                .IgnoreQueryFilters()
+                .Include(u => u.UserPermissions)
+                    .ThenInclude(up => up.Permission)
+                .Include(u => u.UserRoles)
+                .FirstOrDefaultAsync(u => u.Id == userId.Value, cancellationToken);
+
+            if (user == null)
+            {
+                return Unauthorized(new { error_message = "User not found" });
+            }
+
+            // Record terms acceptance
+            var currentVersion = _configuration["LegalTerms:CurrentVersion"] ?? "2026-02-19";
+            user.TermsAcceptedAt = DateTime.UtcNow;
+            user.TermsVersion = currentVersion;
+            user.TermsAcceptedIpAddress = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+            user.UpdatedAt = DateTime.UtcNow;
+
+            await _context.SaveChangesAsync(cancellationToken);
+
+            _logger.LogInformation("Terms accepted by user {UserId}, version {Version}", userId, currentVersion);
+
+            // Generate fresh tokens without must_accept_terms claim
+            var permissions = user.UserPermissions
+                .Select(up => up.Permission.Name)
+                .ToList();
+
+            var roles = user.UserRoles
+                .Select(ur => ur.Role)
+                .ToList();
+
+            var accessToken = _tokenService.GenerateAccessToken(user, permissions, roles, mustAcceptTerms: false);
+            var accessTokenExpiration = _tokenService.GetTokenExpiration();
+
+            var refreshTokenString = _tokenService.GenerateRefreshToken();
+
+            var ipAddress = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+            var deviceInfo = HttpContext.Request.Headers["User-Agent"].ToString();
+            var refreshTokenExpirationDays = _configuration.GetValue<int>("JwtSettings:RefreshTokenExpirationDays", 7);
+
+            var refreshToken = new Domain.Entities.RefreshToken
+            {
+                Id = Guid.NewGuid(),
+                UserId = user.Id,
+                TenantId = user.TenantId,
+                TokenHash = HashToken(refreshTokenString),
+                ExpiresAt = DateTime.UtcNow.AddDays(refreshTokenExpirationDays),
+                DeviceInfo = deviceInfo,
+                IpAddress = ipAddress,
+                RememberMe = false,
+                IsRevoked = false,
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
+            };
+
+            _context.RefreshTokens.Add(refreshToken);
+            await _context.SaveChangesAsync(cancellationToken);
+
+            return Ok(new LoginResponse
+            {
+                AccessToken = accessToken,
+                RefreshToken = refreshTokenString,
+                ExpiresAt = accessTokenExpiration,
+                MustChangePassword = user.MustChangePassword,
+                MustAcceptTerms = false,
+                User = new UserDto
+                {
+                    Id = user.Id,
+                    Email = user.Email,
+                    FirstName = user.FirstName,
+                    LastName = user.LastName,
+                    PreferredLanguage = user.PreferredLanguage,
+                    Permissions = permissions
+                }
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error accepting terms for user {UserId}", userId);
+            return StatusCode(500, new { error_message = "Failed to accept terms. Please try again." });
+        }
+    }
+
+    /// <summary>
     /// Gets the current user ID from the JWT claims
     /// </summary>
     private Guid? GetCurrentUserId()
@@ -563,5 +680,14 @@ public class AuthApiController : ControllerBase
                        ?? User.FindFirst("sub")?.Value;
 
         return Guid.TryParse(userIdClaim, out var userId) ? userId : null;
+    }
+
+    /// <summary>
+    /// Hashes a token using SHA256 for secure storage
+    /// </summary>
+    private static string HashToken(string token)
+    {
+        var bytes = System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(token));
+        return Convert.ToBase64String(bytes);
     }
 }
