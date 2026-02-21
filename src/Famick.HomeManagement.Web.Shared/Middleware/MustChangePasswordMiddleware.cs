@@ -15,6 +15,7 @@ public class MustChangePasswordMiddleware
     private static readonly HashSet<string> AllowedPaths = new(StringComparer.OrdinalIgnoreCase)
     {
         "/api/v1/profile/change-password",
+        "/api/auth/accept-terms",
         "/api/auth/logout",
         "/api/auth/logout-all",
         "/api/v1/profile",
