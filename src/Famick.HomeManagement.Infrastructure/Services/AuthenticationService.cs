@@ -75,6 +75,7 @@ public class AuthenticationService : IAuthenticationService
         var tenantId = Guid.Parse(tenantIdString);
 
         // Create new user
+        var currentTermsVersion = _configuration["LegalTerms:CurrentVersion"];
         var user = new User
         {
             Id = Guid.NewGuid(),
@@ -85,6 +86,9 @@ public class AuthenticationService : IAuthenticationService
             LastName = request.LastName.Trim(),
             PasswordHash = _passwordHasher.HashPassword(request.Password),
             IsActive = true,
+            TermsAcceptedAt = !string.IsNullOrEmpty(currentTermsVersion) ? DateTime.UtcNow : null,
+            TermsVersion = currentTermsVersion,
+            TermsAcceptedIpAddress = !string.IsNullOrEmpty(currentTermsVersion) ? ipAddress : null,
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow
         };
