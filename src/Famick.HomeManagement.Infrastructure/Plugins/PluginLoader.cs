@@ -1,6 +1,7 @@
 using System.Reflection;
 using System.Text.Json;
 using Famick.HomeManagement.Core.Interfaces.Plugins;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
@@ -15,6 +16,7 @@ public class PluginLoader : IPluginLoader
     private readonly ILogger<PluginLoader> _logger;
     private readonly PluginLoaderOptions _options;
     private readonly IServiceProvider _serviceProvider;
+    private readonly IConfiguration _configuration;
     private readonly Dictionary<string, IPlugin> _builtinPlugins;
     private List<IPlugin> _plugins = new();
     private List<PluginConfigEntry> _configurations = new();
@@ -23,11 +25,13 @@ public class PluginLoader : IPluginLoader
         ILogger<PluginLoader> logger,
         IOptions<PluginLoaderOptions> options,
         IServiceProvider serviceProvider,
+        IConfiguration configuration,
         IEnumerable<IPlugin> builtinPlugins)
     {
         _logger = logger;
         _options = options.Value;
         _serviceProvider = serviceProvider;
+        _configuration = configuration;
         _builtinPlugins = builtinPlugins.ToDictionary(p => p.PluginId, p => p);
     }
 
@@ -137,8 +141,9 @@ public class PluginLoader : IPluginLoader
                 };
                 _configurations.Add(entry);
 
-                // Initialize plugin with no config (uses defaults)
-                await plugin.InitAsync(null, ct);
+                // Initialize plugin with config overrides from environment variables
+                var mergedConfig = MergeConfigurationOverrides(pluginId, null);
+                await plugin.InitAsync(mergedConfig, ct);
                 _plugins.Add(plugin);
 
                 _logger.LogInformation("Auto-loaded built-in plugin {PluginId} ({DisplayName}) v{Version}",
@@ -210,8 +215,9 @@ public class PluginLoader : IPluginLoader
                 if (plugin == null) return null;
             }
 
-            // Initialize the plugin with its configuration
-            await plugin.InitAsync(entry.Config, ct);
+            // Initialize the plugin with its configuration, merged with env var overrides
+            var mergedConfig = MergeConfigurationOverrides(entry.Id, entry.Config);
+            await plugin.InitAsync(mergedConfig, ct);
             return plugin;
         }
         catch (Exception ex)
@@ -219,6 +225,48 @@ public class PluginLoader : IPluginLoader
             _logger.LogError(ex, "Failed to load plugin {PluginId}", entry.Id);
             return null;
         }
+    }
+
+    /// <summary>
+    /// Merge IConfiguration overrides (e.g. from environment variables) into the file-based plugin config.
+    /// Convention: env var Plugins__kroger__clientSecret → IConfiguration key Plugins:kroger:clientSecret
+    /// </summary>
+    private JsonElement? MergeConfigurationOverrides(string pluginId, JsonElement? fileConfig)
+    {
+        var section = _configuration.GetSection($"Plugins:{pluginId}");
+        var overrides = section.GetChildren().ToList();
+
+        if (overrides.Count == 0)
+        {
+            return fileConfig;
+        }
+
+        // Start with existing config values or empty dictionary
+        var configDict = new Dictionary<string, object>();
+
+        if (fileConfig.HasValue && fileConfig.Value.ValueKind == JsonValueKind.Object)
+        {
+            foreach (var property in fileConfig.Value.EnumerateObject())
+            {
+                configDict[property.Name] = property.Value.Clone();
+            }
+        }
+
+        // Overlay IConfiguration values (env vars take precedence)
+        foreach (var child in overrides)
+        {
+            if (child.Value != null)
+            {
+                configDict[child.Key] = child.Value;
+                _logger.LogDebug("Plugin {PluginId}: overriding config key '{Key}' from environment",
+                    pluginId, child.Key);
+            }
+        }
+
+        // Re-serialize to JsonElement
+        var json = JsonSerializer.Serialize(configDict);
+        using var doc = JsonDocument.Parse(json);
+        return doc.RootElement.Clone();
     }
 
     private IPlugin? LoadExternalPlugin(PluginConfigEntry entry)
