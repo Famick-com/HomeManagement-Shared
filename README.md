@@ -1,5 +1,5 @@
-# Famick.HomeManagement.Shared
+# ARCHIVED - Famick.HomeManagement.Shared
 
-Shared libraries and core business logic for Famick HomeManagement - a household management system
+> **This repository has been archived.** The project has moved to [Famick-com/FamickHomeManagement](https://github.com/Famick-com/FamickHomeManagement).
 
-This repository is a companion to the [Famick-Self-Hosted](https://github.com/Famick-com/Famick-Self-Hosted) repository.
+All shared libraries, domain entities, services, API controllers, and UI components are now in the `src/` directory of the consolidated repository.
